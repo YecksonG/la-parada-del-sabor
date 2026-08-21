@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import TopbarNav from "@/components/topbar-nav";
 import PageTransition from "@/components/page-transition";
+import AutoTasas from "@/components/auto-tasas";
 
 export default async function AppLayout({
   children,
@@ -26,6 +27,7 @@ export default async function AppLayout({
 
   return (
     <div className="app-shell">
+      <AutoTasas />
       <TopbarNav nombre={nombre} bcvTasa={bcvTasa} />
       <PageTransition>{children}</PageTransition>
     </div>

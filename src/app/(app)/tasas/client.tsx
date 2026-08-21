@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TasaCambio } from "@/types/database";
-import { guardarTasasCompletas, autoSincronizarTasas } from "./actions";
+import { autoSincronizarTasas } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 
 interface TasasClientProps {
@@ -19,12 +19,11 @@ export default function TasasClient({ tasas }: TasasClientProps) {
     fecha: new Date().toISOString().split("T")[0],
   };
 
-  // Form states de las 4 tasas exactas de Dabajuro
-  const [bcv, setBcv] = useState<number>(Number(tasaActual.bcv_usd_bs) || 65.50);
-  const [usdt, setUsdt] = useState<number>(Number(tasaActual.usdt_bs) || 72.80);
-  const [eur, setEur] = useState<number>(Number(tasaActual.eur_bs) || 70.80);
-  const [promedio, setPromedio] = useState<number>(Number(tasaActual.promedio_bs) || 69.15);
-  const [guardando, setGuardando] = useState(false);
+  const bcv = Number(tasaActual.bcv_usd_bs) || 65.50;
+  const usdt = Number(tasaActual.usdt_bs) || 72.80;
+  const eur = Number(tasaActual.eur_bs) || 70.80;
+  const promedio = Number(tasaActual.promedio_bs) || 69.15;
+
   const [sincronizando, setSincronizando] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
 
@@ -134,41 +133,20 @@ export default function TasasClient({ tasas }: TasasClientProps) {
 
     if (res.ok) {
       sounds.playCashRegister();
-      alert("✅ Tasas sincronizadas automáticamente con bcv.today y dolarflow.");
+      alert("✅ Tasas sincronizadas automáticamente desde bcv.today y dolarflow.");
     } else {
-      alert(res.error || "No se pudo sincronizar automáticamente.");
-    }
-  };
-
-  const handleGuardarManual = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (bcv <= 0 || guardando) return;
-
-    setGuardando(true);
-    const res = await guardarTasasCompletas({
-      bcv_usd_bs: bcv,
-      usdt_bs: usdt,
-      eur_bs: eur,
-      promedio_bs: promedio,
-    });
-    setGuardando(false);
-
-    if (res.ok) {
-      sounds.playCashRegister();
-      alert("✅ Las 4 tasas (BCV, USDT, EUR, Promedio) fueron actualizadas con éxito.");
-    } else {
-      alert(res.error || "Error al actualizar las tasas.");
+      alert(res.error || "No se pudo conectar con las APIs de tasas.");
     }
   };
 
   return (
     <main className="recetas-container">
-      {/* Header */}
+      {/* Header con botón de sincronización automática */}
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">💵 Tasas de Cambio & Calculadora Multimoneda</h1>
+          <h1 className="recetas-title">💵 Tasas de Cambio Automáticas</h1>
           <p className="recetas-subtitle">
-            Orden oficial de Radiadores Dabajuro: <strong>BCV, USDT, EUR, Promedio</strong> con calculadora física de cobro.
+            Sincronización 100% automática desde <strong>bcv.today</strong> y <strong>dolarflow.com</strong> (BCV, USDT, EUR, Promedio).
           </p>
         </div>
         <button
@@ -177,7 +155,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
           onClick={handleAutoSincronizar}
           className="btn-primary-action"
         >
-          <span>🔄</span> {sincronizando ? "Sincronizando..." : "Sincronizar APIs Oficiales"}
+          <span>🔄</span> {sincronizando ? "Sincronizando..." : "Sincronizar APIs Ahora"}
         </button>
       </div>
 
@@ -189,7 +167,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
             <span className="tasa-date">{tasaActual.fecha}</span>
           </div>
           <div className="tasa-value-row">
-            <strong className="tasa-number">{Number(bcv).toFixed(2)}</strong>
+            <strong className="tasa-number">{bcv.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
           <span className="tasa-hint">Tasa oficial de facturación</span>
@@ -198,13 +176,13 @@ export default function TasasClient({ tasas }: TasasClientProps) {
         <div className="tasa-badge-card paralelo-border">
           <div className="tasa-card-top">
             <span className="tasa-pill-label paralelo-tag">🟡 USDT</span>
-            <span className="tasa-date">DolarFlow / P2P</span>
+            <span className="tasa-date">DolarFlow P2P</span>
           </div>
           <div className="tasa-value-row">
-            <strong className="tasa-number">{Number(usdt).toFixed(2)}</strong>
+            <strong className="tasa-number">{usdt.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
-          <span className="tasa-hint">Referencia reposición inventario</span>
+          <span className="tasa-hint">Referencia reposición</span>
         </div>
 
         <div className="tasa-badge-card cop-border" style={{ borderTopColor: "#6366f1" }}>
@@ -215,7 +193,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
             <span className="tasa-date">Oficial BCV</span>
           </div>
           <div className="tasa-value-row">
-            <strong className="tasa-number">{Number(eur).toFixed(2)}</strong>
+            <strong className="tasa-number">{eur.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / €</span>
           </div>
           <span className="tasa-hint">Divisa europea oficial</span>
@@ -229,7 +207,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
             <span className="tasa-date">(BCV + USDT) / 2</span>
           </div>
           <div className="tasa-value-row">
-            <strong className="tasa-number">{Number(promedio).toFixed(2)}</strong>
+            <strong className="tasa-number">{promedio.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
           <span className="tasa-hint">Media ponderada del día</span>
@@ -376,78 +354,45 @@ export default function TasasClient({ tasas }: TasasClientProps) {
           </div>
         </div>
 
-        {/* Formulario de Actualización Manual de las 4 Tasas */}
+        {/* Historial de Tasas Sincronizadas Automáticamente */}
         <div className="receta-card">
           <div className="receta-card-header">
-            <h3 className="receta-name">⚙️ Ajuste Manual de Tasas</h3>
+            <h3 className="receta-name">📋 Historial de Tasas Sincronizadas</h3>
+            <span className="badge-popular">🤖 100% Automático</span>
           </div>
 
-          <form onSubmit={handleGuardarManual} className="recipe-form">
-            <div className="form-grid-2">
-              <div className="form-field">
-                <label>1. 🟢 BCV oficial (Bs/$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={bcv}
-                  onChange={(e) => setBcv(parseFloat(e.target.value) || 0)}
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-field">
-                <label>2. 🟡 USDT / DolarFlow (Bs/$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={usdt}
-                  onChange={(e) => setUsdt(parseFloat(e.target.value) || 0)}
-                  className="form-input"
-                />
-              </div>
-            </div>
-
-            <div className="form-grid-2">
-              <div className="form-field">
-                <label>3. 🇪🇺 EUR / Euro BCV (Bs/€)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={eur}
-                  onChange={(e) => setEur(parseFloat(e.target.value) || 0)}
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-field">
-                <label>4. ⚡ Promedio (Bs/$)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={promedio}
-                  onChange={(e) => setPromedio(parseFloat(e.target.value) || 0)}
-                  className="form-input"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={guardando}
-              className="btn-submit-recipe"
-              style={{ marginTop: 8 }}
-            >
-              {guardando ? "Actualizando..." : "💾 Guardar Tasas"}
-            </button>
-          </form>
+          <div style={{ overflowX: "auto", marginTop: 8 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left", color: "var(--text-muted)" }}>
+                  <th style={{ padding: "8px 4px" }}>Fecha</th>
+                  <th style={{ padding: "8px 4px" }}>BCV</th>
+                  <th style={{ padding: "8px 4px" }}>USDT</th>
+                  <th style={{ padding: "8px 4px" }}>EUR</th>
+                  <th style={{ padding: "8px 4px" }}>Promedio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasas.map((t) => (
+                  <tr key={t.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <td style={{ padding: "10px 4px", fontWeight: 700 }}>📅 {t.fecha}</td>
+                    <td style={{ padding: "10px 4px", color: "var(--green)", fontWeight: 800 }}>
+                      Bs {Number(t.bcv_usd_bs || t.tasa_usd_bs).toFixed(2)}
+                    </td>
+                    <td style={{ padding: "10px 4px", color: "var(--primary-dark)", fontWeight: 800 }}>
+                      Bs {Number(t.usdt_bs || t.tasa_usd_bs).toFixed(2)}
+                    </td>
+                    <td style={{ padding: "10px 4px", color: "#6366f1", fontWeight: 800 }}>
+                      Bs {Number(t.eur_bs || 0).toFixed(2)}
+                    </td>
+                    <td style={{ padding: "10px 4px", fontWeight: 900 }}>
+                      Bs {Number(t.promedio_bs || t.tasa_usd_bs).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </main>
