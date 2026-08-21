@@ -91,14 +91,18 @@ CREATE TABLE IF NOT EXISTS public.proveedores (
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Tasas de Cambio
+-- Tasas de Cambio (Sincronizadas con BCV Oficial, Binance USDT, Euro y Promedio)
 CREATE TABLE IF NOT EXISTS public.tasas_cambio (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
     bcv_usd_bs NUMERIC(12, 4) NOT NULL CHECK (bcv_usd_bs > 0),
+    usdt_bs NUMERIC(12, 4) CHECK (usdt_bs > 0),
+    promedio_bs NUMERIC(12, 4) CHECK (promedio_bs > 0),
+    eur_bs NUMERIC(12, 4) CHECK (eur_bs > 0),
     tasa_usd_bs NUMERIC(12, 4) CHECK (tasa_usd_bs > 0),
     cop_usd NUMERIC(12, 2) CHECK (cop_usd > 0),
-    creado_el TIMESTAMPTZ DEFAULT NOW()
+    creado_el TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_tasas_fecha UNIQUE (fecha)
 );
 
 -- Compras
@@ -165,8 +169,32 @@ CREATE TABLE IF NOT EXISTS public.ventas_items_extras (
     subtotal_usd NUMERIC(10, 2) NOT NULL CHECK (subtotal_usd >= 0)
 );
 
+CREATE TABLE IF NOT EXISTS public.sesiones_caja (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    fecha_apertura TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    fecha_cierre TIMESTAMPTZ,
+    estado VARCHAR(20) NOT NULL DEFAULT 'abierta' CHECK (estado IN ('abierta', 'cerrada')),
+    monto_inicial_usd NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (monto_inicial_usd >= 0),
+    monto_inicial_bs NUMERIC(14, 2) NOT NULL DEFAULT 0 CHECK (monto_inicial_bs >= 0),
+    total_ventas_efectivo_usd NUMERIC(12, 2) DEFAULT 0,
+    total_ventas_pago_movil_bs NUMERIC(14, 2) DEFAULT 0,
+    total_ventas_transferencia_bs NUMERIC(14, 2) DEFAULT 0,
+    total_ventas_binance_usd NUMERIC(12, 2) DEFAULT 0,
+    total_ventas_punto_bs NUMERIC(14, 2) DEFAULT 0,
+    total_gastos_usd NUMERIC(12, 2) DEFAULT 0,
+    total_gastos_bs NUMERIC(14, 2) DEFAULT 0,
+    arqueo_fisico_efectivo_usd NUMERIC(12, 2),
+    arqueo_fisico_efectivo_bs NUMERIC(14, 2),
+    diferencia_usd NUMERIC(12, 2),
+    diferencia_bs NUMERIC(14, 2),
+    notas_cierre TEXT,
+    usuario_apertura VARCHAR(100),
+    usuario_cierre VARCHAR(100),
+    creado_el TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ==============================================================================
--- 2. ROW LEVEL SECURITY (RLS) & POLICIES
+-- 2. SEGURIDAD Y POLÍTICAS RLS (AUTHENTICATED)
 -- ==============================================================================
 
 ALTER TABLE public.categorias ENABLE ROW LEVEL SECURITY;
@@ -182,6 +210,7 @@ ALTER TABLE public.compras_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ventas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ventas_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ventas_items_extras ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.sesiones_caja ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "auth_categorias" ON public.categorias FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_insumos" ON public.insumos FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -196,6 +225,7 @@ CREATE POLICY "auth_compras_items" ON public.compras_items FOR ALL TO authentica
 CREATE POLICY "auth_ventas" ON public.ventas FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_ventas_items" ON public.ventas_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_ventas_extras" ON public.ventas_items_extras FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_sesiones_caja" ON public.sesiones_caja FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- ==============================================================================
 -- 3. TRIGGERS DE INVENTARIO Y RECONCILIACIÓN DE CANCELACIONES

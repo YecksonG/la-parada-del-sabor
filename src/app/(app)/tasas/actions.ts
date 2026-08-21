@@ -15,16 +15,15 @@ export async function guardarTasasCompletas(payload: GuardarTasasPayload) {
   const supabase = await createClient();
   const hoy = new Date().toISOString().split("T")[0];
 
+  // Upsert estricto con las columnas reales de la base de datos
   const { error } = await supabase.from("tasas_cambio").upsert(
     {
       fecha: hoy,
       bcv_usd_bs: payload.bcv_usd_bs,
-      tasa_usd_bs: payload.bcv_usd_bs,
       usdt_bs: payload.usdt_bs,
       promedio_bs: payload.promedio_bs,
       eur_bs: payload.eur_bs,
-      paralelo_usd_bs: payload.usdt_bs,
-      efectivo_usd_bs: payload.promedio_bs,
+      tasa_usd_bs: payload.bcv_usd_bs, // Legacy mirror para retrocompatibilidad
     },
     { onConflict: "fecha" }
   );
