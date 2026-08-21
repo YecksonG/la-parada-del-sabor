@@ -31,7 +31,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     { href: "/compras", label: "Compras", icon: "🚚" },
     { href: "/clientes", label: "Clientes", icon: "👥" },
     { href: "/proveedores", label: "Proveedores", icon: "🏢" },
-    { href: "/tasas", label: "4 Tasas", icon: "💵" },
+    { href: "/tasas", label: "Tasas", icon: "💵" },
   ];
 
   useEffect(() => {

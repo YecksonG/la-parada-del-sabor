@@ -61,7 +61,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
     <main className="recetas-container">
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">💵 Las 4 Tasas del Bolívar & Calculadora Multimoneda</h1>
+          <h1 className="recetas-title">💵 Tasas del Bolívar & Calculadora Multimoneda</h1>
           <p className="recetas-subtitle">
             Conversión simultánea en tiempo real para cotizaciones, cobro en punto, pago móvil, efectivo y pesos.
           </p>
@@ -179,7 +179,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
         {/* Formulario de Actualización de las 4 Tasas */}
         <div className="receta-card">
           <div className="receta-card-header">
-            <h3 className="receta-name">⚙️ Actualizar las 4 Tasas del Día</h3>
+            <h3 className="receta-name">⚙️ Actualizar Tasas del Día</h3>
           </div>
 
           <form onSubmit={handleGuardar} className="recipe-form">
@@ -245,7 +245,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
               className="btn-submit-recipe"
               style={{ marginTop: 8 }}
             >
-              {guardando ? "Actualizando..." : "💾 Guardar las 4 Tasas"}
+              {guardando ? "Actualizando..." : "💾 Guardar Tasas"}
             </button>
           </form>
         </div>
