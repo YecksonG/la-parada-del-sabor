@@ -1,14 +1,14 @@
 -- ==============================================================================
--- SCHEMA MASTER: LA PARADA DEL SABOR (POS & ESCANDALLO GASTRONÓMICO)
--- Base de datos relacional para control de recetas en gramos, insumos, comandas y ventas.
+-- SCHEMA MASTER V2.0: LA PARADA DEL SABOR (POS & ESCANDALLO GASTRONÓMICO)
+-- Base de datos relacional robusta con PPMC, RLS, triggers compensatorios,
+-- reconciliación de cancelaciones y cálculo estricto de totales server-side.
 -- ==============================================================================
 
--- 1. EXTENSIONES
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- 1. TABLAS PRINCIPALES
 
--- 2. CATEGORÍAS DE PRODUCTOS
+-- Categorías de Productos
 CREATE TABLE IF NOT EXISTS public.categorias (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(100) NOT NULL UNIQUE,
     icono VARCHAR(20) DEFAULT '🫓',
     orden INT DEFAULT 0,
@@ -16,27 +16,27 @@ CREATE TABLE IF NOT EXISTS public.categorias (
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. INSUMOS (MATERIA PRIMA EN GRAMOS, ML Y UNIDADES)
+-- Insumos (Materia Prima en g, ml y und)
 CREATE TABLE IF NOT EXISTS public.insumos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(150) NOT NULL UNIQUE,
     unidad_medida VARCHAR(20) NOT NULL CHECK (unidad_medida IN ('g', 'ml', 'und')),
-    stock_actual NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    stock_minimo NUMERIC(12, 2) NOT NULL DEFAULT 100,
-    costo_unitario_usd NUMERIC(10, 4) NOT NULL DEFAULT 0,
+    stock_actual NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    stock_minimo NUMERIC(14, 2) NOT NULL DEFAULT 100 CHECK (stock_minimo >= 0),
+    costo_unitario_usd NUMERIC(12, 6) NOT NULL DEFAULT 0 CHECK (costo_unitario_usd >= 0),
     categoria_insumo VARCHAR(80) DEFAULT 'General',
     activo BOOLEAN DEFAULT true,
     actualizado_el TIMESTAMPTZ DEFAULT NOW(),
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. PRODUCTOS (PLATOS TERMINADOS / AREPAS / COMBOS / BEBIDAS)
+-- Productos (Platos Terminados / Arepas / Combos / Bebidas)
 CREATE TABLE IF NOT EXISTS public.productos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(150) NOT NULL UNIQUE,
     categoria_id UUID REFERENCES public.categorias(id) ON DELETE SET NULL,
     descripcion TEXT,
-    precio_usd NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    precio_usd NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (precio_usd >= 0),
     icono VARCHAR(20) DEFAULT '🫓',
     imagen_url TEXT,
     popular BOOLEAN DEFAULT false,
@@ -44,43 +44,43 @@ CREATE TABLE IF NOT EXISTS public.productos (
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. RECETAS / ESCANDALLO (FÓRMULA EXACTA EN GRAMOS POR PLATO)
+-- Recetas / Escandallo (Ingredientes por Plato)
 CREATE TABLE IF NOT EXISTS public.recetas_ingredientes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     producto_id UUID NOT NULL REFERENCES public.productos(id) ON DELETE CASCADE,
     insumo_id UUID NOT NULL REFERENCES public.insumos(id) ON DELETE RESTRICT,
-    cantidad NUMERIC(10, 2) NOT NULL CHECK (cantidad > 0), -- ej: 160g de masa, 90g de carne, 1 und envoltorio
+    cantidad NUMERIC(10, 2) NOT NULL CHECK (cantidad > 0),
     es_opcional BOOLEAN DEFAULT false,
     notas VARCHAR(150),
     creado_el TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(producto_id, insumo_id)
 );
 
--- 6. EXTRAS Y MODIFICADORES (+Queso, +Tocineta, +Aguacate)
+-- Extras y Modificadores (+Queso, +Aguacate, etc.)
 CREATE TABLE IF NOT EXISTS public.extras_modificadores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(100) NOT NULL UNIQUE,
     insumo_id UUID REFERENCES public.insumos(id) ON DELETE SET NULL,
-    cantidad_descuento NUMERIC(10, 2) NOT NULL DEFAULT 0, -- ej: 40g de queso extra
-    precio_extra_usd NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    cantidad_descuento NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (cantidad_descuento >= 0),
+    precio_extra_usd NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (precio_extra_usd >= 0),
     activo BOOLEAN DEFAULT true,
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. CLIENTES
+-- Clientes
 CREATE TABLE IF NOT EXISTS public.clientes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(150) NOT NULL,
     telefono VARCHAR(50),
     direccion_delivery TEXT,
     notas_preferencias TEXT,
-    total_pedidos INT DEFAULT 0,
+    total_pedidos INT DEFAULT 0 CHECK (total_pedidos >= 0),
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. PROVEEDORES
+-- Proveedores
 CREATE TABLE IF NOT EXISTS public.proveedores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nombre VARCHAR(150) NOT NULL,
     telefono VARCHAR(50),
     contacto VARCHAR(100),
@@ -91,52 +91,52 @@ CREATE TABLE IF NOT EXISTS public.proveedores (
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 9. TASAS DE CAMBIO
+-- Tasas de Cambio
 CREATE TABLE IF NOT EXISTS public.tasas_cambio (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
-    bcv_usd_bs NUMERIC(12, 4) NOT NULL,
-    tasa_usd_bs NUMERIC(12, 4),
-    cop_usd NUMERIC(12, 2),
+    bcv_usd_bs NUMERIC(12, 4) NOT NULL CHECK (bcv_usd_bs > 0),
+    tasa_usd_bs NUMERIC(12, 4) CHECK (tasa_usd_bs > 0),
+    cop_usd NUMERIC(12, 2) CHECK (cop_usd > 0),
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 10. COMPRAS (ENTRADAS DE INSUMOS)
+-- Compras
 CREATE TABLE IF NOT EXISTS public.compras (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     proveedor_id UUID REFERENCES public.proveedores(id) ON DELETE SET NULL,
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
-    total_usd NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    total_bs NUMERIC(14, 2) NOT NULL DEFAULT 0,
-    tasa_bcv NUMERIC(12, 4) NOT NULL DEFAULT 1,
+    total_usd NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (total_usd >= 0),
+    total_bs NUMERIC(14, 2) NOT NULL DEFAULT 0 CHECK (total_bs >= 0),
+    tasa_bcv NUMERIC(12, 4) NOT NULL DEFAULT 1 CHECK (tasa_bcv > 0),
     metodo_pago VARCHAR(50) DEFAULT 'efectivo_usd',
     comprobante VARCHAR(100),
     notas TEXT,
     creado_el TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 11. ITEMS DE COMPRA (CONVERSIÓN BULTOS/KG -> GRAMOS)
+-- Items de Compra (Conversión Bultos/Kg -> Gramos)
 CREATE TABLE IF NOT EXISTS public.compras_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     compra_id UUID NOT NULL REFERENCES public.compras(id) ON DELETE CASCADE,
     insumo_id UUID NOT NULL REFERENCES public.insumos(id) ON DELETE RESTRICT,
-    cantidad_comprada NUMERIC(10, 2) NOT NULL,
+    cantidad_comprada NUMERIC(10, 2) NOT NULL CHECK (cantidad_comprada > 0),
     unidad_compra VARCHAR(30) NOT NULL, -- 'saco_20kg', 'kg', 'litro', 'g', 'und'
-    factor_conversion NUMERIC(10, 2) NOT NULL DEFAULT 1, -- ej: saco 20kg = 20000
-    cantidad_base_total NUMERIC(12, 2) NOT NULL, -- cantidad_comprada * factor_conversion
-    precio_unitario_usd NUMERIC(10, 4) NOT NULL,
-    subtotal_usd NUMERIC(12, 2) NOT NULL
+    factor_conversion NUMERIC(10, 2) NOT NULL DEFAULT 1 CHECK (factor_conversion > 0),
+    cantidad_base_total NUMERIC(12, 2) NOT NULL CHECK (cantidad_base_total > 0),
+    precio_unitario_usd NUMERIC(10, 4) NOT NULL CHECK (precio_unitario_usd >= 0),
+    subtotal_usd NUMERIC(12, 2) NOT NULL CHECK (subtotal_usd >= 0)
 );
 
--- 12. VENTAS (COMANDAS POS)
+-- Ventas (Comandas POS)
 CREATE TABLE IF NOT EXISTS public.ventas (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    numero_comanda SERIAL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    numero_comanda SERIAL UNIQUE,
     cliente_id UUID REFERENCES public.clientes(id) ON DELETE SET NULL,
     fecha TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    total_usd NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    total_bs NUMERIC(12, 2) NOT NULL DEFAULT 0,
-    tasa_bcv NUMERIC(12, 4) NOT NULL DEFAULT 1,
+    total_usd NUMERIC(10, 2) NOT NULL DEFAULT 0 CHECK (total_usd >= 0),
+    total_bs NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (total_bs >= 0),
+    tasa_bcv NUMERIC(12, 4) NOT NULL DEFAULT 1 CHECK (tasa_bcv > 0),
     metodo_pago VARCHAR(50) NOT NULL DEFAULT 'efectivo_usd',
     tipo_entrega VARCHAR(30) NOT NULL DEFAULT 'puerta_cerrada' CHECK (tipo_entrega IN ('puerta_cerrada', 'mesa', 'pickup', 'delivery')),
     estado VARCHAR(30) NOT NULL DEFAULT 'completada' CHECK (estado IN ('preparando', 'completada', 'cancelada')),
@@ -144,42 +144,80 @@ CREATE TABLE IF NOT EXISTS public.ventas (
     creado_por VARCHAR(100) DEFAULT 'cajero'
 );
 
--- 13. ITEMS DE VENTA
+-- Items de Venta
 CREATE TABLE IF NOT EXISTS public.ventas_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     venta_id UUID NOT NULL REFERENCES public.ventas(id) ON DELETE CASCADE,
     producto_id UUID NOT NULL REFERENCES public.productos(id) ON DELETE RESTRICT,
     cantidad INT NOT NULL CHECK (cantidad > 0),
-    precio_unitario_usd NUMERIC(10, 2) NOT NULL,
-    subtotal_usd NUMERIC(10, 2) NOT NULL,
+    precio_unitario_usd NUMERIC(10, 2) NOT NULL CHECK (precio_unitario_usd >= 0),
+    subtotal_usd NUMERIC(10, 2) NOT NULL CHECK (subtotal_usd >= 0),
     notas_item VARCHAR(150)
 );
 
--- 14. EXTRAS VENDIDOS
+-- Extras de Items de Venta
 CREATE TABLE IF NOT EXISTS public.ventas_items_extras (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     venta_item_id UUID NOT NULL REFERENCES public.ventas_items(id) ON DELETE CASCADE,
     extra_id UUID NOT NULL REFERENCES public.extras_modificadores(id) ON DELETE RESTRICT,
-    cantidad INT NOT NULL DEFAULT 1,
-    precio_unitario_usd NUMERIC(10, 2) NOT NULL,
-    subtotal_usd NUMERIC(10, 2) NOT NULL
+    cantidad INT NOT NULL DEFAULT 1 CHECK (cantidad > 0),
+    precio_unitario_usd NUMERIC(10, 2) NOT NULL CHECK (precio_unitario_usd >= 0),
+    subtotal_usd NUMERIC(10, 2) NOT NULL CHECK (subtotal_usd >= 0)
 );
 
 -- ==============================================================================
--- TRIGGERS Y FUNCIONES DE DEDUCCIÓN ATÓMICA DE STOCK EN GRAMOS
+-- 2. ROW LEVEL SECURITY (RLS) & POLICIES (PATRÓN SEGURO AUTHENTICATED)
 -- ==============================================================================
 
--- Función: Descontar ingredientes de receta al vender
+ALTER TABLE public.categorias ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.insumos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.productos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recetas_ingredientes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.extras_modificadores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.clientes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proveedores ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tasas_cambio ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.compras ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.compras_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ventas ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ventas_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ventas_items_extras ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "auth_categorias" ON public.categorias FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_insumos" ON public.insumos FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_productos" ON public.productos FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_recetas" ON public.recetas_ingredientes FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_extras" ON public.extras_modificadores FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_clientes" ON public.clientes FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_proveedores" ON public.proveedores FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_tasas" ON public.tasas_cambio FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_compras" ON public.compras FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_compras_items" ON public.compras_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_ventas" ON public.ventas FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_ventas_items" ON public.ventas_items FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_ventas_extras" ON public.ventas_items_extras FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ==============================================================================
+-- 3. TRIGGERS DE INVENTARIO Y RECONCILIACIÓN DE CANCELACIONES
+-- ==============================================================================
+
+-- A) Descontar receta al insertar item de venta (solo si la venta NO está cancelada)
 CREATE OR REPLACE FUNCTION public.fn_descontar_receta_venta()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_estado VARCHAR(30);
 BEGIN
-    -- Descuenta los insumos proporcionales a la cantidad del producto vendido
-    UPDATE public.insumos i
-    SET stock_actual = i.stock_actual - (r.cantidad * NEW.cantidad),
-        actualizado_el = NOW()
-    FROM public.recetas_ingredientes r
-    WHERE r.insumo_id = i.id
-      AND r.producto_id = NEW.producto_id;
+    SELECT estado INTO v_estado FROM public.ventas WHERE id = NEW.venta_id;
+    
+    -- Solo descontar si la comanda está activa ('preparando' o 'completada')
+    IF v_estado IS DISTINCT FROM 'cancelada' THEN
+        UPDATE public.insumos i
+        SET stock_actual = i.stock_actual - (r.cantidad * NEW.cantidad),
+            actualizado_el = NOW()
+        FROM public.recetas_ingredientes r
+        WHERE r.insumo_id = i.id
+          AND r.producto_id = NEW.producto_id;
+    END IF;
 
     RETURN NEW;
 END;
@@ -190,16 +228,25 @@ AFTER INSERT ON public.ventas_items
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_descontar_receta_venta();
 
--- Función: Descontar insumos por extras vendidos
+-- B) Descontar extra vendido (solo si la venta NO está cancelada)
 CREATE OR REPLACE FUNCTION public.fn_descontar_extra_venta()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_estado VARCHAR(30);
 BEGIN
-    UPDATE public.insumos i
-    SET stock_actual = i.stock_actual - (e.cantidad_descuento * NEW.cantidad),
-        actualizado_el = NOW()
-    FROM public.extras_modificadores e
-    WHERE e.id = NEW.extra_id
-      AND e.insumo_id = i.id;
+    SELECT v.estado INTO v_estado
+    FROM public.ventas_items vi
+    JOIN public.ventas v ON v.id = vi.venta_id
+    WHERE vi.id = NEW.venta_item_id;
+
+    IF v_estado IS DISTINCT FROM 'cancelada' THEN
+        UPDATE public.insumos i
+        SET stock_actual = i.stock_actual - (e.cantidad_descuento * NEW.cantidad),
+            actualizado_el = NOW()
+        FROM public.extras_modificadores e
+        WHERE e.id = NEW.extra_id
+          AND e.insumo_id = i.id;
+    END IF;
 
     RETURN NEW;
 END;
@@ -210,13 +257,109 @@ AFTER INSERT ON public.ventas_items_extras
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_descontar_extra_venta();
 
--- Función: Sumar stock al registrar compra
-CREATE OR REPLACE FUNCTION public.fn_sumar_stock_compra()
+-- C) Reconciliar stock ante cambio de estado en la venta (Cancelación / Restauración)
+CREATE OR REPLACE FUNCTION public.fn_reconciliar_cambio_estado_venta()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Caso 1: Venta pasa a 'cancelada' -> DEVOLVER INSUMOS AL STOCK
+    IF OLD.estado != 'cancelada' AND NEW.estado = 'cancelada' THEN
+        -- 1. Restaurar insumos de recetas
+        UPDATE public.insumos i
+        SET stock_actual = i.stock_actual + sub.total_devuelto,
+            actualizado_el = NOW()
+        FROM (
+            SELECT r.insumo_id, SUM(r.cantidad * vi.cantidad) AS total_devuelto
+            FROM public.ventas_items vi
+            JOIN public.recetas_ingredientes r ON r.producto_id = vi.producto_id
+            WHERE vi.venta_id = NEW.id
+            GROUP BY r.insumo_id
+        ) sub
+        WHERE i.id = sub.insumo_id;
+
+        -- 2. Restaurar insumos de extras
+        UPDATE public.insumos i
+        SET stock_actual = i.stock_actual + sub.total_extra_devuelto,
+            actualizado_el = NOW()
+        FROM (
+            SELECT e.insumo_id, SUM(e.cantidad_descuento * vie.cantidad) AS total_extra_devuelto
+            FROM public.ventas_items vi
+            JOIN public.ventas_items_extras vie ON vie.venta_item_id = vi.id
+            JOIN public.extras_modificadores e ON e.id = vie.extra_id
+            WHERE vi.venta_id = NEW.id AND e.insumo_id IS NOT NULL
+            GROUP BY e.insumo_id
+        ) sub
+        WHERE i.id = sub.insumo_id;
+
+    -- Caso 2: Venta cancelada se reactiva a 'preparando' o 'completada' -> VOLVER A DESCONTAR
+    ELSIF OLD.estado = 'cancelada' AND NEW.estado != 'cancelada' THEN
+        -- 1. Descontar insumos de recetas
+        UPDATE public.insumos i
+        SET stock_actual = i.stock_actual - sub.total_descontar,
+            actualizado_el = NOW()
+        FROM (
+            SELECT r.insumo_id, SUM(r.cantidad * vi.cantidad) AS total_descontar
+            FROM public.ventas_items vi
+            JOIN public.recetas_ingredientes r ON r.producto_id = vi.producto_id
+            WHERE vi.venta_id = NEW.id
+            GROUP BY r.insumo_id
+        ) sub
+        WHERE i.id = sub.insumo_id;
+
+        -- 2. Descontar insumos de extras
+        UPDATE public.insumos i
+        SET stock_actual = i.stock_actual - sub.total_extra_descontar,
+            actualizado_el = NOW()
+        FROM (
+            SELECT e.insumo_id, SUM(e.cantidad_descuento * vie.cantidad) AS total_extra_descontar
+            FROM public.ventas_items vi
+            JOIN public.ventas_items_extras vie ON vie.venta_item_id = vi.id
+            JOIN public.extras_modificadores e ON e.id = vie.extra_id
+            WHERE vi.venta_id = NEW.id AND e.insumo_id IS NOT NULL
+            GROUP BY e.insumo_id
+        ) sub
+        WHERE i.id = sub.insumo_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_reconciliar_cambio_estado_venta
+AFTER UPDATE OF estado ON public.ventas
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_reconciliar_cambio_estado_venta();
+
+-- ==============================================================================
+-- 4. TRIGGERS DE COMPRAS: PPMC (PRECIO PROMEDIO PONDERADO) Y AJUSTES
+-- ==============================================================================
+
+-- A) Sumar stock y recalcular Costo Unitario Promedio Ponderado Móvil (PPMC)
+CREATE OR REPLACE FUNCTION public.fn_sumar_stock_compra_ppmc()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_stock_previo NUMERIC(14, 2);
+    v_costo_previo NUMERIC(12, 6);
+    v_nuevo_stock NUMERIC(14, 2);
+    v_costo_ponderado NUMERIC(12, 6);
+BEGIN
+    SELECT stock_actual, costo_unitario_usd
+    INTO v_stock_previo, v_costo_previo
+    FROM public.insumos
+    WHERE id = NEW.insumo_id;
+
+    v_nuevo_stock := GREATEST(v_stock_previo, 0) + NEW.cantidad_base_total;
+
+    -- Fórmula PPMC: (Stock_ant * Costo_ant + Subtotal_nuevo) / (Stock_ant + Cant_nueva)
+    IF v_stock_previo > 0 THEN
+        v_costo_ponderado := ((v_stock_previo * v_costo_previo) + NEW.subtotal_usd) / v_nuevo_stock;
+    ELSE
+        -- Si no había stock o estaba negativo, el costo es el de la nueva compra
+        v_costo_ponderado := NEW.subtotal_usd / NEW.cantidad_base_total;
+    END IF;
+
     UPDATE public.insumos
     SET stock_actual = stock_actual + NEW.cantidad_base_total,
-        costo_unitario_usd = (NEW.subtotal_usd / NULLIF(NEW.cantidad_base_total, 0)),
+        costo_unitario_usd = ROUND(v_costo_ponderado, 6),
         actualizado_el = NOW()
     WHERE id = NEW.insumo_id;
 
@@ -227,4 +370,99 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_sumar_stock_compra
 AFTER INSERT ON public.compras_items
 FOR EACH ROW
-EXECUTE FUNCTION public.fn_sumar_stock_compra();
+EXECUTE FUNCTION public.fn_sumar_stock_compra_ppmc();
+
+-- B) Revertir stock si se elimina un item de compra
+CREATE OR REPLACE FUNCTION public.fn_revertir_stock_compra_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE public.insumos
+    SET stock_actual = stock_actual - OLD.cantidad_base_total,
+        actualizado_el = NOW()
+    WHERE id = OLD.insumo_id;
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_revertir_stock_compra
+AFTER DELETE ON public.compras_items
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_revertir_stock_compra_delete();
+
+-- ==============================================================================
+-- 5. TRIGGERS DE TOTALES SERVER-SIDE (VENTAS Y COMPRAS)
+-- ==============================================================================
+
+-- A) Recalcular totales de venta automáticamente
+CREATE OR REPLACE FUNCTION public.fn_recalcular_totales_venta()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_venta_id UUID;
+    v_total_items NUMERIC(10, 2) := 0;
+    v_total_extras NUMERIC(10, 2) := 0;
+    v_total_usd NUMERIC(10, 2) := 0;
+    v_tasa NUMERIC(12, 4) := 1;
+BEGIN
+    v_venta_id := COALESCE(NEW.venta_id, OLD.venta_id);
+
+    SELECT tasa_bcv INTO v_tasa FROM public.ventas WHERE id = v_venta_id;
+    IF v_tasa IS NULL OR v_tasa <= 0 THEN v_tasa := 1; END IF;
+
+    -- Sumar items
+    SELECT COALESCE(SUM(subtotal_usd), 0) INTO v_total_items
+    FROM public.ventas_items
+    WHERE venta_id = v_venta_id;
+
+    -- Sumar extras
+    SELECT COALESCE(SUM(vie.subtotal_usd), 0) INTO v_total_extras
+    FROM public.ventas_items vi
+    JOIN public.ventas_items_extras vie ON vie.venta_item_id = vi.id
+    WHERE vi.venta_id = v_venta_id;
+
+    v_total_usd := v_total_items + v_total_extras;
+
+    UPDATE public.ventas
+    SET total_usd = v_total_usd,
+        total_bs = ROUND(v_total_usd * v_tasa, 2)
+    WHERE id = v_venta_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_recalc_totales_ventas_items
+AFTER INSERT OR UPDATE OR DELETE ON public.ventas_items
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_recalcular_totales_venta();
+
+-- B) Recalcular totales de compra automáticamente
+CREATE OR REPLACE FUNCTION public.fn_recalcular_totales_compra()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_compra_id UUID;
+    v_total_usd NUMERIC(12, 2) := 0;
+    v_tasa NUMERIC(12, 4) := 1;
+BEGIN
+    v_compra_id := COALESCE(NEW.compra_id, OLD.compra_id);
+
+    SELECT tasa_bcv INTO v_tasa FROM public.compras WHERE id = v_compra_id;
+    IF v_tasa IS NULL OR v_tasa <= 0 THEN v_tasa := 1; END IF;
+
+    SELECT COALESCE(SUM(subtotal_usd), 0) INTO v_total_usd
+    FROM public.compras_items
+    WHERE compra_id = v_compra_id;
+
+    UPDATE public.compras
+    SET total_usd = v_total_usd,
+        total_bs = ROUND(v_total_usd * v_tasa, 2)
+    WHERE id = v_compra_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_recalc_totales_compras_items
+AFTER INSERT OR UPDATE OR DELETE ON public.compras_items
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_recalcular_totales_compra();
