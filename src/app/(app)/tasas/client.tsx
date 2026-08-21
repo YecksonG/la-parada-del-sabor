@@ -12,21 +12,21 @@ interface TasasClientProps {
 export default function TasasClient({ tasas }: TasasClientProps) {
   const tasaActual = tasas[0] || {
     bcv_usd_bs: 65.50,
+    usdt_bs: 72.80,
+    promedio_bs: 69.15,
+    eur_bs: 70.80,
     tasa_usd_bs: 65.50,
-    paralelo_usd_bs: 72.80,
-    efectivo_usd_bs: 68.00,
-    cop_usd: 4100,
     fecha: new Date().toISOString().split("T")[0],
   };
 
-  // Form states de las 4 tasas
+  // Form states de las 4 tasas exactas (BCV, USDT, Promedio, EUR)
   const [bcv, setBcv] = useState<number>(Number(tasaActual.bcv_usd_bs) || 65.50);
-  const [paralelo, setParalelo] = useState<number>(Number(tasaActual.paralelo_usd_bs) || 72.80);
-  const [efectivo, setEfectivo] = useState<number>(Number(tasaActual.efectivo_usd_bs) || 68.00);
-  const [cop, setCop] = useState<number>(Number(tasaActual.cop_usd) || 4100);
+  const [usdt, setUsdt] = useState<number>(Number(tasaActual.usdt_bs || tasaActual.paralelo_usd_bs) || 72.80);
+  const [promedio, setPromedio] = useState<number>(Number(tasaActual.promedio_bs || tasaActual.efectivo_usd_bs) || 69.15);
+  const [eur, setEur] = useState<number>(Number(tasaActual.eur_bs) || 70.80);
   const [guardando, setGuardando] = useState(false);
 
-  // Calculadora
+  // Calculadora Multimoneda
   const [montoUsd, setMontoUsd] = useState<number>(10);
 
   const presets = [1, 3.5, 5, 10, 20, 50, 100];
@@ -43,15 +43,15 @@ export default function TasasClient({ tasas }: TasasClientProps) {
     setGuardando(true);
     const res = await guardarTasasCompletas({
       bcv_usd_bs: bcv,
-      paralelo_usd_bs: paralelo,
-      efectivo_usd_bs: efectivo,
-      cop_usd: cop,
+      usdt_bs: usdt,
+      promedio_bs: promedio,
+      eur_bs: eur,
     });
     setGuardando(false);
 
     if (res.ok) {
       sounds.playCashRegister();
-      alert("✅ Las 4 tasas fueron actualizadas con éxito en todo el sistema.");
+      alert("✅ Las 4 tasas (BCV, USDT, Promedio, EUR) fueron actualizadas con éxito.");
     } else {
       alert(res.error || "Error al actualizar las tasas.");
     }
@@ -61,9 +61,9 @@ export default function TasasClient({ tasas }: TasasClientProps) {
     <main className="recetas-container">
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">💵 Tasas del Bolívar & Calculadora Multimoneda</h1>
+          <h1 className="recetas-title">💵 Tasas de Cambio & Calculadora Multimoneda</h1>
           <p className="recetas-subtitle">
-            Conversión simultánea en tiempo real para cotizaciones, cobro en punto, pago móvil, efectivo y pesos.
+            Gestión de las 4 tasas de referencia (BCV, Binance USDT, Promedio y Euro EUR) y calculadora de cobro.
           </p>
         </div>
       </div>
@@ -79,51 +79,51 @@ export default function TasasClient({ tasas }: TasasClientProps) {
             <strong className="tasa-number">{Number(bcv).toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
-          <span className="tasa-hint">Referencia oficial para facturación</span>
+          <span className="tasa-hint">Tasa oficial de facturación</span>
         </div>
 
         <div className="tasa-badge-card paralelo-border">
           <div className="tasa-card-top">
-            <span className="tasa-pill-label paralelo-tag">⚡ Paralelo</span>
-            <span className="tasa-date">Mercado</span>
+            <span className="tasa-pill-label paralelo-tag">🟡 USDT (Binance)</span>
+            <span className="tasa-date">P2P Crypto</span>
           </div>
           <div className="tasa-value-row">
-            <strong className="tasa-number">{Number(paralelo).toFixed(2)}</strong>
+            <strong className="tasa-number">{Number(usdt).toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
-          <span className="tasa-hint">Referencia reposición / compras</span>
+          <span className="tasa-hint">Referencia reposición</span>
         </div>
 
         <div className="tasa-badge-card efectivo-border">
           <div className="tasa-card-top">
-            <span className="tasa-pill-label efectivo-tag">💵 Efectivo / Promedio</span>
-            <span className="tasa-date">Taquilla</span>
+            <span className="tasa-pill-label efectivo-tag">⚡ Tasa Promedio</span>
+            <span className="tasa-date">Mercado</span>
           </div>
           <div className="tasa-value-row">
-            <strong className="tasa-number">{Number(efectivo).toFixed(2)}</strong>
+            <strong className="tasa-number">{Number(promedio).toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
-          <span className="tasa-hint">Cambio en billetes físicos</span>
+          <span className="tasa-hint">Media ponderada del mercado</span>
         </div>
 
         <div className="tasa-badge-card cop-border">
           <div className="tasa-card-top">
-            <span className="tasa-pill-label cop-tag">🇨🇴 Pesos COP</span>
-            <span className="tasa-date">Frontera</span>
+            <span className="tasa-pill-label cop-tag">🇪🇺 Euro (EUR)</span>
+            <span className="tasa-date">Oficial BCV</span>
           </div>
           <div className="tasa-value-row">
-            <strong className="tasa-number">{Number(cop).toLocaleString()}</strong>
-            <span className="tasa-unit">COP / $</span>
+            <strong className="tasa-number">{Number(eur).toFixed(2)}</strong>
+            <span className="tasa-unit">Bs / €</span>
           </div>
-          <span className="tasa-hint">Cobro directo en pesos</span>
+          <span className="tasa-hint">Cobro en divisa europea</span>
         </div>
       </div>
 
       <div className="form-grid-2">
-        {/* Calculadora Gastronómica Interactiva */}
+        {/* Calculadora Multimoneda Interactiva */}
         <div className="receta-card">
           <div className="receta-card-header">
-            <h3 className="receta-name">🧮 Calculadora de Cobro Instantánea</h3>
+            <h3 className="receta-name">🧮 Calculadora de Cobro Multimoneda</h3>
           </div>
 
           {/* Presets Rápidos */}
@@ -160,18 +160,18 @@ export default function TasasClient({ tasas }: TasasClientProps) {
             </div>
 
             <div className="breakdown-row">
-              <span className="breakdown-label">⚡ Total Paralelo:</span>
-              <strong className="breakdown-val">{(montoUsd * paralelo).toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs</strong>
+              <span className="breakdown-label">🟡 Total Binance USDT:</span>
+              <strong className="breakdown-val">{(montoUsd * usdt).toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs</strong>
             </div>
 
             <div className="breakdown-row">
-              <span className="breakdown-label">💵 Total Efectivo Promedio:</span>
-              <strong className="breakdown-val">{(montoUsd * efectivo).toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs</strong>
+              <span className="breakdown-label">⚡ Total Tasa Promedio:</span>
+              <strong className="breakdown-val">{(montoUsd * promedio).toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs</strong>
             </div>
 
             <div className="breakdown-row">
-              <span className="breakdown-label">🇨🇴 Total Pesos COP:</span>
-              <strong className="breakdown-val cop-text">${Math.round(montoUsd * cop).toLocaleString()} COP</strong>
+              <span className="breakdown-label">🇪🇺 Equivalente en Euros (EUR):</span>
+              <strong className="breakdown-val cop-text">€{(montoUsd * (bcv / (eur || 70.8))).toFixed(2)} EUR ({(montoUsd * bcv).toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs)</strong>
             </div>
           </div>
         </div>
@@ -198,14 +198,14 @@ export default function TasasClient({ tasas }: TasasClientProps) {
               </div>
 
               <div className="form-field">
-                <label>2. Tasa Paralelo (Bs/$)</label>
+                <label>2. Tasa Binance USDT (Bs/$)</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0.01"
                   required
-                  value={paralelo}
-                  onChange={(e) => setParalelo(parseFloat(e.target.value) || 0)}
+                  value={usdt}
+                  onChange={(e) => setUsdt(parseFloat(e.target.value) || 0)}
                   className="form-input"
                 />
               </div>
@@ -213,27 +213,27 @@ export default function TasasClient({ tasas }: TasasClientProps) {
 
             <div className="form-grid-2">
               <div className="form-field">
-                <label>3. Tasa Efectivo (Bs/$)</label>
+                <label>3. Tasa Promedio (Bs/$)</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0.01"
                   required
-                  value={efectivo}
-                  onChange={(e) => setEfectivo(parseFloat(e.target.value) || 0)}
+                  value={promedio}
+                  onChange={(e) => setPromedio(parseFloat(e.target.value) || 0)}
                   className="form-input"
                 />
               </div>
 
               <div className="form-field">
-                <label>4. Pesos Colombianos (COP/$)</label>
+                <label>4. Tasa Euro EUR (Bs/€)</label>
                 <input
                   type="number"
-                  step="1"
-                  min="1"
+                  step="0.01"
+                  min="0.01"
                   required
-                  value={cop}
-                  onChange={(e) => setCop(parseFloat(e.target.value) || 0)}
+                  value={eur}
+                  onChange={(e) => setEur(parseFloat(e.target.value) || 0)}
                   className="form-input"
                 />
               </div>

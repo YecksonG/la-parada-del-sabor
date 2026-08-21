@@ -83,6 +83,9 @@ export type TasaCambio = {
   id: string;
   fecha: string;
   bcv_usd_bs: number;
+  usdt_bs: number | null;
+  promedio_bs: number | null;
+  eur_bs: number | null;
   tasa_usd_bs: number | null;
   paralelo_usd_bs: number | null;
   efectivo_usd_bs: number | null;

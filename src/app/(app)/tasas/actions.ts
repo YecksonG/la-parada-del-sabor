@@ -5,9 +5,9 @@ import { revalidatePath } from "next/cache";
 
 export type GuardarTasasPayload = {
   bcv_usd_bs: number;
-  paralelo_usd_bs: number;
-  efectivo_usd_bs: number;
-  cop_usd: number;
+  usdt_bs: number;
+  promedio_bs: number;
+  eur_bs: number;
 };
 
 export async function guardarTasasCompletas(payload: GuardarTasasPayload) {
@@ -19,9 +19,11 @@ export async function guardarTasasCompletas(payload: GuardarTasasPayload) {
     fecha: hoy,
     bcv_usd_bs: payload.bcv_usd_bs,
     tasa_usd_bs: payload.bcv_usd_bs,
-    paralelo_usd_bs: payload.paralelo_usd_bs,
-    efectivo_usd_bs: payload.efectivo_usd_bs,
-    cop_usd: payload.cop_usd,
+    usdt_bs: payload.usdt_bs,
+    promedio_bs: payload.promedio_bs,
+    eur_bs: payload.eur_bs,
+    paralelo_usd_bs: payload.usdt_bs,
+    efectivo_usd_bs: payload.promedio_bs,
   });
 
   if (error) return { ok: false, error: error.message };
