@@ -1400,3 +1400,860 @@ a {
     height: auto;
   }
 }
+
+/* ---------- Recetas & Escandallo Styles ---------- */
+.recetas-container {
+  padding: 24px;
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.recetas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.recetas-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.recetas-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.btn-primary-action {
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 14px var(--primary-glow);
+  transition: transform 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary-action:hover {
+  transform: translateY(-2px);
+}
+
+.recetas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.recetas-empty-box {
+  grid-column: 1 / -1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.receta-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.receta-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.receta-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.receta-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.receta-icon {
+  font-size: 32px;
+}
+
+.receta-name {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.receta-cat-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.receta-price-badge {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+[data-theme="dark"] .receta-price-badge {
+  color: var(--primary);
+}
+
+.receta-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.receta-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: var(--bg-subtle);
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.metric-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.metric-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metric-val {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.text-green {
+  color: var(--green);
+}
+
+.text-primary {
+  color: var(--primary-dark);
+}
+
+[data-theme="dark"] .text-primary {
+  color: var(--primary);
+}
+
+.receta-ingredients-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ingredients-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.ingredient-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.ingredient-tag span {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ingredient-tag strong {
+  font-weight: 800;
+  color: var(--primary-dark);
+}
+
+[data-theme="dark"] .ingredient-tag strong {
+  color: var(--primary);
+}
+
+.no-ingredients-hint {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.receta-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+
+.btn-edit-receta {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-edit-receta:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.btn-delete-receta {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-receta:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+/* Modal Receta Form */
+.modal-recipe-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px;
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: var(--shadow-lg);
+  animation: ticketPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.modal-recipe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-recipe-header h2 {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.btn-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.recipe-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.checkbox-field {
+  justify-content: flex-end;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  padding-bottom: 8px;
+}
+
+.recipe-ingredients-builder {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.builder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.builder-header h4 {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.btn-add-ingredient {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary-dark);
+  cursor: pointer;
+}
+
+[data-theme="dark"] .btn-add-ingredient {
+  color: var(--primary);
+}
+
+.builder-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.builder-row {
+  display: grid;
+  grid-template-columns: 1fr 110px 80px 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.input-qty-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-qty {
+  padding-right: 32px;
+}
+
+.qty-unit-label {
+  position: absolute;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.cost-row-preview {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.btn-remove-row {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recipe-cost-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.modal-recipe-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn-cancel {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-submit-recipe {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+/* ---------- Insumos / Despensa Styles ---------- */
+.insumos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.insumo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.insumo-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.insumo-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.insumo-cat-tag {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.insumo-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  margin-top: 2px;
+}
+
+.stock-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  white-space: nowrap;
+}
+
+.stock-badge-optimo {
+  background: var(--green-light);
+  color: var(--green);
+  border: 1px solid var(--green-glow);
+}
+
+.stock-badge-bajo {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border: 1px solid var(--primary-glow);
+}
+
+[data-theme="dark"] .stock-badge-bajo {
+  color: var(--primary);
+}
+
+.stock-badge-agotado {
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid var(--accent-glow);
+}
+
+.insumo-stock-display {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 10px 12px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.insumo-stock-value {
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.insumo-min-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.insumo-cost-details {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.cost-detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.cost-detail-item span {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.insumo-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+}
+
+.btn-insumo-adjust {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-insumo-adjust:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.btn-insumo-edit {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* ---------- Ventas / Comandas Styles ---------- */
+.comandas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.comanda-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease;
+}
+
+.comanda-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.comanda-preparando {
+  border-top: 3px solid var(--primary);
+}
+
+.comanda-completada {
+  border-top: 3px solid var(--green);
+}
+
+.comanda-cancelada {
+  border-top: 3px solid var(--accent);
+  opacity: 0.7;
+}
+
+.comanda-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.comanda-number {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--text);
+  margin-right: 8px;
+}
+
+.comanda-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.comanda-status-pill {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+.status-preparando {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+[data-theme="dark"] .status-preparando {
+  color: var(--primary);
+}
+
+.status-completada {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.status-cancelada {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.comanda-type-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comanda-badge-type {
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.comanda-badge-payment {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.comanda-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-subtle);
+  padding: 10px;
+  border-radius: 12px;
+}
+
+.comanda-item-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.comanda-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.comanda-extras-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.comanda-extra-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+[data-theme="dark"] .comanda-extra-tag {
+  color: var(--primary);
+}
+
+.comanda-notes-box {
+  background: var(--bg-subtle);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.comanda-totals {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+}
+
+.comanda-total-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.comanda-total-row strong {
+  font-size: 16px;
+  color: var(--primary-dark);
+}
+
+[data-theme="dark"] .comanda-total-row strong {
+  color: var(--primary);
+}
+
+.comanda-bs-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.comanda-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-comanda-complete {
+  flex: 1;
+  padding: 8px;
+  border-radius: 10px;
+  border: none;
+  background: var(--green);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-comanda-cancel {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-comanda-reactivate {
+  flex: 1;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
