@@ -87,8 +87,6 @@ export type TasaCambio = {
   promedio_bs: number | null;
   eur_bs: number | null;
   tasa_usd_bs: number | null;
-  paralelo_usd_bs: number | null;
-  efectivo_usd_bs: number | null;
   cop_usd: number | null;
   creado_el: string;
 };

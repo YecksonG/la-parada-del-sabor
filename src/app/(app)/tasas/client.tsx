@@ -21,9 +21,9 @@ export default function TasasClient({ tasas }: TasasClientProps) {
 
   // Form states de las 4 tasas exactas de Dabajuro
   const [bcv, setBcv] = useState<number>(Number(tasaActual.bcv_usd_bs) || 65.50);
-  const [usdt, setUsdt] = useState<number>(Number(tasaActual.usdt_bs || tasaActual.paralelo_usd_bs) || 72.80);
+  const [usdt, setUsdt] = useState<number>(Number(tasaActual.usdt_bs) || 72.80);
   const [eur, setEur] = useState<number>(Number(tasaActual.eur_bs) || 70.80);
-  const [promedio, setPromedio] = useState<number>(Number(tasaActual.promedio_bs || tasaActual.efectivo_usd_bs) || 69.15);
+  const [promedio, setPromedio] = useState<number>(Number(tasaActual.promedio_bs) || 69.15);
   const [guardando, setGuardando] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
