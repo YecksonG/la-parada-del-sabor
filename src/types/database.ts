@@ -84,6 +84,8 @@ export type TasaCambio = {
   fecha: string;
   bcv_usd_bs: number;
   tasa_usd_bs: number | null;
+  paralelo_usd_bs: number | null;
+  efectivo_usd_bs: number | null;
   cop_usd: number | null;
   creado_el: string;
 };
@@ -104,7 +106,7 @@ export type Venta = {
   tipo_entrega: TipoEntrega;
   estado: EstadoVenta;
   notas_comanda: string | null;
-  creado_por: string;
+  creado_el: string;
   cliente?: Cliente;
   items?: VentaItem[];
 };
@@ -116,7 +118,7 @@ export type VentaItem = {
   cantidad: number;
   precio_unitario_usd: number;
   subtotal_usd: number;
-  notas_item: string | null;
+  notas: string | null;
   producto?: Producto;
   extras?: VentaItemExtra[];
 };
@@ -129,4 +131,28 @@ export type VentaItemExtra = {
   precio_unitario_usd: number;
   subtotal_usd: number;
   extra?: ExtraModificador;
+};
+
+export type SesionCaja = {
+  id: string;
+  fecha_apertura: string;
+  fecha_cierre: string | null;
+  estado: "abierta" | "cerrada";
+  monto_inicial_usd: number;
+  monto_inicial_bs: number;
+  total_ventas_efectivo_usd: number;
+  total_ventas_pago_movil_bs: number;
+  total_ventas_transferencia_bs: number;
+  total_ventas_binance_usd: number;
+  total_ventas_punto_bs: number;
+  total_gastos_usd: number;
+  total_gastos_bs: number;
+  arqueo_fisico_efectivo_usd: number | null;
+  arqueo_fisico_efectivo_bs: number | null;
+  diferencia_usd: number | null;
+  diferencia_bs: number | null;
+  notas_cierre: string | null;
+  usuario_apertura: string | null;
+  usuario_cierre: string | null;
+  creado_el: string;
 };

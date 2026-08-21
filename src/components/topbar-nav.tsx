@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import ThemeToggle from "@/components/theme-toggle";
 import { cerrarSesion } from "@/app/login/actions";
+import { sounds } from "@/lib/sound-effects";
 
 interface TopbarNavProps {
   nombre: string;
@@ -15,19 +16,34 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   const pathname = usePathname();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [dropdownUsuario, setDropdownUsuario] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const inicial = nombre.charAt(0).toUpperCase();
 
   const enlaces = [
-    { href: "/", label: "POS Comandas", icon: "🛒" },
-    { href: "/recetas", label: "Recetas & Gramos", icon: "🌾" },
+    { href: "/", label: "POS", icon: "🛒" },
+    { href: "/dashboard", label: "Dashboard", icon: "📊" },
+    { href: "/caja", label: "Caja & Arqueo", icon: "💰" },
+    { href: "/recetas", label: "Recetas", icon: "🌾" },
     { href: "/insumos", label: "Despensa", icon: "📦" },
-    { href: "/ventas", label: "Ventas", icon: "📋" },
+    { href: "/ventas", label: "Comandas", icon: "📋" },
     { href: "/compras", label: "Compras", icon: "🚚" },
     { href: "/clientes", label: "Clientes", icon: "👥" },
-    { href: "/tasas", label: "Tasas", icon: "💵" },
+    { href: "/proveedores", label: "Proveedores", icon: "🏢" },
+    { href: "/tasas", label: "4 Tasas", icon: "💵" },
   ];
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSoundEnabled(sounds.isEnabled());
+    }
+  }, []);
+
+  const handleToggleSound = () => {
+    const nextState = sounds.toggleSound();
+    setSoundEnabled(nextState);
+  };
 
   // Cerrar menú móvil y dropdown al navegar
   useEffect(() => {
@@ -49,7 +65,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <Link href="/" className="topbar-brand">
+        <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
           <span className="brand-icon">🫓</span>
           <div className="brand-text">
             <span className="brand-name-main">La Parada </span>
@@ -65,6 +81,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
             <Link
               key={enlace.href}
               href={enlace.href}
+              onClick={() => sounds.playPop()}
               className={`nav-link ${activo ? "nav-link-active" : ""}`}
             >
               <span className="nav-icon">{enlace.icon}</span>
@@ -77,12 +94,23 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
       <div className="topbar-right">
         {/* Tasa BCV */}
         {bcvTasa && (
-          <div className="bcv-pill" title="Tasa oficial BCV">
+          <Link href="/tasas" className="bcv-pill" title="Tasa oficial BCV (clic para ver las 4 tasas)">
             <span className="bcv-dot"></span>
             <span className="bcv-label">BCV:</span>
             <span className="bcv-value">{bcvTasa.toFixed(2)} Bs</span>
-          </div>
+          </Link>
         )}
+
+        {/* Botón de Sonidos Lúdicos */}
+        <button
+          type="button"
+          onClick={handleToggleSound}
+          className="theme-toggle-btn"
+          title={soundEnabled ? "Sonidos gourmet activados" : "Sonidos silenciados"}
+          aria-label="Toggle sound"
+        >
+          {soundEnabled ? "🔔" : "🔕"}
+        </button>
 
         <ThemeToggle />
 
@@ -100,29 +128,26 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
 
           {dropdownUsuario && (
             <div className="user-dropdown-menu">
-              <div className="dropdown-user-header">
-                <span className="dropdown-user-name">👤 {nombre}</span>
-                <span className="dropdown-user-role">Operador de Cocina / Caja</span>
+              <div className="dropdown-header">
+                <span className="dropdown-user-name">{nombre}</span>
+                <span className="dropdown-user-role">Operador Gastronómico</span>
               </div>
-              <div className="dropdown-divider" />
+              <div className="dropdown-divider"></div>
+              <Link href="/dashboard" className="nav-link" style={{ padding: "6px 8px" }}>
+                📊 Ver Métricas y Reportes
+              </Link>
+              <Link href="/caja" className="nav-link" style={{ padding: "6px 8px" }}>
+                💰 Control de Caja & Arqueo
+              </Link>
+              <div className="dropdown-divider"></div>
               <form action={cerrarSesion}>
                 <button type="submit" className="dropdown-logout-btn">
-                  <span>🚪</span> Cerrar sesión
+                  <span>🚪</span> Cerrar Sesión
                 </button>
               </form>
             </div>
           )}
         </div>
-
-        {/* Botón menú móvil */}
-        <button
-          type="button"
-          className="mobile-menu-toggle"
-          onClick={() => setMenuAbierto(!menuAbierto)}
-          aria-label="Abrir menú"
-        >
-          {menuAbierto ? "✕" : "☰"}
-        </button>
       </div>
     </header>
   );

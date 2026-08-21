@@ -2257,3 +2257,296 @@ a {
   font-weight: 800;
   cursor: pointer;
 }
+
+/* ---------- 4 Tasas Cards & Calculadora Styles ---------- */
+.tasas-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.tasa-badge-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tasa-badge-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.bcv-border { border-top: 3px solid #10b981; }
+.paralelo-border { border-top: 3px solid #f59e0b; }
+.efectivo-border { border-top: 3px solid #3b82f6; }
+.cop-border { border-top: 3px solid #e11d48; }
+
+.tasa-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tasa-pill-label {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.bcv-tag { background: var(--green-light); color: var(--green); }
+.paralelo-tag { background: var(--primary-light); color: var(--primary-dark); }
+[data-theme="dark"] .paralelo-tag { color: var(--primary); }
+.efectivo-tag { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.cop-tag { background: var(--accent-light); color: var(--accent); }
+
+.tasa-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.tasa-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.tasa-number {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--text);
+  font-family: system-ui, -apple-system, monospace;
+}
+
+.tasa-unit {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.tasa-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.calc-presets-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.preset-btn {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-btn:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.preset-btn-active {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  border-color: var(--primary-dark) !important;
+}
+
+.calc-main-input {
+  font-size: 20px !important;
+  font-weight: 900 !important;
+  color: var(--primary-dark) !important;
+}
+
+[data-theme="dark"] .calc-main-input {
+  color: var(--primary) !important;
+}
+
+.calc-breakdown-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.breakdown-label {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.breakdown-val {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.bcv-text { color: var(--green) !important; }
+.cop-text { color: var(--accent) !important; }
+
+/* ---------- Caja & Arqueo Styles ---------- */
+.caja-live-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.caja-banner-activa {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--green);
+  border-radius: 14px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.caja-banner-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.caja-time-stamp {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.caja-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.caja-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.stat-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.caja-totals-hero {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---------- Dashboard Ranking & Progress Styles ---------- */
+.dashboard-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rank-item-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.rank-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.rank-badge {
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rank-item-name {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.rank-item-metrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rank-progress-track {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.rank-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
