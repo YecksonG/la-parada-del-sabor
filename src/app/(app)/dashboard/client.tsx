@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { Venta, Cliente, Insumo, Producto } from "@/types/database";
 
 interface DashboardClientProps {
@@ -124,11 +125,20 @@ export default function DashboardClient({
     <main className="recetas-container">
       {/* Header con Filtro de Periodo */}
       <div className="recetas-header">
-        <div>
-          <h1 className="recetas-title">📊 Panel Administrativo & Métricas de Negocio</h1>
-          <p className="recetas-subtitle">
-            Monitoreo en tiempo real de facturación, márgenes netos, clientes ganados y consumo de despensa.
-          </p>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <Image
+            src="/images/logo-badge.png"
+            alt="Logo La Parada del Sabor"
+            width={48}
+            height={48}
+            style={{ borderRadius: "50%", flexShrink: 0 }}
+          />
+          <div>
+            <h1 className="recetas-title">📊 Panel Administrativo & Métricas</h1>
+            <p className="recetas-subtitle">
+              Monitoreo en tiempo real de facturación, márgenes netos, clientes ganados y consumo de despensa.
+            </p>
+          </div>
         </div>
 
         <div className="delivery-type-selector" style={{ width: "auto" }}>

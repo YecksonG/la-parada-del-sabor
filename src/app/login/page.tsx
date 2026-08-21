@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState, useEffect, useId, useRef } from "react";
+import Image from "next/image";
 import { login, LoginState } from "./actions";
 import ThemeToggle from "@/components/theme-toggle";
 
@@ -101,7 +102,7 @@ export default function LoginPage() {
       {/* Widget Interactivo Inferior Izquierdo */}
       <aside className="login-floating-brand" title="La Parada del Sabor">
         <div className="floating-brand-logo">
-          <span style={{ fontSize: 24 }}>🫓</span>
+          <Image src="/images/logo-badge.png" alt="Logo" width={26} height={26} />
         </div>
         <div className="floating-brand-text">
           <span className="brand-name-main">La Parada</span>
@@ -112,6 +113,17 @@ export default function LoginPage() {
       <div className={`login-card ${sacudir ? "login-shake" : ""}`}>
         {/* Cabecera */}
         <header className="login-header">
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <Image
+              src="/images/logo-badge.png"
+              alt="Logo La Parada del Sabor"
+              width={88}
+              height={88}
+              className="login-logo-badge-img"
+              priority
+            />
+          </div>
+
           <div className="login-status-row">
             <span className="login-status-pill">
               <span className="status-dot-pulse"></span>

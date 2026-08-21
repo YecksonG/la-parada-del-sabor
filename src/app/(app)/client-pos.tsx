@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import { Producto, Categoria, ExtraModificador } from "@/types/database";
 import { registrarVentaPos, CartItem, CartItemExtra } from "./pos-actions";
 import { sounds } from "@/lib/sound-effects";
@@ -450,7 +451,15 @@ export default function PosClient({
       {comandaExitosa && (
         <div className="modal-overlay">
           <div className="modal-ticket-card">
-            <span className="ticket-icon">🫓</span>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+              <Image
+                src="/images/logo-badge.png"
+                alt="Logo La Parada del Sabor"
+                width={70}
+                height={70}
+                style={{ borderRadius: "50%" }}
+              />
+            </div>
             <div className="ticket-header">
               <h2>¡Comanda #{comandaExitosa.numero} en Cocina!</h2>
               <p className="ticket-subtitle">

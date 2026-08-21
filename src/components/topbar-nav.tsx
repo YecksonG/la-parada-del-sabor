@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import ThemeToggle from "@/components/theme-toggle";
@@ -66,7 +67,14 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     <header className="topbar">
       <div className="topbar-left">
         <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
-          <span className="brand-icon">🫓</span>
+          <Image
+            src="/images/logo-badge.png"
+            alt="Logo La Parada del Sabor"
+            width={36}
+            height={36}
+            className="brand-logo-img"
+            priority
+          />
           <div className="brand-text">
             <span className="brand-name-main">La Parada </span>
             <span className="brand-name-accent">del Sabor</span>
