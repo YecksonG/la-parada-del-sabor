@@ -1,0 +1,35 @@
+:root {
+  --bg: #fffbeb;
+  --card: #ffffff;
+  --text: #1c1917;
+  --text-soft: #78716c;
+  --border: #fde68a;
+  --primary: #f59e0b;
+  --primary-hover: #d97706;
+  --accent: #e11d48;
+  --green: #10b981;
+}
+
+[data-theme="dark"] {
+  --bg: #0c0a09;
+  --card: #1c1917;
+  --text: #fafaf9;
+  --text-soft: #a8a29e;
+  --border: #292524;
+  --primary: #f59e0b;
+  --primary-hover: #fbbf24;
+  --accent: #f43f5e;
+  --green: #34d399;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+}
