@@ -26,7 +26,7 @@ VALUES
   ('Tocineta Crocante', 'g', 6000, 800, 0.0120, 'Carnes'),
   ('Caraotas Negras Refritas', 'g', 10000, 1500, 0.0030, 'Vegetales'),
   ('Papel Envoltorio / Servilleta', 'und', 1000, 200, 0.0200, 'Empaque'),
-  ('Vaso Desechable 16oz', 'und', 500, 100, 0.0500, 'Empaque'),
+  ('Vaso Desechable 450 ml', 'und', 500, 100, 0.0500, 'Empaque'),
   ('Malta Polar 355ml', 'und', 120, 24, 0.9000, 'Bebidas')
 ON CONFLICT (nombre) DO NOTHING;
 
@@ -91,9 +91,9 @@ VALUES
     false
   ),
   (
-    'Jugo Natural de Parchita 16oz',
+    'Jugo Natural de Parchita (450 ml)',
     (SELECT id FROM public.categorias WHERE nombre = 'Bebidas & Jugos'),
-    'Jugo natural fresco bien frío',
+    'Jugo natural fresco bien frío servido en vaso de 450 ml',
     1.8,
     '🥤',
     false

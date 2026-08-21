@@ -236,9 +236,12 @@ export default function DashboardClient({
             ) : (
               finanzas.topInsumos.map((ins) => {
                 const esGramos = ins.unidad === "g";
+                const esMililitros = ins.unidad === "ml";
                 const display =
                   esGramos && ins.gramos >= 1000
                     ? `${(ins.gramos / 1000).toFixed(2)} kg (${ins.gramos.toLocaleString()} g)`
+                    : esMililitros && ins.gramos >= 1000
+                    ? `${(ins.gramos / 1000).toFixed(2)} L (${ins.gramos.toLocaleString()} ml)`
                     : `${ins.gramos.toLocaleString()} ${ins.unidad}`;
 
                 return (
