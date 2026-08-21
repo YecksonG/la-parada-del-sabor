@@ -1,5 +1,5 @@
 -- ==============================================================================
--- SCHEMA MASTER V2.0: LA PARADA DEL SABOR (POS & ESCANDALLO GASTRONÓMICO)
+-- SCHEMA MASTER V2.1: LA PARADA DEL SABOR (POS & ESCANDALLO GASTRONÓMICO)
 -- Base de datos relacional robusta con PPMC, RLS, triggers compensatorios,
 -- reconciliación de cancelaciones y cálculo estricto de totales server-side.
 -- ==============================================================================
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS public.compras_items (
     compra_id UUID NOT NULL REFERENCES public.compras(id) ON DELETE CASCADE,
     insumo_id UUID NOT NULL REFERENCES public.insumos(id) ON DELETE RESTRICT,
     cantidad_comprada NUMERIC(10, 2) NOT NULL CHECK (cantidad_comprada > 0),
-    unidad_compra VARCHAR(30) NOT NULL, -- 'saco_20kg', 'kg', 'litro', 'g', 'und'
+    unidad_compra VARCHAR(30) NOT NULL,
     factor_conversion NUMERIC(10, 2) NOT NULL DEFAULT 1 CHECK (factor_conversion > 0),
     cantidad_base_total NUMERIC(12, 2) NOT NULL CHECK (cantidad_base_total > 0),
     precio_unitario_usd NUMERIC(10, 4) NOT NULL CHECK (precio_unitario_usd >= 0),
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS public.ventas_items_extras (
 );
 
 -- ==============================================================================
--- 2. ROW LEVEL SECURITY (RLS) & POLICIES (PATRÓN SEGURO AUTHENTICATED)
+-- 2. ROW LEVEL SECURITY (RLS) & POLICIES
 -- ==============================================================================
 
 ALTER TABLE public.categorias ENABLE ROW LEVEL SECURITY;
@@ -201,7 +201,7 @@ CREATE POLICY "auth_ventas_extras" ON public.ventas_items_extras FOR ALL TO auth
 -- 3. TRIGGERS DE INVENTARIO Y RECONCILIACIÓN DE CANCELACIONES
 -- ==============================================================================
 
--- A) Descontar receta al insertar item de venta (solo si la venta NO está cancelada)
+-- A) Descontar receta al insertar item de venta
 CREATE OR REPLACE FUNCTION public.fn_descontar_receta_venta()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -209,7 +209,6 @@ DECLARE
 BEGIN
     SELECT estado INTO v_estado FROM public.ventas WHERE id = NEW.venta_id;
     
-    -- Solo descontar si la comanda está activa ('preparando' o 'completada')
     IF v_estado IS DISTINCT FROM 'cancelada' THEN
         UPDATE public.insumos i
         SET stock_actual = i.stock_actual - (r.cantidad * NEW.cantidad),
@@ -228,7 +227,7 @@ AFTER INSERT ON public.ventas_items
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_descontar_receta_venta();
 
--- B) Descontar extra vendido (solo si la venta NO está cancelada)
+-- B) Descontar extra vendido
 CREATE OR REPLACE FUNCTION public.fn_descontar_extra_venta()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -257,13 +256,12 @@ AFTER INSERT ON public.ventas_items_extras
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_descontar_extra_venta();
 
--- C) Reconciliar stock ante cambio de estado en la venta (Cancelación / Restauración)
+-- C) Reconciliar stock ante cambio de estado en la venta
 CREATE OR REPLACE FUNCTION public.fn_reconciliar_cambio_estado_venta()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Caso 1: Venta pasa a 'cancelada' -> DEVOLVER INSUMOS AL STOCK
     IF OLD.estado != 'cancelada' AND NEW.estado = 'cancelada' THEN
-        -- 1. Restaurar insumos de recetas
+        -- Restaurar recetas
         UPDATE public.insumos i
         SET stock_actual = i.stock_actual + sub.total_devuelto,
             actualizado_el = NOW()
@@ -276,7 +274,7 @@ BEGIN
         ) sub
         WHERE i.id = sub.insumo_id;
 
-        -- 2. Restaurar insumos de extras
+        -- Restaurar extras
         UPDATE public.insumos i
         SET stock_actual = i.stock_actual + sub.total_extra_devuelto,
             actualizado_el = NOW()
@@ -290,9 +288,8 @@ BEGIN
         ) sub
         WHERE i.id = sub.insumo_id;
 
-    -- Caso 2: Venta cancelada se reactiva a 'preparando' o 'completada' -> VOLVER A DESCONTAR
     ELSIF OLD.estado = 'cancelada' AND NEW.estado != 'cancelada' THEN
-        -- 1. Descontar insumos de recetas
+        -- Volver a descontar recetas
         UPDATE public.insumos i
         SET stock_actual = i.stock_actual - sub.total_descontar,
             actualizado_el = NOW()
@@ -305,7 +302,7 @@ BEGIN
         ) sub
         WHERE i.id = sub.insumo_id;
 
-        -- 2. Descontar insumos de extras
+        -- Volver a descontar extras
         UPDATE public.insumos i
         SET stock_actual = i.stock_actual - sub.total_extra_descontar,
             actualizado_el = NOW()
@@ -330,10 +327,9 @@ FOR EACH ROW
 EXECUTE FUNCTION public.fn_reconciliar_cambio_estado_venta();
 
 -- ==============================================================================
--- 4. TRIGGERS DE COMPRAS: PPMC (PRECIO PROMEDIO PONDERADO) Y AJUSTES
+-- 4. TRIGGERS DE COMPRAS: PPMC Y AJUSTES
 -- ==============================================================================
 
--- A) Sumar stock y recalcular Costo Unitario Promedio Ponderado Móvil (PPMC)
 CREATE OR REPLACE FUNCTION public.fn_sumar_stock_compra_ppmc()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -349,11 +345,9 @@ BEGIN
 
     v_nuevo_stock := GREATEST(v_stock_previo, 0) + NEW.cantidad_base_total;
 
-    -- Fórmula PPMC: (Stock_ant * Costo_ant + Subtotal_nuevo) / (Stock_ant + Cant_nueva)
     IF v_stock_previo > 0 THEN
         v_costo_ponderado := ((v_stock_previo * v_costo_previo) + NEW.subtotal_usd) / v_nuevo_stock;
     ELSE
-        -- Si no había stock o estaba negativo, el costo es el de la nueva compra
         v_costo_ponderado := NEW.subtotal_usd / NEW.cantidad_base_total;
     END IF;
 
@@ -372,7 +366,6 @@ AFTER INSERT ON public.compras_items
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_sumar_stock_compra_ppmc();
 
--- B) Revertir stock si se elimina un item de compra
 CREATE OR REPLACE FUNCTION public.fn_revertir_stock_compra_delete()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -394,38 +387,40 @@ EXECUTE FUNCTION public.fn_revertir_stock_compra_delete();
 -- 5. TRIGGERS DE TOTALES SERVER-SIDE (VENTAS Y COMPRAS)
 -- ==============================================================================
 
--- A) Recalcular totales de venta automáticamente
+-- Recalcular totales al cambiar ventas_items
 CREATE OR REPLACE FUNCTION public.fn_recalcular_totales_venta()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_venta_id UUID;
+    v_id UUID;
     v_total_items NUMERIC(10, 2) := 0;
     v_total_extras NUMERIC(10, 2) := 0;
     v_total_usd NUMERIC(10, 2) := 0;
     v_tasa NUMERIC(12, 4) := 1;
 BEGIN
-    v_venta_id := COALESCE(NEW.venta_id, OLD.venta_id);
+    IF TG_OP = 'DELETE' THEN
+        v_id := OLD.venta_id;
+    ELSE
+        v_id := NEW.venta_id;
+    END IF;
 
-    SELECT tasa_bcv INTO v_tasa FROM public.ventas WHERE id = v_venta_id;
+    SELECT COALESCE(tasa_bcv, 1) INTO v_tasa FROM public.ventas WHERE id = v_id;
     IF v_tasa IS NULL OR v_tasa <= 0 THEN v_tasa := 1; END IF;
 
-    -- Sumar items
     SELECT COALESCE(SUM(subtotal_usd), 0) INTO v_total_items
     FROM public.ventas_items
-    WHERE venta_id = v_venta_id;
+    WHERE venta_id = v_id;
 
-    -- Sumar extras
     SELECT COALESCE(SUM(vie.subtotal_usd), 0) INTO v_total_extras
     FROM public.ventas_items vi
     JOIN public.ventas_items_extras vie ON vie.venta_item_id = vi.id
-    WHERE vi.venta_id = v_venta_id;
+    WHERE vi.venta_id = v_id;
 
     v_total_usd := v_total_items + v_total_extras;
 
     UPDATE public.ventas
     SET total_usd = v_total_usd,
-        total_bs = ROUND(v_total_usd * v_tasa, 2)
-    WHERE id = v_venta_id;
+        total_bs = ROUND((v_total_usd * v_tasa)::NUMERIC, 2)
+    WHERE id = v_id;
 
     RETURN NULL;
 END;
@@ -436,27 +431,79 @@ AFTER INSERT OR UPDATE OR DELETE ON public.ventas_items
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_recalcular_totales_venta();
 
--- B) Recalcular totales de compra automáticamente
+-- Recalcular totales al cambiar ventas_items_extras
+CREATE OR REPLACE FUNCTION public.fn_recalcular_totales_venta_extras()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_id UUID;
+    v_item_id UUID;
+    v_total_items NUMERIC(10, 2) := 0;
+    v_total_extras NUMERIC(10, 2) := 0;
+    v_total_usd NUMERIC(10, 2) := 0;
+    v_tasa NUMERIC(12, 4) := 1;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        v_item_id := OLD.venta_item_id;
+    ELSE
+        v_item_id := NEW.venta_item_id;
+    END IF;
+
+    SELECT venta_id INTO v_id FROM public.ventas_items WHERE id = v_item_id;
+    IF v_id IS NULL THEN RETURN NULL; END IF;
+
+    SELECT COALESCE(tasa_bcv, 1) INTO v_tasa FROM public.ventas WHERE id = v_id;
+    IF v_tasa IS NULL OR v_tasa <= 0 THEN v_tasa := 1; END IF;
+
+    SELECT COALESCE(SUM(subtotal_usd), 0) INTO v_total_items
+    FROM public.ventas_items
+    WHERE venta_id = v_id;
+
+    SELECT COALESCE(SUM(vie.subtotal_usd), 0) INTO v_total_extras
+    FROM public.ventas_items vi
+    JOIN public.ventas_items_extras vie ON vie.venta_item_id = vi.id
+    WHERE vi.venta_id = v_id;
+
+    v_total_usd := v_total_items + v_total_extras;
+
+    UPDATE public.ventas
+    SET total_usd = v_total_usd,
+        total_bs = ROUND((v_total_usd * v_tasa)::NUMERIC, 2)
+    WHERE id = v_id;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_recalc_totales_ventas_extras
+AFTER INSERT OR UPDATE OR DELETE ON public.ventas_items_extras
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_recalcular_totales_venta_extras();
+
+-- Recalcular totales de compra
 CREATE OR REPLACE FUNCTION public.fn_recalcular_totales_compra()
 RETURNS TRIGGER AS $$
 DECLARE
-    v_compra_id UUID;
+    v_id UUID;
     v_total_usd NUMERIC(12, 2) := 0;
     v_tasa NUMERIC(12, 4) := 1;
 BEGIN
-    v_compra_id := COALESCE(NEW.compra_id, OLD.compra_id);
+    IF TG_OP = 'DELETE' THEN
+        v_id := OLD.compra_id;
+    ELSE
+        v_id := NEW.compra_id;
+    END IF;
 
-    SELECT tasa_bcv INTO v_tasa FROM public.compras WHERE id = v_compra_id;
+    SELECT COALESCE(tasa_bcv, 1) INTO v_tasa FROM public.compras WHERE id = v_id;
     IF v_tasa IS NULL OR v_tasa <= 0 THEN v_tasa := 1; END IF;
 
     SELECT COALESCE(SUM(subtotal_usd), 0) INTO v_total_usd
     FROM public.compras_items
-    WHERE compra_id = v_compra_id;
+    WHERE compra_id = v_id;
 
     UPDATE public.compras
     SET total_usd = v_total_usd,
-        total_bs = ROUND(v_total_usd * v_tasa, 2)
-    WHERE id = v_compra_id;
+        total_bs = ROUND((v_total_usd * v_tasa)::NUMERIC, 2)
+    WHERE id = v_id;
 
     RETURN NULL;
 END;
