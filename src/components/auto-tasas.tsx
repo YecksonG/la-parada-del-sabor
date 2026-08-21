@@ -3,29 +3,37 @@
 import { useEffect } from "react";
 import { autoSincronizarTasas } from "@/app/(app)/tasas/actions";
 
-const THROTTLE_MS = 15 * 60 * 1000; // 15 minutos entre sincronizaciones automáticas
+const THROTTLE_SUCCESS_MS = 15 * 60 * 1000; // 15 minutos si fue exitoso
+const THROTTLE_FAIL_MS = 2 * 60 * 1000;     // 2 minutos de backoff si falló la API
 
 export default function AutoTasas() {
   useEffect(() => {
     let activo = true;
 
-    async function ejecutarSincronizacion(forzar = false) {
+    async function ejecutarSincronizacion() {
       if (!activo) return;
 
-      const ultimoStr = sessionStorage.getItem("last_tasas_sync");
-      const ultimo = ultimoStr ? parseInt(ultimoStr, 10) : 0;
-      const ahora = Date.now();
-
-      // Si no es forzado y pasaron menos de 15 minutos, omitir para ahorrar tráfico
-      if (!forzar && ahora - ultimo < THROTTLE_MS) {
-        return;
-      }
-
       try {
-        await autoSincronizarTasas();
-        sessionStorage.setItem("last_tasas_sync", String(ahora));
+        const ultimoStr = localStorage.getItem("last_tasas_sync");
+        const ultimo = ultimoStr ? parseInt(ultimoStr, 10) : 0;
+        const ahora = Date.now();
+
+        // Evitar llamadas duplicadas entre pestañas concurrentes
+        if (ahora - ultimo < THROTTLE_SUCCESS_MS) {
+          return;
+        }
+
+        const res = await autoSincronizarTasas();
+        if (res?.ok) {
+          localStorage.setItem("last_tasas_sync", String(ahora));
+        } else {
+          // Backoff corto de 2 min ante fallo para no martillar la API
+          localStorage.setItem("last_tasas_sync", String(ahora - THROTTLE_SUCCESS_MS + THROTTLE_FAIL_MS));
+        }
       } catch {
-        // Silencioso en background
+        // En caso de error de red, establecer backoff de 2 minutos
+        const ahora = Date.now();
+        localStorage.setItem("last_tasas_sync", String(ahora - THROTTLE_SUCCESS_MS + THROTTLE_FAIL_MS));
       }
     }
 
