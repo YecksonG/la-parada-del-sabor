@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Producto, Insumo, Categoria } from "@/types/database";
 import { guardarPlatoYReceta, eliminarPlato } from "./actions";
+import { sounds } from "@/lib/sound-effects";
 
 interface RecetasClientProps {
   productos: Producto[];
@@ -21,6 +22,7 @@ export default function RecetasClient({
   insumos,
   categorias,
 }: RecetasClientProps) {
+  const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [modalAbierto, setModalAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export default function RecetasClient({
   ]);
 
   const abrirCrear = () => {
+    sounds.playPop();
     setEditandoId(null);
     setNombre("");
     setCategoriaId(categorias[0]?.id || null);
@@ -53,6 +56,7 @@ export default function RecetasClient({
   };
 
   const abrirEditar = (prod: Producto) => {
+    sounds.playPop();
     setEditandoId(prod.id);
     setNombre(prod.nombre);
     setCategoriaId(prod.categoria_id);
@@ -71,6 +75,7 @@ export default function RecetasClient({
   };
 
   const agregarFilaIngrediente = () => {
+    sounds.playPop();
     if (insumos.length === 0) return;
     setIngredientes((prev) => [
       ...prev,
@@ -91,6 +96,7 @@ export default function RecetasClient({
   };
 
   const eliminarIngrediente = (index: number) => {
+    sounds.playDelete();
     setIngredientes((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -98,17 +104,14 @@ export default function RecetasClient({
   const costoTotalReceta = useMemo(() => {
     return ingredientes.reduce((acc, ing) => {
       const insumo = insumos.find((i) => i.id === ing.insumo_id);
-      if (!insumo) return acc;
-      const costo = Number(insumo.costo_unitario_usd) * (Number(ing.cantidad) || 0);
-      return acc + costo;
+      const costoUnit = Number(insumo?.costo_unitario_usd || 0);
+      return acc + costoUnit * Number(ing.cantidad);
     }, 0);
   }, [ingredientes, insumos]);
 
-  const margenGanancia = useMemo(() => {
-    if (precioUsd <= 0) return 0;
-    const ganancia = precioUsd - costoTotalReceta;
-    return ((ganancia / precioUsd) * 100).toFixed(1);
-  }, [precioUsd, costoTotalReceta]);
+  const gananciaEstimada = precioUsd - costoTotalReceta;
+  const margenEstimadoPct =
+    precioUsd > 0 ? ((gananciaEstimada / precioUsd) * 100).toFixed(1) : "0.0";
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,20 +126,27 @@ export default function RecetasClient({
       precio_usd: Number(precioUsd),
       icono,
       popular,
-      ingredientes,
+      ingredientes: ingredientes.filter((i) => i.insumo_id && i.cantidad > 0),
     });
+
     setGuardando(false);
 
     if (res.ok) {
+      sounds.playKitchenBell();
       setModalAbierto(false);
     } else {
-      alert(res.error || "Error al guardar la receta.");
+      alert(res.error || "Hubo un error al guardar la receta.");
     }
   };
 
   const handleEliminar = async (id: string, nombreProd: string) => {
-    if (confirm(`¿Estás seguro de eliminar el plato "${nombreProd}"?`)) {
-      await eliminarPlato(id);
+    if (!confirm(`¿Eliminar ${nombreProd} del menú y sus fórmulas asociadas?`))
+      return;
+
+    sounds.playDelete();
+    const res = await eliminarPlato(id);
+    if (!res.ok) {
+      alert(res.error || "No se pudo eliminar el plato.");
     }
   };
 
@@ -145,29 +155,58 @@ export default function RecetasClient({
       {/* Header */}
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">🌾 Motor de Recetas & Escandallo</h1>
+          <h1 className="recetas-title">🌾 Recetas & Escandallo por Gramos</h1>
           <p className="recetas-subtitle">
             Define las proporciones exactas en gramos para el descuento automático de inventario al vender.
           </p>
         </div>
-        <button type="button" onClick={abrirCrear} className="btn-primary-action">
-          <span>+</span> Nueva Receta / Arepa
-        </button>
-      </div>
 
-      {/* Grid de Platos y Fórmulas */}
-      <div className="recetas-grid">
-        {productos.length === 0 ? (
-          <div className="recetas-empty-box">
-            <span style={{ fontSize: 48 }}>🌾</span>
-            <h3>No hay recetas configuradas</h3>
-            <p>Crea tu primera arepa o plato con sus ingredientes en gramos.</p>
-            <button type="button" onClick={abrirCrear} className="btn-primary-action">
-              Crear Primera Receta
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Toggle de Vista: Cuadros vs Filas */}
+          <div className="view-mode-toggle">
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setModoVista("grid");
+              }}
+              className={`view-mode-btn ${modoVista === "grid" ? "active" : ""}`}
+              title="Vista en Tarjetas / Cuadros"
+            >
+              ⊞ Cuadros
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setModoVista("filas");
+              }}
+              className={`view-mode-btn ${modoVista === "filas" ? "active" : ""}`}
+              title="Vista en Filas / Lista Detallada"
+            >
+              ☰ Filas
             </button>
           </div>
-        ) : (
-          productos.map((prod) => {
+
+          <button type="button" onClick={abrirCrear} className="btn-primary-action">
+            <span>+</span> Nueva Receta / Arepa
+          </button>
+        </div>
+      </div>
+
+      {productos.length === 0 ? (
+        <div className="recetas-empty-box">
+          <span style={{ fontSize: 48 }}>🌾</span>
+          <h3>No hay recetas configuradas</h3>
+          <p>Crea tu primera arepa o plato con sus ingredientes en gramos.</p>
+          <button type="button" onClick={abrirCrear} className="btn-primary-action">
+            Crear Primera Receta
+          </button>
+        </div>
+      ) : modoVista === "grid" ? (
+        /* VISTA 1: CUADROS / GRID */
+        <div className="recetas-grid">
+          {productos.map((prod) => {
             const costoProd = (prod.ingredientes || []).reduce((acc, ing) => {
               const costoUnit = Number(ing.insumo?.costo_unitario_usd || 0);
               return acc + costoUnit * Number(ing.cantidad);
@@ -253,16 +292,123 @@ export default function RecetasClient({
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      ) : (
+        /* VISTA 2: FILAS / LISTA DETALLADA (TODO COMPLETO) */
+        <div className="table-responsive-wrapper">
+          <table className="custom-detailed-table">
+            <thead>
+              <tr>
+                <th>Plato & Categoría</th>
+                <th>Descripción</th>
+                <th>PVP Venta</th>
+                <th>Costo Materia Prima</th>
+                <th>Ganancia Neta</th>
+                <th>Margen %</th>
+                <th>Fórmula Exacta (Gramos / ml)</th>
+                <th style={{ textAlign: "right" }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {productos.map((prod) => {
+                const costoProd = (prod.ingredientes || []).reduce((acc, ing) => {
+                  const costoUnit = Number(ing.insumo?.costo_unitario_usd || 0);
+                  return acc + costoUnit * Number(ing.cantidad);
+                }, 0);
 
-      {/* Modal Creador / Editor de Receta */}
+                const ganancia = Number(prod.precio_usd) - costoProd;
+                const margenPct =
+                  Number(prod.precio_usd) > 0
+                    ? ((ganancia / Number(prod.precio_usd)) * 100).toFixed(1)
+                    : "0.0";
+
+                return (
+                  <tr key={prod.id} className="detailed-table-row">
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 22 }}>{prod.icono || "🫓"}</span>
+                        <div>
+                          <strong style={{ fontSize: 14, color: "var(--text)" }}>{prod.nombre}</strong>
+                          <div>
+                            <span className="receta-cat-badge">{prod.categoria?.nombre || "General"}</span>
+                            {prod.popular && <span className="badge-popular" style={{ marginLeft: 4 }}>🔥 Popular</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ maxWidth: 220, fontSize: 12, color: "var(--text-muted)" }}>
+                      {prod.descripcion || "—"}
+                    </td>
+                    <td>
+                      <strong className="text-primary" style={{ fontSize: 14 }}>
+                        ${Number(prod.precio_usd).toFixed(2)} USD
+                      </strong>
+                    </td>
+                    <td>
+                      <strong style={{ fontSize: 13, color: "var(--text)" }}>
+                        ${costoProd.toFixed(2)} USD
+                      </strong>
+                    </td>
+                    <td>
+                      <strong className="text-green" style={{ fontSize: 13 }}>
+                        +${ganancia.toFixed(2)} USD
+                      </strong>
+                    </td>
+                    <td>
+                      <span className="tasa-pill-label bcv-tag" style={{ fontSize: 12 }}>
+                        {margenPct}%
+                      </span>
+                    </td>
+                    <td style={{ maxWidth: 280 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                        {(prod.ingredientes || []).length === 0 ? (
+                          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Sin fórmula</span>
+                        ) : (
+                          (prod.ingredientes || []).map((ing, idx) => (
+                            <span key={idx} className="ingredient-tag" style={{ fontSize: 11, padding: "2px 6px" }}>
+                              {ing.insumo?.nombre}: <strong>{Number(ing.cantidad)}{ing.insumo?.unidad_medida || "g"}</strong>
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => abrirEditar(prod)}
+                          className="btn-insumo-adjust"
+                          style={{ padding: "4px 8px", fontSize: 12 }}
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEliminar(prod.id, prod.nombre)}
+                          className="btn-delete-receta"
+                          style={{ padding: "4px 8px" }}
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Modal Crear / Editar Receta */}
       {modalAbierto && (
         <div className="modal-overlay">
           <div className="modal-recipe-card">
             <div className="modal-recipe-header">
-              <h2>{editandoId ? "Editar Receta & Escandallo" : "Nueva Receta de Plato"}</h2>
+              <h2>{editandoId ? "Editar Receta y Fórmula" : "Nueva Receta de Plato"}</h2>
               <button
                 type="button"
                 onClick={() => setModalAbierto(false)}
@@ -279,7 +425,7 @@ export default function RecetasClient({
                   <input
                     type="text"
                     required
-                    placeholder="Ej. Arepa Reina Pepiada"
+                    placeholder="Ej. Arepa Pelúa / Empanada de Cazón"
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
                     className="form-input"
@@ -290,12 +436,12 @@ export default function RecetasClient({
                   <label>Categoría</label>
                   <select
                     value={categoriaId || ""}
-                    onChange={(e) => setCategoriaId(e.target.value || null)}
+                    onChange={(e) => setCategoriaId(e.target.value)}
                     className="form-input"
                   >
-                    {categorias.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.icono} {c.nombre}
+                    {categorias.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icono} {cat.nombre}
                       </option>
                     ))}
                   </select>
@@ -304,11 +450,11 @@ export default function RecetasClient({
 
               <div className="form-grid-3">
                 <div className="form-field">
-                  <label>Precio Venta ($ USD)</label>
+                  <label>Precio de Venta ($ USD)</label>
                   <input
                     type="number"
                     step="0.01"
-                    min="0"
+                    min="0.1"
                     required
                     value={precioUsd}
                     onChange={(e) => setPrecioUsd(parseFloat(e.target.value) || 0)}
@@ -317,122 +463,130 @@ export default function RecetasClient({
                 </div>
 
                 <div className="form-field">
-                  <label>Ícono</label>
-                  <select
+                  <label>Icono / Emoji</label>
+                  <input
+                    type="text"
+                    required
                     value={icono}
                     onChange={(e) => setIcono(e.target.value)}
                     className="form-input"
-                  >
-                    <option value="🫓">🫓 Arepa</option>
-                    <option value="🥟">🥟 Empanada</option>
-                    <option value="🥤">🥤 Bebida</option>
-                    <option value="🧀">🧀 Ración / Extra</option>
-                    <option value="🥩">🥩 Carne</option>
-                    <option value="🍗">🍗 Pollo</option>
-                    <option value="🥑">🥑 Aguacate</option>
-                  </select>
+                  />
                 </div>
 
-                <div className="form-field checkbox-field">
+                <div className="form-field form-checkbox-center">
                   <label className="checkbox-label">
                     <input
                       type="checkbox"
                       checked={popular}
                       onChange={(e) => setPopular(e.target.checked)}
                     />
-                    <span>🔥 Plato Estrella</span>
+                    <span>🔥 Plato Estrella / Popular</span>
                   </label>
                 </div>
               </div>
 
               <div className="form-field">
-                <label>Descripción corta</label>
+                <label>Descripción / Relleno (opcional)</label>
                 <input
                   type="text"
-                  placeholder="Ej. Pollo desmechado con aguacate y mayonesa casera"
+                  placeholder="Carne mechada jugosa con abundante queso amarillo rallado"
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   className="form-input"
                 />
               </div>
 
-              {/* Sección de Ingredientes en Gramos */}
+              {/* Sección de Ingredientes / Escandallo en Gramos */}
               <div className="recipe-ingredients-builder">
                 <div className="builder-header">
-                  <h4>🌾 Ingredientes & Desglose en Gramos (BOM)</h4>
+                  <h4>🌾 Ingredientes & Descuento en Gramos (BOM)</h4>
                   <button
                     type="button"
                     onClick={agregarFilaIngrediente}
-                    className="btn-add-ingredient"
+                    className="btn-add-ingredient-row"
                   >
-                    + Agregar Ingrediente
+                    + Añadir Insumo
                   </button>
                 </div>
 
-                <div className="builder-rows">
-                  {ingredientes.map((ing, index) => {
-                    const insumoActual = insumos.find((i) => i.id === ing.insumo_id);
-                    const costoFila =
-                      (Number(insumoActual?.costo_unitario_usd) || 0) * (Number(ing.cantidad) || 0);
+                {ingredientes.map((ing, index) => {
+                  const insumoActual = insumos.find((i) => i.id === ing.insumo_id);
+                  const costoFila =
+                    (Number(insumoActual?.costo_unitario_usd) || 0) *
+                    Number(ing.cantidad);
 
-                    return (
-                      <div key={index} className="builder-row">
+                  return (
+                    <div key={index} className="ingredient-builder-row">
+                      <div className="builder-select-col">
                         <select
                           value={ing.insumo_id}
                           onChange={(e) =>
                             modificarIngrediente(index, "insumo_id", e.target.value)
                           }
-                          className="form-input select-insumo"
+                          className="form-input"
                         >
-                          {insumos.map((ins) => (
-                            <option key={ins.id} value={ins.id}>
-                              {ins.nombre} ({ins.unidad_medida})
+                          {insumos.map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.nombre} (${Number(i.costo_unitario_usd).toFixed(4)}/{i.unidad_medida})
                             </option>
                           ))}
                         </select>
+                      </div>
 
-                        <div className="input-qty-wrapper">
-                          <input
-                            type="number"
-                            step="any"
-                            min="0.01"
-                            value={ing.cantidad}
-                            onChange={(e) =>
-                              modificarIngrediente(index, "cantidad", e.target.value)
-                            }
-                            className="form-input input-qty"
-                          />
-                          <span className="qty-unit-label">
-                            {insumoActual?.unidad_medida || "g"}
-                          </span>
-                        </div>
+                      <div className="builder-qty-col">
+                        <input
+                          type="number"
+                          step="any"
+                          min="0.1"
+                          required
+                          value={ing.cantidad}
+                          onChange={(e) =>
+                            modificarIngrediente(
+                              index,
+                              "cantidad",
+                              parseFloat(e.target.value) || 0
+                            )
+                          }
+                          className="form-input"
+                        />
+                        <span className="builder-unit-label">
+                          {insumoActual?.unidad_medida || "g"}
+                        </span>
+                      </div>
 
-                        <span className="cost-row-preview">
+                      <div className="builder-cost-col">
+                        <span className="builder-cost-val">
                           ${costoFila.toFixed(3)}
                         </span>
-
-                        <button
-                          type="button"
-                          onClick={() => eliminarIngrediente(index)}
-                          className="btn-remove-row"
-                        >
-                          ✕
-                        </button>
                       </div>
-                    );
-                  })}
-                </div>
 
-                {/* Resumen del Costo de Producción */}
-                <div className="recipe-cost-summary">
-                  <div className="cost-summary-item">
-                    <span>Costo Materia Prima:</span>
-                    <strong>${costoTotalReceta.toFixed(2)} USD</strong>
-                  </div>
-                  <div className="cost-summary-item">
-                    <span>Margen Estimado:</span>
-                    <strong className="text-green">{margenGanancia}%</strong>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => eliminarIngrediente(index)}
+                        className="btn-remove-ingredient"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Barra Resumen de Costo & Margen en Tiempo Real */}
+              <div className="recipe-calc-summary">
+                <div className="calc-summary-item">
+                  <span>Costo Materia Prima:</span>
+                  <strong>${costoTotalReceta.toFixed(2)} USD</strong>
+                </div>
+                <div className="calc-summary-item">
+                  <span>Ganancia Neta:</span>
+                  <strong className="text-green">
+                    ${gananciaEstimada.toFixed(2)} USD
+                  </strong>
+                </div>
+                <div className="calc-summary-item">
+                  <span>Margen de Ganancia:</span>
+                  <strong className="text-primary">{margenEstimadoPct}%</strong>
                 </div>
               </div>
 
@@ -449,7 +603,7 @@ export default function RecetasClient({
                   disabled={guardando}
                   className="btn-submit-recipe"
                 >
-                  {guardando ? "Guardando..." : "💾 Guardar Fórmula"}
+                  {guardando ? "Guardando..." : "💾 Guardar Receta & Costos"}
                 </button>
               </div>
             </form>

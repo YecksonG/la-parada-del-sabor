@@ -14,6 +14,7 @@ export default function ProveedoresClient({
   proveedores,
   statsCompras,
 }: ProveedoresClientProps) {
+  const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [busqueda, setBusqueda] = useState("");
   const [modalAbierto, setModalAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
@@ -28,6 +29,7 @@ export default function ProveedoresClient({
   const [notas, setNotas] = useState("");
 
   const abrirCrear = () => {
+    sounds.playPop();
     setProveedorSeleccionado(null);
     setNombre("");
     setTelefono("");
@@ -39,6 +41,7 @@ export default function ProveedoresClient({
   };
 
   const abrirEditar = (p: Proveedor) => {
+    sounds.playPop();
     setProveedorSeleccionado(p);
     setNombre(p.nombre);
     setTelefono(p.telefono || "");
@@ -75,7 +78,7 @@ export default function ProveedoresClient({
     setGuardando(false);
 
     if (res.ok) {
-      sounds.playPop();
+      sounds.playKitchenBell();
       setModalAbierto(false);
     } else {
       alert(res.error || "Error al guardar el proveedor.");
@@ -91,9 +94,38 @@ export default function ProveedoresClient({
             Gestión de distribuidores de harina, carnicerías, charcuterías y empaques mayoristas.
           </p>
         </div>
-        <button type="button" onClick={abrirCrear} className="btn-primary-action">
-          <span>+</span> Nuevo Proveedor
-        </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Toggle de Vista: Cuadros vs Filas */}
+          <div className="view-mode-toggle">
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setModoVista("grid");
+              }}
+              className={`view-mode-btn ${modoVista === "grid" ? "active" : ""}`}
+              title="Vista en Tarjetas / Cuadros"
+            >
+              ⊞ Cuadros
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setModoVista("filas");
+              }}
+              className={`view-mode-btn ${modoVista === "filas" ? "active" : ""}`}
+              title="Vista en Filas / Lista Detallada"
+            >
+              ☰ Filas
+            </button>
+          </div>
+
+          <button type="button" onClick={abrirCrear} className="btn-primary-action">
+            <span>+</span> Nuevo Proveedor
+          </button>
+        </div>
       </div>
 
       <div className="search-input-wrapper">
@@ -105,17 +137,23 @@ export default function ProveedoresClient({
           onChange={(e) => setBusqueda(e.target.value)}
           className="pos-search-input"
         />
+        {busqueda && (
+          <button type="button" onClick={() => setBusqueda("")} className="btn-clear-search">
+            ✕
+          </button>
+        )}
       </div>
 
-      <div className="insumos-grid">
-        {proveedoresFiltrados.length === 0 ? (
-          <div className="recetas-empty-box">
-            <span style={{ fontSize: 48 }}>🏢</span>
-            <h3>No hay proveedores registrados</h3>
-            <p>Registra tus distribuidores para asociarlos a las compras de mercancía.</p>
-          </div>
-        ) : (
-          proveedoresFiltrados.map((p) => {
+      {proveedoresFiltrados.length === 0 ? (
+        <div className="recetas-empty-box">
+          <span style={{ fontSize: 48 }}>🏢</span>
+          <h3>No hay proveedores registrados</h3>
+          <p>Registra tus distribuidores para asociarlos a las compras de mercancía.</p>
+        </div>
+      ) : modoVista === "grid" ? (
+        /* VISTA 1: CUADROS / GRID */
+        <div className="insumos-grid">
+          {proveedoresFiltrados.map((p) => {
             const stats = statsCompras[p.id] || { conteo: 0, totalUsd: 0 };
 
             return (
@@ -164,9 +202,85 @@ export default function ProveedoresClient({
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      ) : (
+        /* VISTA 2: FILAS / LISTA DETALLADA (TODO COMPLETO) */
+        <div className="table-responsive-wrapper">
+          <table className="custom-detailed-table">
+            <thead>
+              <tr>
+                <th>Empresa / Razón Social</th>
+                <th>Contacto Directo</th>
+                <th>Teléfono / WhatsApp</th>
+                <th>Dirección</th>
+                <th>Insumos que Suministra</th>
+                <th>Compras Realizadas</th>
+                <th>Total Facturado</th>
+                <th style={{ textAlign: "right" }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {proveedoresFiltrados.map((p) => {
+                const stats = statsCompras[p.id] || { conteo: 0, totalUsd: 0 };
+
+                return (
+                  <tr key={p.id} className="detailed-table-row">
+                    <td>
+                      <div>
+                        <strong style={{ fontSize: 14, color: "var(--text)" }}>🏢 {p.nombre}</strong>
+                        {p.rif && <div><span className="receta-cat-badge">RIF: {p.rif}</span></div>}
+                      </div>
+                    </td>
+                    <td>
+                      {p.contacto ? (
+                        <span style={{ fontSize: 13, fontWeight: 700 }}>👤 {p.contacto}</span>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {p.telefono ? (
+                        <span style={{ fontSize: 13 }}>📞 {p.telefono}</span>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ maxWidth: 200, fontSize: 12 }}>
+                      {p.direccion ? <span>📍 {p.direccion}</span> : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                    </td>
+                    <td style={{ maxWidth: 220, fontSize: 12 }}>
+                      {p.notas ? (
+                        <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>📝 {p.notas}</span>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)" }}>General</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className="badge-ticket" style={{ fontSize: 12 }}>{stats.conteo} Compras</span>
+                    </td>
+                    <td>
+                      <strong className="text-primary" style={{ fontSize: 14 }}>
+                        ${stats.totalUsd.toFixed(2)} USD
+                      </strong>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        type="button"
+                        onClick={() => abrirEditar(p)}
+                        className="btn-insumo-adjust"
+                        style={{ padding: "5px 12px", fontSize: 12 }}
+                      >
+                        ✏️ Editar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal Proveedor */}
       {modalAbierto && (

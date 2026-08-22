@@ -19,6 +19,7 @@ export default function PosClient({
   extras,
   tasaBcv,
 }: PosClientProps) {
+  const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
@@ -190,68 +191,132 @@ export default function PosClient({
             )}
           </div>
 
-          <div className="pos-category-pills">
-            <button
-              type="button"
-              onClick={() => {
-                sounds.playPop();
-                setCategoriaSeleccionada(null);
-              }}
-              className={`cat-pill ${!categoriaSeleccionada ? "cat-pill-active" : ""}`}
-            >
-              <span>🔥</span> Todas
-            </button>
-            {categorias.map((cat) => (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <div className="pos-category-pills">
               <button
-                key={cat.id}
                 type="button"
                 onClick={() => {
                   sounds.playPop();
-                  setCategoriaSeleccionada(cat.id);
+                  setCategoriaSeleccionada(null);
                 }}
-                className={`cat-pill ${
-                  categoriaSeleccionada === cat.id ? "cat-pill-active" : ""
-                }`}
+                className={`cat-pill ${!categoriaSeleccionada ? "cat-pill-active" : ""}`}
               >
-                <span>{cat.icono}</span> {cat.nombre}
+                <span>🔥</span> Todas
               </button>
-            ))}
+              {categorias.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    sounds.playPop();
+                    setCategoriaSeleccionada(cat.id);
+                  }}
+                  className={`cat-pill ${
+                    categoriaSeleccionada === cat.id ? "cat-pill-active" : ""
+                  }`}
+                >
+                  <span>{cat.icono}</span> {cat.nombre}
+                </button>
+              ))}
+            </div>
+
+            {/* Toggle de Vistas POS */}
+            <div className="view-mode-toggle">
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playPop();
+                  setModoVista("grid");
+                }}
+                className={`view-mode-btn ${modoVista === "grid" ? "active" : ""}`}
+                title="Vista en Cuadros"
+              >
+                ⊞ Cuadros
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playPop();
+                  setModoVista("filas");
+                }}
+                className={`view-mode-btn ${modoVista === "filas" ? "active" : ""}`}
+                title="Vista en Filas"
+              >
+                ☰ Filas
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Grid de Productos / Arepas */}
-        <div className="pos-products-grid">
-          {productosFiltrados.map((prod) => (
-            <button
-              key={prod.id}
-              type="button"
-              onClick={() => agregarAlCarrito(prod)}
-              className="pos-product-card"
-            >
-              <div className="product-card-top">
-                <span className="product-emoji">{prod.icono || "🫓"}</span>
-                {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
-              </div>
-
-              <div className="product-card-info">
-                <h3 className="product-title">{prod.nombre}</h3>
-                {prod.descripcion && (
-                  <p className="product-desc">{prod.descripcion}</p>
-                )}
-              </div>
-
-              <div className="product-card-footer">
-                <div className="price-tag">
-                  <span className="price-usd">${Number(prod.precio_usd).toFixed(2)}</span>
-                  <span className="price-bs">
-                    {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
-                  </span>
+        {/* Catálogo en Modo Grid o Filas */}
+        {modoVista === "grid" ? (
+          <div className="pos-products-grid">
+            {productosFiltrados.map((prod) => (
+              <button
+                key={prod.id}
+                type="button"
+                onClick={() => agregarAlCarrito(prod)}
+                className="pos-product-card"
+              >
+                <div className="product-card-top">
+                  <span className="product-emoji">{prod.icono || "🫓"}</span>
+                  {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
                 </div>
-                <span className="btn-add-circle">+</span>
-              </div>
-            </button>
-          ))}
-        </div>
+
+                <div className="product-card-info">
+                  <h3 className="product-title">{prod.nombre}</h3>
+                  {prod.descripcion && (
+                    <p className="product-desc">{prod.descripcion}</p>
+                  )}
+                </div>
+
+                <div className="product-card-footer">
+                  <div className="price-tag">
+                    <span className="price-usd">${Number(prod.precio_usd).toFixed(2)}</span>
+                    <span className="price-bs">
+                      {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
+                    </span>
+                  </div>
+                  <span className="btn-add-circle">+</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="pos-products-rows-list">
+            {productosFiltrados.map((prod) => (
+              <button
+                key={prod.id}
+                type="button"
+                onClick={() => agregarAlCarrito(prod)}
+                className="pos-product-row-card"
+              >
+                <div className="pos-row-left">
+                  <span className="product-emoji" style={{ fontSize: 28 }}>{prod.icono || "🫓"}</span>
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <strong className="product-title" style={{ fontSize: 15 }}>{prod.nombre}</strong>
+                      {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
+                    </div>
+                    {prod.descripcion && (
+                      <p className="product-desc" style={{ fontSize: 12, margin: 0 }}>{prod.descripcion}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pos-row-right">
+                  <div className="price-tag" style={{ textAlign: "right" }}>
+                    <span className="price-usd" style={{ fontSize: 16 }}>${Number(prod.precio_usd).toFixed(2)}</span>
+                    <span className="price-bs" style={{ fontSize: 12 }}>
+                      {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
+                    </span>
+                  </div>
+                  <span className="btn-add-circle" style={{ width: 34, height: 34, fontSize: 18 }}>+</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Columna Lateral: Comanda / Carrito */}
