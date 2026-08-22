@@ -23,6 +23,24 @@ export default function PosClient({
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
+
+  // Persistencia de preferencia de vista en POS
+  useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vista_pos");
+      if (saved === "grid" || saved === "filas") {
+        setModoVista(saved);
+      }
+    }
+  });
+
+  const cambiarModoVista = (modo: "grid" | "filas") => {
+    sounds.playPop();
+    setModoVista(modo);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vista_pos", modo);
+    }
+  };
   const [tipoEntrega, setTipoEntrega] = useState<string>("puerta_cerrada");
   const [metodoPago, setMetodoPago] = useState<string>("efectivo_usd");
   const [notasComanda, setNotasComanda] = useState("");
@@ -224,10 +242,7 @@ export default function PosClient({
             <div className="view-mode-toggle">
               <button
                 type="button"
-                onClick={() => {
-                  sounds.playPop();
-                  setModoVista("grid");
-                }}
+                onClick={() => cambiarModoVista("grid")}
                 className={`view-mode-btn ${modoVista === "grid" ? "active" : ""}`}
                 title="Vista en Cuadros"
               >
@@ -235,10 +250,7 @@ export default function PosClient({
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  sounds.playPop();
-                  setModoVista("filas");
-                }}
+                onClick={() => cambiarModoVista("filas")}
                 className={`view-mode-btn ${modoVista === "filas" ? "active" : ""}`}
                 title="Vista en Filas"
               >

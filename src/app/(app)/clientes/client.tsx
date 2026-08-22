@@ -16,6 +16,24 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
   const [guardando, setGuardando] = useState(false);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
 
+  // Persistencia de preferencia de vista
+  useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vista_clientes");
+      if (saved === "grid" || saved === "filas") {
+        setModoVista(saved);
+      }
+    }
+  });
+
+  const cambiarModoVista = (modo: "grid" | "filas") => {
+    sounds.playPop();
+    setModoVista(modo);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vista_clientes", modo);
+    }
+  };
+
   // Form states
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -88,10 +106,7 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
           <div className="view-mode-toggle">
             <button
               type="button"
-              onClick={() => {
-                sounds.playPop();
-                setModoVista("grid");
-              }}
+              onClick={() => cambiarModoVista("grid")}
               className={`view-mode-btn ${modoVista === "grid" ? "active" : ""}`}
               title="Vista en Tarjetas / Cuadros"
             >
@@ -99,10 +114,7 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
             </button>
             <button
               type="button"
-              onClick={() => {
-                sounds.playPop();
-                setModoVista("filas");
-              }}
+              onClick={() => cambiarModoVista("filas")}
               className={`view-mode-btn ${modoVista === "filas" ? "active" : ""}`}
               title="Vista en Filas / Lista Detallada"
             >
