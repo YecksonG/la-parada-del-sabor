@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Insumo, UnidadMedida } from "@/types/database";
 import { guardarInsumo, ajustarStockInsumo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
@@ -18,15 +18,13 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
   const [nuevoStockAjuste, setNuevoStockAjuste] = useState<number>(0);
   const [guardando, setGuardando] = useState(false);
 
-  // Persistencia de preferencia de vista
-  useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("vista_insumos");
-      if (saved === "grid" || saved === "filas") {
-        setModoVista(saved);
-      }
+  // Cargar preferencia guardada al montar
+  useEffect(() => {
+    const saved = localStorage.getItem("vista_insumos");
+    if (saved === "grid" || saved === "filas") {
+      setModoVista(saved);
     }
-  });
+  }, []);
 
   const cambiarModoVista = (modo: "grid" | "filas") => {
     sounds.playPop();

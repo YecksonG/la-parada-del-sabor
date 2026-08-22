@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Producto, Categoria, ExtraModificador } from "@/types/database";
 import { registrarVentaPos, CartItem, CartItemExtra } from "./pos-actions";
@@ -24,15 +24,13 @@ export default function PosClient({
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
 
-  // Persistencia de preferencia de vista en POS
-  useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("vista_pos");
-      if (saved === "grid" || saved === "filas") {
-        setModoVista(saved);
-      }
+  // Cargar preferencia guardada al montar
+  useEffect(() => {
+    const saved = localStorage.getItem("vista_pos");
+    if (saved === "grid" || saved === "filas") {
+      setModoVista(saved);
     }
-  });
+  }, []);
 
   const cambiarModoVista = (modo: "grid" | "filas") => {
     sounds.playPop();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Producto, Insumo, Categoria } from "@/types/database";
 import { guardarPlatoYReceta, eliminarPlato } from "./actions";
 import { sounds } from "@/lib/sound-effects";
@@ -27,15 +27,13 @@ export default function RecetasClient({
   const [guardando, setGuardando] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
 
-  // Persistencia de preferencia de vista
-  useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("vista_recetas");
-      if (saved === "grid" || saved === "filas") {
-        setModoVista(saved);
-      }
+  // Cargar preferencia guardada al montar
+  useEffect(() => {
+    const saved = localStorage.getItem("vista_recetas");
+    if (saved === "grid" || saved === "filas") {
+      setModoVista(saved);
     }
-  });
+  }, []);
 
   const cambiarModoVista = (modo: "grid" | "filas") => {
     sounds.playPop();

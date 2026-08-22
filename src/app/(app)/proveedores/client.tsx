@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Proveedor } from "@/types/database";
 import { guardarProveedor } from "./actions";
 import { sounds } from "@/lib/sound-effects";
@@ -20,15 +20,13 @@ export default function ProveedoresClient({
   const [guardando, setGuardando] = useState(false);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<Proveedor | null>(null);
 
-  // Persistencia de preferencia de vista
-  useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("vista_proveedores");
-      if (saved === "grid" || saved === "filas") {
-        setModoVista(saved);
-      }
+  // Cargar preferencia guardada al montar
+  useEffect(() => {
+    const saved = localStorage.getItem("vista_proveedores");
+    if (saved === "grid" || saved === "filas") {
+      setModoVista(saved);
     }
-  });
+  }, []);
 
   const cambiarModoVista = (modo: "grid" | "filas") => {
     sounds.playPop();
