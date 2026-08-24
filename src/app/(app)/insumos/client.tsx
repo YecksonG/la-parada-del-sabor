@@ -220,13 +220,45 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
               costoRef = `$${(costoUnit * 1000).toFixed(2)}/L`;
             }
 
+            const progressWidth = esAgotado
+              ? 0
+              : Math.min(100, Math.max(5, (stock / (stockMin > 0 ? stockMin * 3 : 1)) * 100));
+            const progressClass = esAgotado
+              ? "fill-agotado"
+              : esCritico
+              ? "fill-critico"
+              : esBajo
+              ? "fill-bajo"
+              : "fill-ok";
+
             return (
               <div key={ins.id} className="insumo-card">
-                <div className="insumo-card-header">
-                  <div>
-                    <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
-                    <h3 className="insumo-name">{ins.nombre}</h3>
+                {/* Fila Superior: Categoría y Botones de Acción Fijos */}
+                <div className="insumo-card-topbar">
+                  <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
+                  <div className="insumo-actions-top">
+                    <button
+                      type="button"
+                      onClick={() => abrirAjuste(ins)}
+                      className="btn-insumo-adjust-top"
+                      title="Ajustar Stock Físico o Registrar Merma"
+                    >
+                      ⚖️ Ajustar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abrirEditar(ins)}
+                      className="btn-insumo-edit-top"
+                      title="Editar Insumo"
+                    >
+                      ✏️
+                    </button>
                   </div>
+                </div>
+
+                {/* Header de Tarjeta: Nombre y Badge de Stock */}
+                <div className="insumo-card-header">
+                  <h3 className="insumo-name">{ins.nombre}</h3>
                   {estado === "agotado" ? (
                     <span className="stock-badge stock-badge-agotado">🔴 Agotado</span>
                   ) : estado === "critico" ? (
@@ -238,6 +270,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                   )}
                 </div>
 
+                {/* Hero de Stock y Nivel */}
                 <div className="insumo-stock-display">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <span className="insumo-stock-value">{stockDisplay}</span>
@@ -247,16 +280,13 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                   {/* Barra de Progreso de Stock */}
                   <div className="stock-progress-track">
                     <div
-                      className={`stock-progress-fill ${
-                        esCritico ? "fill-critico" : esBajo ? "fill-bajo" : "fill-ok"
-                      }`}
-                      style={{
-                        width: `${Math.min(100, Math.max(5, (stock / (stockMin * 3)) * 100))}%`,
-                      }}
+                      className={`stock-progress-fill ${progressClass}`}
+                      style={{ width: `${progressWidth}%` }}
                     />
                   </div>
                 </div>
 
+                {/* Desglose de Costos & Valor Total */}
                 <div className="insumo-cost-details">
                   <div className="cost-detail-item">
                     <span>Costo Unitario</span>
@@ -271,24 +301,6 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                     <span>Valor en Despensa</span>
                     <strong className="text-primary" style={{ fontSize: 14 }}>${valorTotal.toFixed(2)} USD</strong>
                   </div>
-                </div>
-
-                <div className="insumo-card-footer">
-                  <button
-                    type="button"
-                    onClick={() => abrirAjuste(ins)}
-                    className="btn-insumo-adjust"
-                  >
-                    ⚖️ Ajustar Stock / Merma
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => abrirEditar(ins)}
-                    className="btn-insumo-edit"
-                    title="Editar Insumo"
-                  >
-                    ✏️
-                  </button>
                 </div>
               </div>
             );
@@ -361,10 +373,20 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                         <div className="stock-progress-track" style={{ height: 5 }}>
                           <div
                             className={`stock-progress-fill ${
-                              esCritico ? "fill-critico" : esBajo ? "fill-bajo" : "fill-ok"
+                              esAgotado
+                                ? "fill-agotado"
+                                : esCritico
+                                ? "fill-critico"
+                                : esBajo
+                                ? "fill-bajo"
+                                : "fill-ok"
                             }`}
                             style={{
-                              width: `${Math.min(100, Math.max(5, (stock / (stockMin * 3)) * 100))}%`,
+                              width: `${
+                                esAgotado
+                                  ? 0
+                                  : Math.min(100, Math.max(5, (stock / (stockMin > 0 ? stockMin * 3 : 1)) * 100))
+                              }%`,
                             }}
                           />
                         </div>
