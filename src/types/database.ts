@@ -77,6 +77,18 @@ export type Proveedor = {
   notas: string | null;
   activo: boolean;
   creado_el: string;
+  insumos?: Insumo[];
+};
+
+export type ProveedorInsumo = {
+  id: string;
+  proveedor_id: string;
+  insumo_id: string;
+  precio_referencial_usd: number;
+  notas: string | null;
+  creado_el: string;
+  proveedor?: Proveedor;
+  insumo?: Insumo;
 };
 
 export type TasaCambio = {

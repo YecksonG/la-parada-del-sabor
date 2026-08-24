@@ -57,6 +57,25 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
 
   // Sincronizar proveedores seleccionados si se enviaron
   if (insumoId && payload.proveedores_ids !== undefined) {
+    // 1. Sincronización atómica en la tabla puente proveedor_insumos (si existe en DB)
+    try {
+      await supabase
+        .from("proveedor_insumos")
+        .delete()
+        .eq("insumo_id", insumoId);
+
+      if (payload.proveedores_ids.length > 0) {
+        const rows = payload.proveedores_ids.map((provId) => ({
+          proveedor_id: provId,
+          insumo_id: insumoId,
+        }));
+        await supabase.from("proveedor_insumos").insert(rows);
+      }
+    } catch {
+      // Ignorar si la tabla puente aún no está migrada en la base de datos
+    }
+
+    // 2. Sincronización de respaldo en proveedores.notas
     const { data: proveedores } = await supabase.from("proveedores").select("id, notas");
     if (proveedores) {
       const targetSet = new Set(payload.proveedores_ids);

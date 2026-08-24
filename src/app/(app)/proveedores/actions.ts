@@ -23,6 +23,8 @@ export async function guardarProveedor(payload: GuardarProveedorPayload) {
     payload.notas || ""
   );
 
+  let providerId = payload.id;
+
   if (payload.id) {
     const { error } = await supabase
       .from("proveedores")
@@ -38,16 +40,41 @@ export async function guardarProveedor(payload: GuardarProveedorPayload) {
 
     if (error) return { ok: false, error: error.message };
   } else {
-    const { error } = await supabase.from("proveedores").insert({
-      nombre: payload.nombre,
-      telefono: payload.telefono || null,
-      contacto: payload.contacto || null,
-      direccion: payload.direccion || null,
-      rif: payload.rif || null,
-      notas: notasSerializadas,
-    });
+    const { data, error } = await supabase
+      .from("proveedores")
+      .insert({
+        nombre: payload.nombre,
+        telefono: payload.telefono || null,
+        contacto: payload.contacto || null,
+        direccion: payload.direccion || null,
+        rif: payload.rif || null,
+        notas: notasSerializadas,
+      })
+      .select("id")
+      .single();
 
     if (error) return { ok: false, error: error.message };
+    if (data) providerId = data.id;
+  }
+
+  // Sincronización atómica en la tabla puente proveedor_insumos (si existe)
+  if (providerId && payload.insumos_ids !== undefined) {
+    try {
+      await supabase
+        .from("proveedor_insumos")
+        .delete()
+        .eq("proveedor_id", providerId);
+
+      if (payload.insumos_ids.length > 0) {
+        const rows = payload.insumos_ids.map((insId) => ({
+          proveedor_id: providerId,
+          insumo_id: insId,
+        }));
+        await supabase.from("proveedor_insumos").insert(rows);
+      }
+    } catch {
+      // Ignorar si la tabla puente aún no está migrada en la base de datos
+    }
   }
 
   revalidatePath("/proveedores");
