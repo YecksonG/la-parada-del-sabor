@@ -608,7 +608,7 @@ export default function RecetasClient({
                           <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Sin fórmula</span>
                         ) : (
                           <>
-                            {prodIngredientes.slice(0, 3).map((ing, idx) => (
+                            {prodIngredientes.slice(0, 2).map((ing, idx) => (
                               <span
                                 key={idx}
                                 className="ingredient-tag"
@@ -617,7 +617,7 @@ export default function RecetasClient({
                                 {ing.insumo?.nombre}: <strong>{Number(ing.cantidad)}{ing.insumo?.unidad_medida || "g"}</strong>
                               </span>
                             ))}
-                            {prodIngredientes.length > 3 && (
+                            {prodIngredientes.length > 2 && (
                               <button
                                 type="button"
                                 className="ingredient-tag-more"
@@ -627,7 +627,7 @@ export default function RecetasClient({
                                 }}
                                 title="Ver todos los ingredientes"
                               >
-                                +{prodIngredientes.length - 3} más
+                                +{prodIngredientes.length - 2} más
                               </button>
                             )}
                           </>
