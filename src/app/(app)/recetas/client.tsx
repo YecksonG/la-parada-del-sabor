@@ -255,10 +255,15 @@ export default function RecetasClient({
                   <div className="receta-card-identity">
                     <span className="receta-icon">{prod.icono || "🫓"}</span>
                     <div>
-                      <h3 className="receta-name">{prod.nombre}</h3>
-                      <span className="receta-cat-badge">
-                        {prod.categoria?.nombre || "Sin Categoría"}
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <h3 className="receta-name" style={{ margin: 0 }}>{prod.nombre}</h3>
+                        {prod.popular && <span className="badge-popular">🔥 Popular</span>}
+                      </div>
+                      <div style={{ marginTop: 3 }}>
+                        <span className="receta-cat-badge">
+                          {prod.categoria?.nombre || "Sin Categoría"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <div className="receta-price-badge">
@@ -397,12 +402,14 @@ export default function RecetasClient({
                       title="Ver ficha técnica completa"
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 24 }}>{prod.icono || "🫓"}</span>
+                        <span style={{ fontSize: 24, flexShrink: 0 }}>{prod.icono || "🫓"}</span>
                         <div>
-                          <strong style={{ fontSize: 14, color: "var(--text)" }}>{prod.nombre}</strong>
-                          <div style={{ marginTop: 2 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <strong style={{ fontSize: 14, color: "var(--text)" }}>{prod.nombre}</strong>
+                            {prod.popular && <span className="badge-popular">🔥 Popular</span>}
+                          </div>
+                          <div style={{ marginTop: 3 }}>
                             <span className="receta-cat-badge">{prod.categoria?.nombre || "General"}</span>
-                            {prod.popular && <span className="badge-popular" style={{ marginLeft: 4 }}>🔥 Popular</span>}
                           </div>
                         </div>
                       </div>
