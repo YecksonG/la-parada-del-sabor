@@ -1676,14 +1676,183 @@ a {
   border-color: var(--accent);
 }
 
-/* Modal Receta Form */
+/* Badge +Más en Fórmula */
+.ingredient-tag-more {
+  background: var(--bg-card);
+  border: 1px dashed var(--primary);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ingredient-tag-more:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-style: solid;
+  transform: translateY(-1px);
+}
+
+/* Modal Ficha Técnica & Detalle de Producto / Receta */
+.modal-product-detail-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px;
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: var(--shadow-lg);
+  animation: ticketPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.product-detail-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.product-detail-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.product-detail-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: var(--bg-subtle);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.product-detail-meta h2 {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0;
+}
+
+.product-detail-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.product-detail-kpis-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.product-kpi-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.product-kpi-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.product-kpi-val {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.product-kpi-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.product-detail-bom-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.product-detail-bom-header {
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.product-bom-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.product-bom-table th {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.product-bom-table td {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.product-bom-table tr:last-child td {
+  border-bottom: none;
+}
+
+.product-bom-table tfoot td {
+  background: var(--bg-card);
+  font-weight: 800;
+  border-top: 1px solid var(--border);
+}
+
+/* Modal Receta Form (Crear / Editar) */
 .modal-recipe-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 24px;
   padding: 28px;
   width: 100%;
-  max-width: 620px;
+  max-width: 660px;
   max-height: 90vh;
   overflow-y: auto;
   display: flex;
@@ -1697,20 +1866,38 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
 }
 
 .modal-recipe-header h2 {
   font-size: 18px;
   font-weight: 900;
   color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn-modal-close {
-  background: transparent;
-  border: none;
-  font-size: 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 14px;
   cursor: pointer;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-modal-close:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .recipe-form {
@@ -1727,8 +1914,9 @@ a {
 
 .form-grid-3 {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1.2fr 0.8fr 1fr;
   gap: 12px;
+  align-items: end;
 }
 
 .form-field {
@@ -1739,29 +1927,33 @@ a {
 
 .form-field label {
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text);
 }
 
 .form-input {
   width: 100%;
   padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
   background: var(--bg-subtle);
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
   outline: none;
+  transition: all 0.15s ease;
 }
 
 .form-input:focus {
   border-color: var(--primary);
+  background: var(--bg-card);
   box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
-.checkbox-field {
-  justify-content: flex-end;
+.form-checkbox-center {
+  height: 42px;
+  display: flex;
+  align-items: center;
 }
 
 .checkbox-label {
@@ -1771,14 +1963,15 @@ a {
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
-  padding-bottom: 8px;
+  color: var(--text);
 }
 
+/* Constructor de Ingredientes (BOM) */
 .recipe-ingredients-builder {
   background: var(--bg-subtle);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1792,86 +1985,130 @@ a {
 
 .builder-header h4 {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 900;
   color: var(--text);
-}
-
-.btn-add-ingredient {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--primary-dark);
-  cursor: pointer;
-}
-
-[data-theme="dark"] .btn-add-ingredient {
-  color: var(--primary);
-}
-
-.builder-rows {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
 }
 
-.builder-row {
+.btn-add-ingredient-row {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--primary-glow);
+  transition: transform 0.15s ease;
+}
+
+.btn-add-ingredient-row:hover {
+  transform: translateY(-1px);
+}
+
+.ingredient-builder-row {
   display: grid;
-  grid-template-columns: 1fr 110px 80px 32px;
+  grid-template-columns: 1fr 120px 85px 36px;
   gap: 8px;
   align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
 }
 
-.input-qty-wrapper {
+.builder-select-col {
+  width: 100%;
+}
+
+.builder-qty-col {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.input-qty {
-  padding-right: 32px;
+.builder-qty-col input {
+  padding-right: 36px;
 }
 
-.qty-unit-label {
+.builder-unit-label {
   position: absolute;
   right: 10px;
   font-size: 11px;
   font-weight: 800;
   color: var(--text-muted);
+  pointer-events: none;
 }
 
-.cost-row-preview {
+.builder-cost-col {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.builder-cost-val {
   font-size: 12px;
   font-weight: 800;
-  color: var(--text-muted);
-  text-align: right;
+  color: var(--text);
 }
 
-.btn-remove-row {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: none;
-  background: var(--accent-light);
+.btn-remove-ingredient {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
   color: var(--accent);
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s ease;
 }
 
-.recipe-cost-summary {
+.btn-remove-ingredient:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+/* Barra Resumen de Escandallo & Rentabilidad en Vivo */
+.recipe-calc-summary {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.05) 0%, rgba(217, 119, 6, 0.05) 100%);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 12px;
+}
+
+[data-theme="dark"] .recipe-calc-summary {
+  background: rgba(234, 88, 12, 0.1);
+}
+
+.calc-summary-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
-  font-size: 13px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calc-summary-item span {
+  font-size: 11px;
   font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.calc-summary-item strong {
+  font-size: 15px;
+  font-weight: 900;
 }
 
 .modal-recipe-actions {
@@ -1879,30 +2116,46 @@ a {
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .btn-cancel {
-  padding: 10px 16px;
-  border-radius: 10px;
+  padding: 10px 18px;
+  border-radius: 12px;
   border: 1px solid var(--border);
-  background: transparent;
+  background: var(--bg-subtle);
   color: var(--text-muted);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cancel:hover {
+  background: var(--bg-card);
+  color: var(--text);
 }
 
 .btn-submit-recipe {
-  padding: 10px 20px;
-  border-radius: 10px;
+  padding: 11px 22px;
+  border-radius: 12px;
   border: none;
   background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
   color: #ffffff;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 12px var(--primary-glow);
+  box-shadow: 0 4px 14px var(--primary-glow);
+  transition: transform 0.15s ease;
+}
+
+.btn-submit-recipe:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn-submit-recipe:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ---------- Insumos / Despensa Styles ---------- */

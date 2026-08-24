@@ -9,6 +9,7 @@ interface RecetasClientProps {
   productos: Producto[];
   insumos: Insumo[];
   categorias: Categoria[];
+  tasaBcv?: number;
 }
 
 type IngredienteForm = {
@@ -21,9 +22,11 @@ export default function RecetasClient({
   productos,
   insumos,
   categorias,
+  tasaBcv = 0,
 }: RecetasClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [detalleProducto, setDetalleProducto] = useState<Producto | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
 
@@ -88,6 +91,11 @@ export default function RecetasClient({
       }))
     );
     setModalAbierto(true);
+  };
+
+  const abrirDetalle = (prod: Producto) => {
+    sounds.playPop();
+    setDetalleProducto(prod);
   };
 
   const agregarFilaIngrediente = () => {
@@ -230,7 +238,12 @@ export default function RecetasClient({
 
             return (
               <div key={prod.id} className="receta-card">
-                <div className="receta-card-header">
+                <div
+                  className="receta-card-header"
+                  onClick={() => abrirDetalle(prod)}
+                  style={{ cursor: "pointer" }}
+                  title="Ver ficha técnica completa"
+                >
                   <div className="receta-card-identity">
                     <span className="receta-icon">{prod.icono || "🫓"}</span>
                     <div>
@@ -250,7 +263,12 @@ export default function RecetasClient({
                 )}
 
                 {/* Métricas de Costo y Margen */}
-                <div className="receta-metrics-row">
+                <div
+                  className="receta-metrics-row"
+                  onClick={() => abrirDetalle(prod)}
+                  style={{ cursor: "pointer" }}
+                  title="Ver detalles de costos"
+                >
                   <div className="metric-box">
                     <span className="metric-label">Costo Insumos:</span>
                     <strong className="metric-val">${costoProd.toFixed(2)}</strong>
@@ -266,7 +284,12 @@ export default function RecetasClient({
                 </div>
 
                 {/* Lista de Ingredientes en Gramos */}
-                <div className="receta-ingredients-list">
+                <div
+                  className="receta-ingredients-list"
+                  onClick={() => abrirDetalle(prod)}
+                  style={{ cursor: "pointer" }}
+                  title="Ver todos los ingredientes en detalle"
+                >
                   <span className="ingredients-title">Fórmula por ración:</span>
                   {(prod.ingredientes || []).length === 0 ? (
                     <span className="no-ingredients-hint">⚠️ Sin ingredientes asignados</span>
@@ -322,7 +345,8 @@ export default function RecetasClient({
             </thead>
             <tbody>
               {productos.map((prod) => {
-                const costoProd = (prod.ingredientes || []).reduce((acc, ing) => {
+                const prodIngredientes = prod.ingredientes || [];
+                const costoProd = prodIngredientes.reduce((acc, ing) => {
                   const costoUnit = Number(ing.insumo?.costo_unitario_usd || 0);
                   return acc + costoUnit * Number(ing.cantidad);
                 }, 0);
@@ -335,19 +359,26 @@ export default function RecetasClient({
 
                 return (
                   <tr key={prod.id} className="detailed-table-row">
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 22 }}>{prod.icono || "🫓"}</span>
+                    <td
+                      onClick={() => abrirDetalle(prod)}
+                      style={{ cursor: "pointer" }}
+                      title="Ver ficha técnica completa"
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 24 }}>{prod.icono || "🫓"}</span>
                         <div>
                           <strong style={{ fontSize: 14, color: "var(--text)" }}>{prod.nombre}</strong>
-                          <div>
+                          <div style={{ marginTop: 2 }}>
                             <span className="receta-cat-badge">{prod.categoria?.nombre || "General"}</span>
                             {prod.popular && <span className="badge-popular" style={{ marginLeft: 4 }}>🔥 Popular</span>}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ maxWidth: 220, fontSize: 12, color: "var(--text-muted)" }}>
+                    <td
+                      onClick={() => abrirDetalle(prod)}
+                      style={{ maxWidth: 200, fontSize: 12, color: "var(--text-muted)", cursor: "pointer" }}
+                    >
                       {prod.descripcion || "—"}
                     </td>
                     <td>
@@ -370,16 +401,39 @@ export default function RecetasClient({
                         {margenPct}%
                       </span>
                     </td>
-                    <td style={{ maxWidth: 280 }}>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                        {(prod.ingredientes || []).length === 0 ? (
+                    {/* Preview de Fórmula con límite de 3 etiquetas */}
+                    <td
+                      style={{ maxWidth: 280, cursor: "pointer" }}
+                      onClick={() => abrirDetalle(prod)}
+                      title="Ver todos los ingredientes en detalle"
+                    >
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+                        {prodIngredientes.length === 0 ? (
                           <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Sin fórmula</span>
                         ) : (
-                          (prod.ingredientes || []).map((ing, idx) => (
-                            <span key={idx} className="ingredient-tag" style={{ fontSize: 11, padding: "2px 6px" }}>
-                              {ing.insumo?.nombre}: <strong>{Number(ing.cantidad)}{ing.insumo?.unidad_medida || "g"}</strong>
-                            </span>
-                          ))
+                          <>
+                            {prodIngredientes.slice(0, 3).map((ing, idx) => (
+                              <span
+                                key={idx}
+                                className="ingredient-tag"
+                                style={{ fontSize: 11, padding: "2px 6px" }}
+                              >
+                                {ing.insumo?.nombre}: <strong>{Number(ing.cantidad)}{ing.insumo?.unidad_medida || "g"}</strong>
+                              </span>
+                            ))}
+                            {prodIngredientes.length > 3 && (
+                              <span
+                                className="ingredient-tag-more"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  abrirDetalle(prod);
+                                }}
+                                title="Ver todos los ingredientes"
+                              >
+                                +{prodIngredientes.length - 3} más
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>
@@ -389,16 +443,16 @@ export default function RecetasClient({
                           type="button"
                           onClick={() => abrirEditar(prod)}
                           className="btn-insumo-adjust"
-                          style={{ padding: "4px 8px", fontSize: 12 }}
+                          style={{ padding: "5px 10px", fontSize: 12, width: "auto" }}
                           title="Editar"
                         >
-                          ✏️
+                          ✏️ Editar
                         </button>
                         <button
                           type="button"
                           onClick={() => handleEliminar(prod.id, prod.nombre)}
                           className="btn-delete-receta"
-                          style={{ padding: "4px 8px" }}
+                          style={{ padding: "5px 8px" }}
                           title="Eliminar"
                         >
                           🗑️
@@ -413,12 +467,200 @@ export default function RecetasClient({
         </div>
       )}
 
+      {/* Modal Ficha Técnica & Detalle de Receta / Producto */}
+      {detalleProducto && (
+        <div className="modal-overlay" onClick={() => setDetalleProducto(null)}>
+          <div className="modal-product-detail-card" onClick={(e) => e.stopPropagation()}>
+            {/* Hero Header */}
+            <div className="product-detail-hero">
+              <div className="product-detail-info">
+                <div className="product-detail-avatar">
+                  {detalleProducto.icono || "🫓"}
+                </div>
+                <div className="product-detail-meta">
+                  <h2>{detalleProducto.nombre}</h2>
+                  <div className="product-detail-badges">
+                    <span className="receta-cat-badge">
+                      {detalleProducto.categoria?.nombre || "General"}
+                    </span>
+                    {detalleProducto.popular && (
+                      <span className="badge-popular">🔥 Plato Estrella / Popular</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetalleProducto(null)}
+                className="btn-modal-close"
+                title="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {detalleProducto.descripcion && (
+              <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+                {detalleProducto.descripcion}
+              </p>
+            )}
+
+            {/* KPIs Financieros */}
+            {(() => {
+              const costoTotal = (detalleProducto.ingredientes || []).reduce((acc, ing) => {
+                const cUnit = Number(ing.insumo?.costo_unitario_usd || 0);
+                return acc + cUnit * Number(ing.cantidad);
+              }, 0);
+              const pvp = Number(detalleProducto.precio_usd);
+              const ganancia = pvp - costoTotal;
+              const margen = pvp > 0 ? ((ganancia / pvp) * 100).toFixed(1) : "0.0";
+              const pvpBs = tasaBcv > 0 ? pvp * tasaBcv : 0;
+              const costoBs = tasaBcv > 0 ? costoTotal * tasaBcv : 0;
+
+              return (
+                <>
+                  <div className="product-detail-kpis-grid">
+                    <div className="product-kpi-card">
+                      <span className="product-kpi-label">PVP Venta</span>
+                      <strong className="product-kpi-val text-primary">${pvp.toFixed(2)} USD</strong>
+                      {tasaBcv > 0 && (
+                        <span className="product-kpi-sub">Bs. {pvpBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      )}
+                    </div>
+                    <div className="product-kpi-card">
+                      <span className="product-kpi-label">Costo Insumos</span>
+                      <strong className="product-kpi-val">${costoTotal.toFixed(2)} USD</strong>
+                      {tasaBcv > 0 && (
+                        <span className="product-kpi-sub">Bs. {costoBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      )}
+                    </div>
+                    <div className="product-kpi-card">
+                      <span className="product-kpi-label">Ganancia Neta</span>
+                      <strong className="product-kpi-val text-green">+${ganancia.toFixed(2)} USD</strong>
+                      <span className="product-kpi-sub">Por ración</span>
+                    </div>
+                    <div className="product-kpi-card">
+                      <span className="product-kpi-label">Margen Utilidad</span>
+                      <strong
+                        className="product-kpi-val"
+                        style={{ color: Number(margen) >= 50 ? "var(--green)" : "var(--primary)" }}
+                      >
+                        {margen}%
+                      </strong>
+                      <span className="product-kpi-sub">Rentabilidad</span>
+                    </div>
+                  </div>
+
+                  {/* Tabla Detallada BOM */}
+                  <div className="product-detail-bom-box">
+                    <div className="product-detail-bom-header">
+                      <span>🌾 Fórmula & Escandallo de Ingredientes</span>
+                      <span style={{ color: "var(--text-muted)" }}>
+                        {(detalleProducto.ingredientes || []).length} insumos asignados
+                      </span>
+                    </div>
+                    <table className="product-bom-table">
+                      <thead>
+                        <tr>
+                          <th>Insumo</th>
+                          <th>Cantidad</th>
+                          <th>Costo Unitario</th>
+                          <th>Costo en Ración</th>
+                          <th style={{ textAlign: "right" }}>% Costo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(detalleProducto.ingredientes || []).length === 0 ? (
+                          <tr>
+                            <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)", padding: 20 }}>
+                              Este plato no tiene ingredientes configurados en su receta.
+                            </td>
+                          </tr>
+                        ) : (
+                          (detalleProducto.ingredientes || []).map((ing, idx) => {
+                            const cUnit = Number(ing.insumo?.costo_unitario_usd || 0);
+                            const cTotal = cUnit * Number(ing.cantidad);
+                            const pct = costoTotal > 0 ? ((cTotal / costoTotal) * 100).toFixed(1) : "0.0";
+                            return (
+                              <tr key={idx}>
+                                <td>
+                                  <strong>{ing.insumo?.nombre || "Insumo"}</strong>
+                                  <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                    {ing.insumo?.categoria_insumo || "Despensa"}
+                                  </div>
+                                </td>
+                                <td>
+                                  <strong>{Number(ing.cantidad)} {ing.insumo?.unidad_medida || "g"}</strong>
+                                </td>
+                                <td>
+                                  ${cUnit.toFixed(4)} / {ing.insumo?.unidad_medida || "g"}
+                                </td>
+                                <td>
+                                  <strong style={{ color: "var(--text)" }}>${cTotal.toFixed(3)}</strong>
+                                </td>
+                                <td style={{ textAlign: "right" }}>
+                                  <span className="insumo-cat-tag" style={{ fontSize: 11 }}>
+                                    {pct}%
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                      {(detalleProducto.ingredientes || []).length > 0 && (
+                        <tfoot>
+                          <tr>
+                            <td colSpan={3} style={{ textAlign: "right" }}>
+                              <strong>Costo Total del Plato:</strong>
+                            </td>
+                            <td colSpan={2}>
+                              <strong className="text-primary" style={{ fontSize: 14 }}>
+                                ${costoTotal.toFixed(2)} USD
+                              </strong>
+                            </td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Botones de acción */}
+            <div className="modal-recipe-actions">
+              <button
+                type="button"
+                onClick={() => setDetalleProducto(null)}
+                className="btn-cancel"
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const prod = detalleProducto;
+                  setDetalleProducto(null);
+                  abrirEditar(prod);
+                }}
+                className="btn-submit-recipe"
+              >
+                ✏️ Editar Receta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Crear / Editar Receta */}
       {modalAbierto && (
-        <div className="modal-overlay">
-          <div className="modal-recipe-card">
+        <div className="modal-overlay" onClick={() => setModalAbierto(false)}>
+          <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-recipe-header">
-              <h2>{editandoId ? "Editar Receta y Fórmula" : "Nueva Receta de Plato"}</h2>
+              <h2>
+                <span>🌾</span> {editandoId ? "Editar Receta y Fórmula" : "Nueva Receta de Plato / Arepa"}
+              </h2>
               <button
                 type="button"
                 onClick={() => setModalAbierto(false)}
@@ -443,7 +685,7 @@ export default function RecetasClient({
                 </div>
 
                 <div className="form-field">
-                  <label>Categoría</label>
+                  <label>Categoría del Menú</label>
                   <select
                     value={categoriaId || ""}
                     onChange={(e) => setCategoriaId(e.target.value)}
@@ -480,6 +722,7 @@ export default function RecetasClient({
                     value={icono}
                     onChange={(e) => setIcono(e.target.value)}
                     className="form-input"
+                    style={{ textAlign: "center", fontSize: 18 }}
                   />
                 </div>
 
@@ -490,7 +733,7 @@ export default function RecetasClient({
                       checked={popular}
                       onChange={(e) => setPopular(e.target.checked)}
                     />
-                    <span>🔥 Plato Estrella / Popular</span>
+                    <span>🔥 Plato Popular</span>
                   </label>
                 </div>
               </div>
@@ -509,7 +752,7 @@ export default function RecetasClient({
               {/* Sección de Ingredientes / Escandallo en Gramos */}
               <div className="recipe-ingredients-builder">
                 <div className="builder-header">
-                  <h4>🌾 Ingredientes & Descuento en Gramos (BOM)</h4>
+                  <h4>🌾 Ingredientes & Descuento en Gramos ({ingredientes.length})</h4>
                   <button
                     type="button"
                     onClick={agregarFilaIngrediente}
@@ -519,84 +762,102 @@ export default function RecetasClient({
                   </button>
                 </div>
 
-                {ingredientes.map((ing, index) => {
-                  const insumoActual = insumos.find((i) => i.id === ing.insumo_id);
-                  const costoFila =
-                    (Number(insumoActual?.costo_unitario_usd) || 0) *
-                    Number(ing.cantidad);
+                {ingredientes.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "16px", color: "var(--text-muted)", fontSize: 12 }}>
+                    No has agregado ingredientes a esta receta. Pulsa <strong>+ Añadir Insumo</strong>.
+                  </div>
+                ) : (
+                  ingredientes.map((ing, index) => {
+                    const insumoActual = insumos.find((i) => i.id === ing.insumo_id);
+                    const costoFila =
+                      (Number(insumoActual?.costo_unitario_usd) || 0) *
+                      Number(ing.cantidad);
 
-                  return (
-                    <div key={index} className="ingredient-builder-row">
-                      <div className="builder-select-col">
-                        <select
-                          value={ing.insumo_id}
-                          onChange={(e) =>
-                            modificarIngrediente(index, "insumo_id", e.target.value)
-                          }
-                          className="form-input"
+                    return (
+                      <div key={index} className="ingredient-builder-row">
+                        <div className="builder-select-col">
+                          <select
+                            value={ing.insumo_id}
+                            onChange={(e) =>
+                              modificarIngrediente(index, "insumo_id", e.target.value)
+                            }
+                            className="form-input"
+                          >
+                            {insumos.map((i) => (
+                              <option key={i.id} value={i.id}>
+                                {i.nombre} (${Number(i.costo_unitario_usd).toFixed(4)}/{i.unidad_medida})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="builder-qty-col">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.1"
+                            required
+                            value={ing.cantidad}
+                            onChange={(e) =>
+                              modificarIngrediente(
+                                index,
+                                "cantidad",
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="form-input"
+                          />
+                          <span className="builder-unit-label">
+                            {insumoActual?.unidad_medida || "g"}
+                          </span>
+                        </div>
+
+                        <div className="builder-cost-col" title="Costo generado por esta cantidad">
+                          <span className="builder-cost-val">
+                            ${costoFila.toFixed(3)}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => eliminarIngrediente(index)}
+                          className="btn-remove-ingredient"
+                          title="Eliminar ingrediente"
                         >
-                          {insumos.map((i) => (
-                            <option key={i.id} value={i.id}>
-                              {i.nombre} (${Number(i.costo_unitario_usd).toFixed(4)}/{i.unidad_medida})
-                            </option>
-                          ))}
-                        </select>
+                          ✕
+                        </button>
                       </div>
-
-                      <div className="builder-qty-col">
-                        <input
-                          type="number"
-                          step="any"
-                          min="0.1"
-                          required
-                          value={ing.cantidad}
-                          onChange={(e) =>
-                            modificarIngrediente(
-                              index,
-                              "cantidad",
-                              parseFloat(e.target.value) || 0
-                            )
-                          }
-                          className="form-input"
-                        />
-                        <span className="builder-unit-label">
-                          {insumoActual?.unidad_medida || "g"}
-                        </span>
-                      </div>
-
-                      <div className="builder-cost-col">
-                        <span className="builder-cost-val">
-                          ${costoFila.toFixed(3)}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => eliminarIngrediente(index)}
-                        className="btn-remove-ingredient"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
 
               {/* Barra Resumen de Costo & Margen en Tiempo Real */}
               <div className="recipe-calc-summary">
                 <div className="calc-summary-item">
                   <span>Costo Materia Prima:</span>
-                  <strong>${costoTotalReceta.toFixed(2)} USD</strong>
+                  <strong style={{ color: "var(--text)" }}>${costoTotalReceta.toFixed(2)} USD</strong>
                 </div>
                 <div className="calc-summary-item">
                   <span>Ganancia Neta:</span>
                   <strong className="text-green">
-                    ${gananciaEstimada.toFixed(2)} USD
+                    +${gananciaEstimada.toFixed(2)} USD
                   </strong>
                 </div>
                 <div className="calc-summary-item">
-                  <span>Margen de Ganancia:</span>
-                  <strong className="text-primary">{margenEstimadoPct}%</strong>
+                  <span>Margen Estimado:</span>
+                  <strong
+                    style={{
+                      color:
+                        Number(margenEstimadoPct) >= 50
+                          ? "var(--green)"
+                          : Number(margenEstimadoPct) >= 30
+                          ? "var(--primary)"
+                          : "var(--accent)",
+                    }}
+                  >
+                    {margenEstimadoPct}%
+                  </strong>
                 </div>
               </div>
 
