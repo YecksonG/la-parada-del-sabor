@@ -370,10 +370,8 @@ export default function InsumosClient({
                 <th>Insumo & Categoría</th>
                 <th>Stock Actual</th>
                 <th>Estado & Nivel</th>
-                <th>Stock Mínimo</th>
                 <th>Costo Unitario</th>
-                <th>Costo Referencial (Kg/L)</th>
-                <th>Valor Total Inventario</th>
+                <th>Valor en Despensa</th>
                 <th>Proveedores</th>
                 <th style={{ textAlign: "right" }}>Acciones</th>
               </tr>
@@ -392,14 +390,25 @@ export default function InsumosClient({
                 const estado = esAgotado ? "agotado" : esCritico ? "critico" : esBajo ? "bajo" : "ok";
 
                 let stockDisplay = `${stock.toLocaleString()} ${ins.unidad_medida}`;
-                let costoRef = "—";
+                let costoRef = "";
                 if (ins.unidad_medida === "g") {
                   if (stock >= 1000) stockDisplay = `${(stock / 1000).toFixed(2)} kg (${stock.toLocaleString()} g)`;
                   costoRef = `$${(costoUnit * 1000).toFixed(2)} / kg`;
                 } else if (ins.unidad_medida === "ml") {
                   if (stock >= 1000) stockDisplay = `${(stock / 1000).toFixed(2)} L (${stock.toLocaleString()} ml)`;
-                  costoRef = `$${(costoUnit * 1000).toFixed(2)} / Litro`;
+                  costoRef = `$${(costoUnit * 1000).toFixed(2)} / L`;
                 }
+
+                const progressWidth = esAgotado
+                  ? 0
+                  : Math.min(100, Math.max(5, (stock / (stockMin > 0 ? stockMin * 3 : 1)) * 100));
+                const progressClass = esAgotado
+                  ? "fill-agotado"
+                  : esCritico
+                  ? "fill-critico"
+                  : esBajo
+                  ? "fill-bajo"
+                  : "fill-ok";
 
                 return (
                   <tr key={ins.id} className="detailed-table-row">
@@ -415,9 +424,12 @@ export default function InsumosClient({
                       <strong className="text-primary" style={{ fontSize: 14 }}>
                         {stockDisplay}
                       </strong>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 600, marginTop: 2 }}>
+                        Mín: {stockMin.toLocaleString()} {ins.unidad_medida}
+                      </div>
                     </td>
-                    <td style={{ minWidth: 140 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <td style={{ minWidth: 130 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                         {estado === "agotado" ? (
                           <span className="stock-badge stock-badge-agotado">🔴 Agotado</span>
                         ) : estado === "critico" ? (
@@ -429,40 +441,23 @@ export default function InsumosClient({
                         )}
                         <div className="stock-progress-track" style={{ height: 5 }}>
                           <div
-                            className={`stock-progress-fill ${
-                              esAgotado
-                                ? "fill-agotado"
-                                : esCritico
-                                ? "fill-critico"
-                                : esBajo
-                                ? "fill-bajo"
-                                : "fill-ok"
-                            }`}
-                            style={{
-                              width: `${
-                                esAgotado
-                                  ? 0
-                                  : Math.min(100, Math.max(5, (stock / (stockMin > 0 ? stockMin * 3 : 1)) * 100))
-                              }%`,
-                            }}
+                            className={`stock-progress-fill ${progressClass}`}
+                            style={{ width: `${progressWidth}%` }}
                           />
                         </div>
                       </div>
                     </td>
                     <td>
-                      <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 700 }}>
-                        {stockMin.toLocaleString()} {ins.unidad_medida}
-                      </span>
-                    </td>
-                    <td>
-                      <strong style={{ fontSize: 13 }}>
-                        ${costoUnit.toFixed(4)} / {ins.unidad_medida}
-                      </strong>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: 13, color: "var(--text)", fontWeight: 700 }}>
-                        {costoRef}
-                      </span>
+                      <div>
+                        <strong style={{ fontSize: 13, color: "var(--text)" }}>
+                          ${costoUnit.toFixed(4)} <small style={{ color: "var(--text-muted)", fontWeight: 600 }}>/{ins.unidad_medida}</small>
+                        </strong>
+                        {costoRef && (
+                          <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 700, marginTop: 2 }}>
+                            {costoRef}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <strong className="text-green" style={{ fontSize: 14 }}>
@@ -488,7 +483,7 @@ export default function InsumosClient({
                           type="button"
                           onClick={() => abrirAjuste(ins)}
                           className="btn-insumo-adjust"
-                          style={{ padding: "5px 10px", fontSize: 12 }}
+                          style={{ padding: "6px 12px", fontSize: 12, width: "auto" }}
                         >
                           ⚖️ Ajustar
                         </button>
@@ -496,7 +491,8 @@ export default function InsumosClient({
                           type="button"
                           onClick={() => abrirEditar(ins)}
                           className="btn-insumo-edit"
-                          style={{ padding: "5px 10px", fontSize: 12 }}
+                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          title="Editar Insumo"
                         >
                           ✏️
                         </button>
