@@ -1,9 +1,146 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Producto, Insumo, Categoria } from "@/types/database";
 import { guardarPlatoYReceta, eliminarPlato } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+
+const EMOJI_CATEGORIAS = [
+  {
+    id: "arepas",
+    nombre: "🫓 Masas & Arepas",
+    emojis: ["🫓", "🥟", "🥪", "🍞", "🥖", "🥐", "🥯", "🌮", "🌯", "🥙", "🥞", "🧇", "🫔"],
+  },
+  {
+    id: "carnes",
+    nombre: "🥩 Carnes & Rellenos",
+    emojis: ["🥩", "🍗", "🍖", "🥓", "🍔", "🌭", "🍳", "🧀", "🍤", "🐟", "🥑", "🍅", "🧅", "🥬", "🍄"],
+  },
+  {
+    id: "bebidas",
+    nombre: "🥤 Bebidas & Jugos",
+    emojis: ["🥤", "🧃", "☕", "🧋", "🥛", "🍹", "🍺", "🍻", "🧊", "🍋", "🍊", "🍍", "🍓", "🍉", "🥥"],
+  },
+  {
+    id: "snacks",
+    nombre: "🍟 Guarniciones",
+    emojis: ["🍟", "🍕", "🥗", "🍲", "🍿", "🥔", "🌽", "🌶️", "🥒", "🧄", "🍚", "🥣"],
+  },
+  {
+    id: "dulces",
+    nombre: "🍰 Postres",
+    emojis: ["🍰", "🧁", "🍩", "🍪", "🍫", "🍮", "🍨", "🍦", "🍧", "🎂", "🥧", "🍬"],
+  },
+];
+
+function EmojiPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (emoji: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [tabActivo, setTabActivo] = useState("arepas");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar al hacer click afuera o presionar Escape
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setAbierto(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAbierto(false);
+    };
+
+    if (abierto) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [abierto]);
+
+  const emojisActuales = useMemo(() => {
+    const cat = EMOJI_CATEGORIAS.find((c) => c.id === tabActivo);
+    return cat ? cat.emojis : [];
+  }, [tabActivo]);
+
+  return (
+    <div className="emoji-picker-container" ref={containerRef}>
+      <button
+        type="button"
+        className="emoji-picker-trigger"
+        onClick={() => {
+          sounds.playPop();
+          setAbierto((prev) => !prev);
+        }}
+        title="Seleccionar emoji del producto"
+      >
+        <div className="emoji-picker-preview">
+          <span className="selected-emoji">{value || "🫓"}</span>
+          <span className="selected-label">Elegir Emoji</span>
+        </div>
+        <span className="emoji-picker-arrow">{abierto ? "▲" : "▼"}</span>
+      </button>
+
+      {abierto && (
+        <div className="emoji-picker-dropdown">
+          {/* Pestañas de categorías */}
+          <div className="emoji-picker-categories">
+            {EMOJI_CATEGORIAS.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className={`emoji-cat-tab ${tabActivo === cat.id ? "active" : ""}`}
+                onClick={() => {
+                  sounds.playPop();
+                  setTabActivo(cat.id);
+                }}
+              >
+                {cat.nombre}
+              </button>
+            ))}
+          </div>
+
+          {/* Grid de Emojis */}
+          <div className="emoji-picker-grid">
+            {emojisActuales.map((em, idx) => (
+              <button
+                key={idx}
+                type="button"
+                className={`emoji-btn-item ${value === em ? "selected" : ""}`}
+                onClick={() => {
+                  sounds.playPop();
+                  onChange(em);
+                  setAbierto(false);
+                }}
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+
+          {/* Escribir / Pegar emoji personalizado */}
+          <div className="emoji-picker-custom-input">
+            <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>Personalizado:</span>
+            <input
+              type="text"
+              placeholder="Pega otro emoji..."
+              value={value}
+              maxLength={4}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface RecetasClientProps {
   productos: Producto[];
@@ -771,15 +908,8 @@ export default function RecetasClient({
                 </div>
 
                 <div className="form-field">
-                  <label>Icono / Emoji</label>
-                  <input
-                    type="text"
-                    required
-                    value={icono}
-                    onChange={(e) => setIcono(e.target.value)}
-                    className="form-input"
-                    style={{ textAlign: "center", fontSize: 18 }}
-                  />
+                  <label>Icono / Emoji del Menú</label>
+                  <EmojiPicker value={icono} onChange={setIcono} />
                 </div>
 
                 <div className="form-field form-checkbox-center">
