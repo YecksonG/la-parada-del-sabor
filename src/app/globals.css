@@ -1937,37 +1937,6 @@ a {
   gap: 8px;
 }
 
-.insumo-actions-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-insumo-adjust-top {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-subtle);
-  color: var(--text);
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-insumo-adjust-top:hover {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary-dark);
-}
-
-[data-theme="dark"] .btn-insumo-adjust-top:hover {
-  color: var(--primary);
-}
-
 .btn-insumo-edit-top {
   display: inline-flex;
   align-items: center;
