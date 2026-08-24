@@ -1,18 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import ProveedoresClient from "./client";
-import { Proveedor } from "@/types/database";
+import { Proveedor, Insumo } from "@/types/database";
 
 export default async function ProveedoresPage() {
   const supabase = await createClient();
 
-  const { data: proveedores } = await supabase
-    .from("proveedores")
-    .select("*")
-    .order("nombre", { ascending: true });
-
-  const { data: compras } = await supabase
-    .from("compras")
-    .select("proveedor_id, total_usd");
+  const [{ data: proveedores }, { data: compras }, { data: insumos }] =
+    await Promise.all([
+      supabase.from("proveedores").select("*").order("nombre", { ascending: true }),
+      supabase.from("compras").select("proveedor_id, total_usd"),
+      supabase
+        .from("insumos")
+        .select("*")
+        .order("categoria_insumo", { ascending: true })
+        .order("nombre", { ascending: true }),
+    ]);
 
   // Asociar compras a cada proveedor
   const comprasPorProveedor: { [id: string]: { conteo: number; totalUsd: number } } = {};
@@ -29,6 +31,7 @@ export default async function ProveedoresPage() {
   return (
     <ProveedoresClient
       proveedores={(proveedores as Proveedor[]) || []}
+      insumos={(insumos as Insumo[]) || []}
       statsCompras={comprasPorProveedor}
     />
   );

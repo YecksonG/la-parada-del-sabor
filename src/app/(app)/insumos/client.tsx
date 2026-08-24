@@ -1,15 +1,23 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Insumo, UnidadMedida } from "@/types/database";
+import { Insumo, UnidadMedida, Proveedor } from "@/types/database";
 import { guardarInsumo, ajustarStockInsumo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import {
+  getProveedoresPorInsumo,
+  parseProveedorInsumos,
+} from "@/lib/proveedor-insumos-helper";
 
 interface InsumosClientProps {
   insumos: Insumo[];
+  proveedores?: Proveedor[];
 }
 
-export default function InsumosClient({ insumos }: InsumosClientProps) {
+export default function InsumosClient({
+  insumos,
+  proveedores = [],
+}: InsumosClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [busqueda, setBusqueda] = useState("");
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -41,6 +49,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
   const [stockMinimo, setStockMinimo] = useState<number>(200);
   const [costoUnitario, setCostoUnitario] = useState<number>(0.005);
   const [categoriaInsumo, setCategoriaInsumo] = useState("Carnes");
+  const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState<string[]>([]);
 
   const abrirCrear = () => {
     sounds.playPop();
@@ -51,6 +60,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
     setStockMinimo(200);
     setCostoUnitario(0.005);
     setCategoriaInsumo("Carnes");
+    setProveedoresSeleccionados([]);
     setModalAbierto(true);
   };
 
@@ -63,7 +73,21 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
     setStockMinimo(Number(ins.stock_minimo));
     setCostoUnitario(Number(ins.costo_unitario_usd));
     setCategoriaInsumo(ins.categoria_insumo || "General");
+
+    // Identificar proveedores vinculados a este insumo
+    const provIds = proveedores
+      .filter((p) => parseProveedorInsumos(p.notas).insumos_ids.includes(ins.id))
+      .map((p) => p.id);
+    setProveedoresSeleccionados(provIds);
+
     setModalAbierto(true);
+  };
+
+  const toggleProveedor = (id: string) => {
+    sounds.playPop();
+    setProveedoresSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
   };
 
   const abrirAjuste = (ins: Insumo) => {
@@ -101,6 +125,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
       stock_minimo: Number(stockMinimo),
       costo_unitario_usd: Number(costoUnitario),
       categoria_insumo: categoriaInsumo,
+      proveedores_ids: proveedoresSeleccionados,
     });
     setGuardando(false);
 
@@ -293,6 +318,35 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                   </div>
                 </div>
 
+                {/* Proveedores Vinculados */}
+                {(() => {
+                  const proveedoresDelInsumo = getProveedoresPorInsumo(proveedores, ins.id);
+                  return (
+                    <div className="insumo-suppliers-box">
+                      <span className="insumo-suppliers-label">
+                        🏢 Proveedores ({proveedoresDelInsumo.length}):
+                      </span>
+                      {proveedoresDelInsumo.length > 0 ? (
+                        <div className="insumos-supplied-chips">
+                          {proveedoresDelInsumo.map((p) => (
+                            <span
+                              key={p.id}
+                              className="insumo-supplied-badge"
+                              title={p.contacto ? `Contacto: ${p.contacto}` : undefined}
+                            >
+                              🏢 {p.nombre}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
+                          Sin proveedor asignado
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Footer Inferior: Botón Amplio de Ajuste / Merma */}
                 <div className="insumo-card-footer">
                   <button
@@ -320,6 +374,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                 <th>Costo Unitario</th>
                 <th>Costo Referencial (Kg/L)</th>
                 <th>Valor Total Inventario</th>
+                <th>Proveedores</th>
                 <th style={{ textAlign: "right" }}>Acciones</th>
               </tr>
             </thead>
@@ -329,6 +384,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                 const stockMin = Number(ins.stock_minimo);
                 const costoUnit = Number(ins.costo_unitario_usd);
                 const valorTotal = stock * costoUnit;
+                const proveedoresDelInsumo = getProveedoresPorInsumo(proveedores, ins.id);
 
                 const esAgotado = stock <= 0;
                 const esCritico = !esAgotado && stock <= stockMin * 0.5;
@@ -413,6 +469,19 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                         ${valorTotal.toFixed(2)} USD
                       </strong>
                     </td>
+                    <td style={{ maxWidth: 220, fontSize: 12 }}>
+                      {proveedoresDelInsumo.length > 0 ? (
+                        <div className="insumos-supplied-chips">
+                          {proveedoresDelInsumo.map((p) => (
+                            <span key={p.id} className="insumo-supplied-badge">
+                              🏢 {p.nombre}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
+                      )}
+                    </td>
                     <td style={{ textAlign: "right" }}>
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         <button
@@ -444,7 +513,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
       {/* Modal Crear / Editar Insumo */}
       {modalAbierto && (
         <div className="modal-overlay">
-          <div className="modal-recipe-card">
+          <div className="modal-recipe-card" style={{ maxWidth: 540 }}>
             <div className="modal-recipe-header">
               <h2>{insumoSeleccionado ? "Editar Insumo" : "Nuevo Insumo de Despensa"}</h2>
               <button
@@ -543,6 +612,53 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                   className="form-input"
                 />
               </div>
+
+              {/* Selector de Proveedores que Suministran este Insumo */}
+              {proveedores.length > 0 && (
+                <div className="form-field">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <label style={{ margin: 0 }}>
+                      🏢 Proveedores que lo Suministran ({proveedoresSeleccionados.length} seleccionados)
+                    </label>
+                    {proveedoresSeleccionados.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setProveedoresSeleccionados([])}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          fontSize: 11,
+                          color: "var(--accent)",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Deseleccionar todos
+                      </button>
+                    )}
+                  </div>
+                  <div className="insumos-picker-box" style={{ maxHeight: 140 }}>
+                    <div className="insumos-picker-grid">
+                      {proveedores.map((p) => {
+                        const sel = proveedoresSeleccionados.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => toggleProveedor(p.id)}
+                            className={`insumo-chip-item ${sel ? "insumo-chip-active" : ""}`}
+                          >
+                            <span>{sel ? "✅" : "➕"}</span>
+                            <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              🏢 {p.nombre}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="modal-recipe-actions">
                 <button

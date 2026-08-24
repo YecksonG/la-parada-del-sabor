@@ -2,6 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import {
+  parseProveedorInsumos,
+  serializeProveedorInsumos,
+} from "@/lib/proveedor-insumos-helper";
 
 export type GuardarInsumoPayload = {
   id?: string;
@@ -11,10 +15,12 @@ export type GuardarInsumoPayload = {
   stock_minimo: number;
   costo_unitario_usd: number;
   categoria_insumo: string;
+  proveedores_ids?: string[];
 };
 
 export async function guardarInsumo(payload: GuardarInsumoPayload) {
   const supabase = await createClient();
+  let insumoId = payload.id;
 
   if (payload.id) {
     const { error } = await supabase
@@ -32,19 +38,52 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
 
     if (error) return { ok: false, error: error.message };
   } else {
-    const { error } = await supabase.from("insumos").insert({
-      nombre: payload.nombre,
-      unidad_medida: payload.unidad_medida,
-      stock_actual: payload.stock_actual,
-      stock_minimo: payload.stock_minimo,
-      costo_unitario_usd: payload.costo_unitario_usd,
-      categoria_insumo: payload.categoria_insumo,
-    });
+    const { data, error } = await supabase
+      .from("insumos")
+      .insert({
+        nombre: payload.nombre,
+        unidad_medida: payload.unidad_medida,
+        stock_actual: payload.stock_actual,
+        stock_minimo: payload.stock_minimo,
+        costo_unitario_usd: payload.costo_unitario_usd,
+        categoria_insumo: payload.categoria_insumo,
+      })
+      .select("id")
+      .single();
 
     if (error) return { ok: false, error: error.message };
+    if (data) insumoId = data.id;
+  }
+
+  // Sincronizar proveedores seleccionados si se enviaron
+  if (insumoId && payload.proveedores_ids !== undefined) {
+    const { data: proveedores } = await supabase.from("proveedores").select("id, notas");
+    if (proveedores) {
+      const targetSet = new Set(payload.proveedores_ids);
+      for (const prov of proveedores) {
+        const { insumos_ids, notas_texto } = parseProveedorInsumos(prov.notas);
+        const yaTiene = insumos_ids.includes(insumoId);
+        const deberiaTener = targetSet.has(prov.id);
+
+        if (deberiaTener && !yaTiene) {
+          const nuevosIds = [...insumos_ids, insumoId];
+          await supabase
+            .from("proveedores")
+            .update({ notas: serializeProveedorInsumos(nuevosIds, notas_texto) })
+            .eq("id", prov.id);
+        } else if (!deberiaTener && yaTiene) {
+          const nuevosIds = insumos_ids.filter((id) => id !== insumoId);
+          await supabase
+            .from("proveedores")
+            .update({ notas: serializeProveedorInsumos(nuevosIds, notas_texto) })
+            .eq("id", prov.id);
+        }
+      }
+    }
   }
 
   revalidatePath("/insumos");
+  revalidatePath("/proveedores");
   revalidatePath("/recetas");
   revalidatePath("/");
 

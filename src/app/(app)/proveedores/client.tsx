@@ -1,17 +1,20 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Proveedor } from "@/types/database";
+import { Proveedor, Insumo } from "@/types/database";
 import { guardarProveedor } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import { parseProveedorInsumos } from "@/lib/proveedor-insumos-helper";
 
 interface ProveedoresClientProps {
   proveedores: Proveedor[];
+  insumos: Insumo[];
   statsCompras: { [id: string]: { conteo: number; totalUsd: number } };
 }
 
 export default function ProveedoresClient({
   proveedores,
+  insumos,
   statsCompras,
 }: ProveedoresClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
@@ -19,6 +22,9 @@ export default function ProveedoresClient({
   const [modalAbierto, setModalAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [proveedorSeleccionado, setProveedorSeleccionado] = useState<Proveedor | null>(null);
+
+  // Mapa rápido de insumos por ID
+  const insumosMap = useMemo(() => new Map(insumos.map((i) => [i.id, i])), [insumos]);
 
   // Cargar preferencia guardada al montar
   useEffect(() => {
@@ -43,6 +49,8 @@ export default function ProveedoresClient({
   const [direccion, setDireccion] = useState("");
   const [rif, setRif] = useState("");
   const [notas, setNotas] = useState("");
+  const [insumosSeleccionados, setInsumosSeleccionados] = useState<string[]>([]);
+  const [filtroInsumosModal, setFiltroInsumosModal] = useState("");
 
   const abrirCrear = () => {
     sounds.playPop();
@@ -53,6 +61,8 @@ export default function ProveedoresClient({
     setDireccion("");
     setRif("");
     setNotas("");
+    setInsumosSeleccionados([]);
+    setFiltroInsumosModal("");
     setModalAbierto(true);
   };
 
@@ -64,18 +74,53 @@ export default function ProveedoresClient({
     setContacto(p.contacto || "");
     setDireccion(p.direccion || "");
     setRif(p.rif || "");
-    setNotas(p.notas || "");
+    const parsed = parseProveedorInsumos(p.notas);
+    setInsumosSeleccionados(parsed.insumos_ids);
+    setNotas(parsed.notas_texto);
+    setFiltroInsumosModal("");
     setModalAbierto(true);
   };
 
-  const proveedoresFiltrados = useMemo(() => {
-    return proveedores.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        p.contacto?.toLowerCase().includes(busqueda.toLowerCase()) ||
-        p.rif?.toLowerCase().includes(busqueda.toLowerCase())
+  const toggleInsumo = (id: string) => {
+    sounds.playPop();
+    setInsumosSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  }, [proveedores, busqueda]);
+  };
+
+  const insumosModalFiltrados = useMemo(() => {
+    if (!filtroInsumosModal.trim()) return insumos;
+    const term = filtroInsumosModal.toLowerCase();
+    return insumos.filter(
+      (ins) =>
+        ins.nombre.toLowerCase().includes(term) ||
+        ins.categoria_insumo.toLowerCase().includes(term)
+    );
+  }, [insumos, filtroInsumosModal]);
+
+  const proveedoresFiltrados = useMemo(() => {
+    const term = busqueda.toLowerCase().trim();
+    if (!term) return proveedores;
+
+    return proveedores.filter((p) => {
+      const matchBasico =
+        p.nombre.toLowerCase().includes(term) ||
+        p.contacto?.toLowerCase().includes(term) ||
+        p.rif?.toLowerCase().includes(term);
+
+      if (matchBasico) return true;
+
+      // Buscar si suministra algún insumo que coincida
+      const { insumos_ids, notas_texto } = parseProveedorInsumos(p.notas);
+      if (notas_texto.toLowerCase().includes(term)) return true;
+
+      const nombresInsumos = insumos_ids
+        .map((id) => insumosMap.get(id)?.nombre.toLowerCase() || "")
+        .join(" ");
+
+      return nombresInsumos.includes(term);
+    });
+  }, [proveedores, busqueda, insumosMap]);
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +135,7 @@ export default function ProveedoresClient({
       direccion,
       rif,
       notas,
+      insumos_ids: insumosSeleccionados,
     });
     setGuardando(false);
 
@@ -165,6 +211,10 @@ export default function ProveedoresClient({
         <div className="insumos-grid">
           {proveedoresFiltrados.map((p) => {
             const stats = statsCompras[p.id] || { conteo: 0, totalUsd: 0 };
+            const { insumos_ids, notas_texto } = parseProveedorInsumos(p.notas);
+            const insumosSuministrados = insumos_ids
+              .map((id) => insumosMap.get(id))
+              .filter(Boolean) as Insumo[];
 
             return (
               <div key={p.id} className="insumo-card">
@@ -188,11 +238,30 @@ export default function ProveedoresClient({
                   <p style={{ fontSize: 12, color: "var(--text-muted)" }}>📍 {p.direccion}</p>
                 )}
 
-                {p.notas && (
-                  <div className="comanda-notes-box">
-                    <span>📝 Suministra: {p.notas}</span>
-                  </div>
-                )}
+                {/* Insumos que Suministra */}
+                <div className="insumo-suppliers-box">
+                  <span className="insumo-suppliers-label">
+                    📦 Insumos de Despensa ({insumosSuministrados.length}):
+                  </span>
+                  {insumosSuministrados.length > 0 ? (
+                    <div className="insumos-supplied-chips">
+                      {insumosSuministrados.map((ins) => (
+                        <span key={ins.id} className="insumo-supplied-badge">
+                          {ins.categoria_insumo === "Carnes" ? "🥩" : ins.categoria_insumo === "Masas" ? "🌽" : ins.categoria_insumo === "Quesos" || ins.categoria_insumo === "Lácteos" ? "🧀" : ins.categoria_insumo === "Vegetales" ? "🥬" : ins.categoria_insumo === "Salsas" ? "🥫" : "📦"} {ins.nombre}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {notas_texto || "Sin insumos de despensa vinculados"}
+                    </span>
+                  )}
+                  {notas_texto && insumosSuministrados.length > 0 && (
+                    <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                      📝 {notas_texto}
+                    </p>
+                  )}
+                </div>
 
                 <div className="insumo-cost-details">
                   <div className="cost-detail-item">
@@ -215,7 +284,7 @@ export default function ProveedoresClient({
           })}
         </div>
       ) : (
-        /* VISTA 2: FILAS / LISTA DETALLADA (TODO COMPLETO) */
+        /* VISTA 2: FILAS / LISTA DETALLADA */
         <div className="table-responsive-wrapper">
           <table className="custom-detailed-table">
             <thead>
@@ -233,6 +302,10 @@ export default function ProveedoresClient({
             <tbody>
               {proveedoresFiltrados.map((p) => {
                 const stats = statsCompras[p.id] || { conteo: 0, totalUsd: 0 };
+                const { insumos_ids, notas_texto } = parseProveedorInsumos(p.notas);
+                const insumosSuministrados = insumos_ids
+                  .map((id) => insumosMap.get(id))
+                  .filter(Boolean) as Insumo[];
 
                 return (
                   <tr key={p.id} className="detailed-table-row">
@@ -259,11 +332,19 @@ export default function ProveedoresClient({
                     <td style={{ maxWidth: 200, fontSize: 12 }}>
                       {p.direccion ? <span>📍 {p.direccion}</span> : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
-                    <td style={{ maxWidth: 220, fontSize: 12 }}>
-                      {p.notas ? (
-                        <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>📝 {p.notas}</span>
+                    <td style={{ maxWidth: 260, fontSize: 12 }}>
+                      {insumosSuministrados.length > 0 ? (
+                        <div className="insumos-supplied-chips">
+                          {insumosSuministrados.map((ins) => (
+                            <span key={ins.id} className="insumo-supplied-badge">
+                              {ins.nombre}
+                            </span>
+                          ))}
+                        </div>
+                      ) : notas_texto ? (
+                        <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>📝 {notas_texto}</span>
                       ) : (
-                        <span style={{ color: "var(--text-muted)" }}>General</span>
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
                       )}
                     </td>
                     <td>
@@ -295,7 +376,7 @@ export default function ProveedoresClient({
       {/* Modal Proveedor */}
       {modalAbierto && (
         <div className="modal-overlay">
-          <div className="modal-recipe-card" style={{ maxWidth: 480 }}>
+          <div className="modal-recipe-card" style={{ maxWidth: 560 }}>
             <div className="modal-recipe-header">
               <h2>{proveedorSeleccionado ? "Editar Proveedor" : "Nuevo Proveedor"}</h2>
               <button type="button" onClick={() => setModalAbierto(false)} className="btn-modal-close">✕</button>
@@ -304,7 +385,7 @@ export default function ProveedoresClient({
             <form onSubmit={handleGuardar} className="recipe-form">
               <div className="form-grid-2">
                 <div className="form-field">
-                  <label>Razón Social / Empresa</label>
+                  <label>Razón Social / Empresa *</label>
                   <input
                     type="text"
                     required
@@ -362,11 +443,79 @@ export default function ProveedoresClient({
                 />
               </div>
 
+              {/* Selector Estructurado de Insumos de la Despensa */}
               <div className="form-field">
-                <label>Insumos que Suministra / Notas</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <label style={{ margin: 0 }}>
+                    📦 Insumos de la Despensa que Suministra ({insumosSeleccionados.length} seleccionados)
+                  </label>
+                  {insumosSeleccionados.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setInsumosSeleccionados([])}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        fontSize: 11,
+                        color: "var(--accent)",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Deseleccionar todos
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ marginBottom: 6 }}>
+                  <input
+                    type="text"
+                    placeholder="Filtrar insumos (ej. Harina, Queso, Carne)..."
+                    value={filtroInsumosModal}
+                    onChange={(e) => setFiltroInsumosModal(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: 12, padding: "6px 10px" }}
+                  />
+                </div>
+
+                <div className="insumos-picker-box">
+                  {insumosModalFiltrados.length === 0 ? (
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center", padding: 10 }}>
+                      No se encontraron insumos que coincidan con la búsqueda.
+                    </span>
+                  ) : (
+                    <div className="insumos-picker-grid">
+                      {insumosModalFiltrados.map((ins) => {
+                        const seleccionado = insumosSeleccionados.includes(ins.id);
+                        return (
+                          <button
+                            key={ins.id}
+                            type="button"
+                            onClick={() => toggleInsumo(ins.id)}
+                            className={`insumo-chip-item ${seleccionado ? "insumo-chip-active" : ""}`}
+                          >
+                            <span>{seleccionado ? "✅" : "➕"}</span>
+                            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {ins.nombre}
+                              </span>
+                              <span style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                                {ins.categoria_insumo}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label>Notas Adicionales / Horarios de Despacho</label>
                 <input
                   type="text"
-                  placeholder="Ej. Harina de maíz, sacos de 20kg y aceite"
+                  placeholder="Ej. Despachan martes y jueves, crédito a 7 días..."
                   value={notas}
                   onChange={(e) => setNotas(e.target.value)}
                   className="form-input"
