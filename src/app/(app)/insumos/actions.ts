@@ -57,25 +57,32 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
 
   // Sincronizar proveedores seleccionados si se enviaron
   if (insumoId && payload.proveedores_ids !== undefined) {
-    // 1. Sincronización atómica en la tabla puente proveedor_insumos (si existe en DB)
-    try {
-      await supabase
+    // 1. Intentar vía RPC transaccional atómica
+    const { error: rpcError } = await supabase.rpc("sincronizar_insumo_proveedores", {
+      p_insumo_id: insumoId,
+      p_proveedores_ids: payload.proveedores_ids,
+    });
+
+    // 2. Fallback directo a la tabla puente con validación de errores
+    if (rpcError) {
+      const { error: delErr } = await supabase
         .from("proveedor_insumos")
         .delete()
         .eq("insumo_id", insumoId);
 
-      if (payload.proveedores_ids.length > 0) {
+      if (!delErr && payload.proveedores_ids.length > 0) {
         const rows = payload.proveedores_ids.map((provId) => ({
           proveedor_id: provId,
           insumo_id: insumoId,
         }));
-        await supabase.from("proveedor_insumos").insert(rows);
+        const { error: insErr } = await supabase.from("proveedor_insumos").insert(rows);
+        if (insErr && insErr.code !== "PGRST204" && insErr.code !== "42P01") {
+          console.error("Error al sincronizar proveedor_insumos desde insumo:", insErr.message);
+        }
       }
-    } catch {
-      // Ignorar si la tabla puente aún no está migrada en la base de datos
     }
 
-    // 2. Sincronización de respaldo en proveedores.notas
+    // 3. Sincronización de respaldo en proveedores.notas
     const { data: proveedores } = await supabase.from("proveedores").select("id, notas");
     if (proveedores) {
       const targetSet = new Set(payload.proveedores_ids);

@@ -221,6 +221,7 @@ ALTER TABLE public.ventas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ventas_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ventas_items_extras ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sesiones_caja ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.proveedor_insumos ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "auth_categorias" ON public.categorias FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_insumos" ON public.insumos FOR ALL TO authenticated USING (true) WITH CHECK (true);
@@ -229,6 +230,7 @@ CREATE POLICY "auth_recetas" ON public.recetas_ingredientes FOR ALL TO authentic
 CREATE POLICY "auth_extras" ON public.extras_modificadores FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_clientes" ON public.clientes FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_proveedores" ON public.proveedores FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_proveedor_insumos" ON public.proveedor_insumos FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_tasas" ON public.tasas_cambio FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_compras" ON public.compras FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_compras_items" ON public.compras_items FOR ALL TO authenticated USING (true) WITH CHECK (true);

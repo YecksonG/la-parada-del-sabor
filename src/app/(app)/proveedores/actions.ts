@@ -57,23 +57,31 @@ export async function guardarProveedor(payload: GuardarProveedorPayload) {
     if (data) providerId = data.id;
   }
 
-  // Sincronización atómica en la tabla puente proveedor_insumos (si existe)
+  // Sincronización atómica en la tabla puente proveedor_insumos
   if (providerId && payload.insumos_ids !== undefined) {
-    try {
-      await supabase
+    // 1. Intentar vía RPC transaccional
+    const { error: rpcError } = await supabase.rpc("sincronizar_proveedor_insumos", {
+      p_proveedor_id: providerId,
+      p_insumos_ids: payload.insumos_ids,
+    });
+
+    // 2. Si la RPC no está instalada, ejecutar directamente contra la tabla con validación
+    if (rpcError) {
+      const { error: delErr } = await supabase
         .from("proveedor_insumos")
         .delete()
         .eq("proveedor_id", providerId);
 
-      if (payload.insumos_ids.length > 0) {
+      if (!delErr && payload.insumos_ids.length > 0) {
         const rows = payload.insumos_ids.map((insId) => ({
           proveedor_id: providerId,
           insumo_id: insId,
         }));
-        await supabase.from("proveedor_insumos").insert(rows);
+        const { error: insErr } = await supabase.from("proveedor_insumos").insert(rows);
+        if (insErr && insErr.code !== "PGRST204" && insErr.code !== "42P01") {
+          console.error("Error al sincronizar proveedor_insumos:", insErr.message);
+        }
       }
-    } catch {
-      // Ignorar si la tabla puente aún no está migrada en la base de datos
     }
   }
 
