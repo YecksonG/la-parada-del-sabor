@@ -2001,15 +2001,25 @@ a {
   border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
-.stock-badge-agotado,
 .stock-badge-critico {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+[data-theme="dark"] .stock-badge-critico {
+  background: rgba(251, 146, 60, 0.16);
+  color: #fb923c;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+}
+
+.stock-badge-agotado {
   background: #fff1f2;
   color: #9f1239;
   border: 1px solid #fecdd3;
 }
 
-[data-theme="dark"] .stock-badge-agotado,
-[data-theme="dark"] .stock-badge-critico {
+[data-theme="dark"] .stock-badge-agotado {
   background: rgba(244, 63, 94, 0.16);
   color: #fb7185;
   border: 1px solid rgba(244, 63, 94, 0.35);

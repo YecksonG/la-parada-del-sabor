@@ -204,9 +204,10 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
             const costoUnit = Number(ins.costo_unitario_usd);
             const valorTotal = stock * costoUnit;
 
-            const esCritico = stock <= stockMin * 0.5;
-            const esBajo = stock <= stockMin && !esCritico;
-            const estado = esCritico ? "critico" : esBajo ? "bajo" : "ok";
+            const esAgotado = stock <= 0;
+            const esCritico = !esAgotado && stock <= stockMin * 0.5;
+            const esBajo = !esAgotado && !esCritico && stock <= stockMin;
+            const estado = esAgotado ? "agotado" : esCritico ? "critico" : esBajo ? "bajo" : "ok";
 
             // Formateo visual
             let stockDisplay = `${stock.toLocaleString()} ${ins.unidad_medida}`;
@@ -226,8 +227,10 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                     <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
                     <h3 className="insumo-name">{ins.nombre}</h3>
                   </div>
-                  {estado === "critico" ? (
-                    <span className="stock-badge stock-badge-critico">🔴 Crítico</span>
+                  {estado === "agotado" ? (
+                    <span className="stock-badge stock-badge-agotado">🔴 Agotado</span>
+                  ) : estado === "critico" ? (
+                    <span className="stock-badge stock-badge-critico">🟠 Crítico</span>
                   ) : estado === "bajo" ? (
                     <span className="stock-badge stock-badge-bajo">🟡 Bajo</span>
                   ) : (
@@ -314,8 +317,10 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                 const costoUnit = Number(ins.costo_unitario_usd);
                 const valorTotal = stock * costoUnit;
 
-                const esCritico = stock <= stockMin * 0.5;
-                const esBajo = stock <= stockMin && !esCritico;
+                const esAgotado = stock <= 0;
+                const esCritico = !esAgotado && stock <= stockMin * 0.5;
+                const esBajo = !esAgotado && !esCritico && stock <= stockMin;
+                const estado = esAgotado ? "agotado" : esCritico ? "critico" : esBajo ? "bajo" : "ok";
 
                 let stockDisplay = `${stock.toLocaleString()} ${ins.unidad_medida}`;
                 let costoRef = "—";
@@ -344,9 +349,11 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                     </td>
                     <td style={{ minWidth: 140 }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {esCritico ? (
-                          <span className="stock-badge stock-badge-critico">🔴 Crítico</span>
-                        ) : esBajo ? (
+                        {estado === "agotado" ? (
+                          <span className="stock-badge stock-badge-agotado">🔴 Agotado</span>
+                        ) : estado === "critico" ? (
+                          <span className="stock-badge stock-badge-critico">🟠 Crítico</span>
+                        ) : estado === "bajo" ? (
                           <span className="stock-badge stock-badge-bajo">🟡 Bajo</span>
                         ) : (
                           <span className="stock-badge stock-badge-ok">🟢 Óptimo</span>
