@@ -13,26 +13,101 @@ interface TopbarNavProps {
   bcvTasa: number | null;
 }
 
+type NavCategory = {
+  id: string;
+  label: string;
+  icon: string;
+  items: {
+    href: string;
+    label: string;
+    icon: string;
+    desc: string;
+  }[];
+};
+
 export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   const pathname = usePathname();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const [dropdownUsuario, setDropdownUsuario] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   const inicial = nombre.charAt(0).toUpperCase();
 
-  const enlaces = [
+  // Enlaces de Acción Rápida (Operativos del Día a Día)
+  const enlacesDirectos = [
     { href: "/", label: "POS", icon: "🛒" },
-    { href: "/dashboard", label: "Dashboard", icon: "📊" },
-    { href: "/caja", label: "Caja & Arqueo", icon: "💰" },
-    { href: "/recetas", label: "Recetas", icon: "🌾" },
-    { href: "/insumos", label: "Despensa", icon: "📦" },
     { href: "/ventas", label: "Comandas", icon: "📋" },
-    { href: "/compras", label: "Compras", icon: "🚚" },
-    { href: "/clientes", label: "Clientes", icon: "👥" },
-    { href: "/proveedores", label: "Proveedores", icon: "🏢" },
-    { href: "/tasas", label: "Tasas", icon: "💵" },
+    { href: "/caja", label: "Caja", icon: "💰" },
+  ];
+
+  // Categorías de Gestión Agrupadas
+  const categoriasNav: NavCategory[] = [
+    {
+      id: "cocina",
+      label: "Cocina & Stock",
+      icon: "🌾",
+      items: [
+        {
+          href: "/recetas",
+          label: "Recetas & Escandallo",
+          icon: "🌾",
+          desc: "Fórmulas exactas y costos por ración",
+        },
+        {
+          href: "/insumos",
+          label: "Despensa",
+          icon: "📦",
+          desc: "Stock, inventario y alertas mínimas",
+        },
+        {
+          href: "/compras",
+          label: "Compras",
+          icon: "🚚",
+          desc: "Entrada de insumos y registro de gastos",
+        },
+      ],
+    },
+    {
+      id: "directorio",
+      label: "Directorio",
+      icon: "👥",
+      items: [
+        {
+          href: "/proveedores",
+          label: "Proveedores",
+          icon: "🏢",
+          desc: "Directorio e insumos suministrados",
+        },
+        {
+          href: "/clientes",
+          label: "Clientes",
+          icon: "👥",
+          desc: "Historial, fidelidad y cuentas",
+        },
+      ],
+    },
+    {
+      id: "gestion",
+      label: "Gestión",
+      icon: "📊",
+      items: [
+        {
+          href: "/dashboard",
+          label: "Dashboard",
+          icon: "📊",
+          desc: "Métricas, ventas y finanzas en vivo",
+        },
+        {
+          href: "/tasas",
+          label: "Tasas Cambiarias",
+          icon: "💵",
+          desc: "BCV, Paralelo y calculadora dual",
+        },
+      ],
+    },
   ];
 
   useEffect(() => {
@@ -46,26 +121,61 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     setSoundEnabled(nextState);
   };
 
-  // Cerrar menú móvil y dropdown al navegar
+  // Cerrar menús al cambiar de ruta
   useEffect(() => {
     setMenuAbierto(false);
     setDropdownUsuario(false);
+    setActiveDropdown(null);
   }, [pathname]);
 
-  // Click outside para cerrar dropdown de usuario
+  // Click outside y Escape para cerrar dropdowns
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setDropdownUsuario(false);
       }
+      if (navRef.current && !navRef.current.contains(e.target as Node)) {
+        setActiveDropdown(null);
+      }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDropdownUsuario(false);
+        setActiveDropdown(null);
+        setMenuAbierto(false);
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
+
+  const toggleDropdown = (id: string) => {
+    sounds.playPop();
+    setActiveDropdown((prev) => (prev === id ? null : id));
+  };
 
   return (
     <header className="topbar">
       <div className="topbar-left">
+        {/* Botón Móvil Hamburguesa */}
+        <button
+          type="button"
+          className="mobile-hamburger-btn"
+          onClick={() => {
+            sounds.playPop();
+            setMenuAbierto(!menuAbierto);
+          }}
+          aria-label="Abrir menú de navegación"
+          aria-expanded={menuAbierto}
+        >
+          {menuAbierto ? "✕" : "☰"}
+        </button>
+
         <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
           <Image
             src="/images/logo-badge.png"
@@ -82,8 +192,15 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
         </Link>
       </div>
 
-      <nav className={`topbar-nav ${menuAbierto ? "nav-open" : ""}`}>
-        {enlaces.map((enlace) => {
+      {/* Navegación Principal Categorizada */}
+      <nav ref={navRef} className={`topbar-nav ${menuAbierto ? "nav-open" : ""}`}>
+        {/* Grupo Móvil: Operaciones */}
+        <div className="mobile-nav-group-title" style={{ display: menuAbierto ? "block" : "none" }}>
+          ⚡ Operaciones
+        </div>
+
+        {/* Enlaces directos (POS, Comandas, Caja) */}
+        {enlacesDirectos.map((enlace) => {
           const activo = pathname === enlace.href;
           return (
             <Link
@@ -95,6 +212,85 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
               <span className="nav-icon">{enlace.icon}</span>
               <span>{enlace.label}</span>
             </Link>
+          );
+        })}
+
+        {/* Categorías con Desplegable */}
+        {categoriasNav.map((cat) => {
+          const isCategoryActive = cat.items.some((item) => pathname === item.href);
+          const isOpen = activeDropdown === cat.id;
+
+          return (
+            <div key={cat.id} className="nav-dropdown-wrapper">
+              {/* En Móvil: Mostrar título del grupo */}
+              <div
+                className="mobile-nav-group-title"
+                style={{ display: menuAbierto ? "block" : "none" }}
+              >
+                {cat.icon} {cat.label}
+              </div>
+
+              {/* Botón Trigger en Desktop */}
+              <button
+                type="button"
+                className={`nav-dropdown-trigger ${isCategoryActive ? "active" : ""}`}
+                onClick={() => toggleDropdown(cat.id)}
+                aria-haspopup="true"
+                aria-expanded={isOpen}
+                style={{ display: menuAbierto ? "none" : "flex" }}
+              >
+                <span>{cat.icon}</span>
+                <span>{cat.label}</span>
+                <span className={`nav-dropdown-chevron ${isOpen ? "open" : ""}`}>▼</span>
+              </button>
+
+              {/* Menú Desplegable en Desktop */}
+              {isOpen && !menuAbierto && (
+                <div className="nav-dropdown-menu" role="menu">
+                  {cat.items.map((item) => {
+                    const isItemActive = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => {
+                          sounds.playPop();
+                          setActiveDropdown(null);
+                        }}
+                        className={`nav-dropdown-item ${isItemActive ? "active" : ""}`}
+                        role="menuitem"
+                      >
+                        <span className="nav-dropdown-item-icon">{item.icon}</span>
+                        <div className="nav-dropdown-item-info">
+                          <span className="nav-dropdown-item-title">{item.label}</span>
+                          <span className="nav-dropdown-item-desc">{item.desc}</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* En Móvil: Mostrar items desplegados directamente */}
+              {menuAbierto && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {cat.items.map((item) => {
+                    const isItemActive = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => sounds.playPop()}
+                        className={`nav-link ${isItemActive ? "nav-link-active" : ""}`}
+                      >
+                        <span className="nav-icon">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>
