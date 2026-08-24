@@ -233,27 +233,17 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
 
             return (
               <div key={ins.id} className="insumo-card">
-                {/* Fila Superior: Categoría y Botones de Acción Fijos */}
+                {/* Fila Superior: Categoría y Botón Discreto de Editar */}
                 <div className="insumo-card-topbar">
                   <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
-                  <div className="insumo-actions-top">
-                    <button
-                      type="button"
-                      onClick={() => abrirAjuste(ins)}
-                      className="btn-insumo-adjust-top"
-                      title="Ajustar Stock Físico o Registrar Merma"
-                    >
-                      ⚖️ Ajustar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => abrirEditar(ins)}
-                      className="btn-insumo-edit-top"
-                      title="Editar Insumo"
-                    >
-                      ✏️
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => abrirEditar(ins)}
+                    className="btn-insumo-edit-top"
+                    title="Editar Insumo"
+                  >
+                    ✏️
+                  </button>
                 </div>
 
                 {/* Header de Tarjeta: Nombre y Badge de Stock */}
@@ -301,6 +291,17 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                     <span>Valor en Despensa</span>
                     <strong className="text-primary" style={{ fontSize: 14 }}>${valorTotal.toFixed(2)} USD</strong>
                   </div>
+                </div>
+
+                {/* Footer Inferior: Botón Amplio de Ajuste / Merma */}
+                <div className="insumo-card-footer">
+                  <button
+                    type="button"
+                    onClick={() => abrirAjuste(ins)}
+                    className="btn-insumo-adjust"
+                  >
+                    ⚖️ Ajustar Stock / Merma
+                  </button>
                 </div>
               </div>
             );
