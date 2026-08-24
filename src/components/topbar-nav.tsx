@@ -195,7 +195,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
       {/* Navegación Principal Categorizada */}
       <nav ref={navRef} className={`topbar-nav ${menuAbierto ? "nav-open" : ""}`}>
         {/* Grupo Móvil: Operaciones */}
-        <div className="mobile-nav-group-title" style={{ display: menuAbierto ? "block" : "none" }}>
+        <div className="mobile-nav-group-title">
           ⚡ Operaciones
         </div>
 
@@ -222,11 +222,8 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
 
           return (
             <div key={cat.id} className="nav-dropdown-wrapper">
-              {/* En Móvil: Mostrar título del grupo */}
-              <div
-                className="mobile-nav-group-title"
-                style={{ display: menuAbierto ? "block" : "none" }}
-              >
+              {/* En Móvil: Título del grupo */}
+              <div className="mobile-nav-group-title">
                 {cat.icon} {cat.label}
               </div>
 
@@ -235,9 +232,8 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
                 type="button"
                 className={`nav-dropdown-trigger ${isCategoryActive ? "active" : ""}`}
                 onClick={() => toggleDropdown(cat.id)}
-                aria-haspopup="true"
+                aria-haspopup="menu"
                 aria-expanded={isOpen}
-                style={{ display: menuAbierto ? "none" : "flex" }}
               >
                 <span>{cat.icon}</span>
                 <span>{cat.label}</span>
@@ -245,7 +241,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
               </button>
 
               {/* Menú Desplegable en Desktop */}
-              {isOpen && !menuAbierto && (
+              {isOpen && (
                 <div className="nav-dropdown-menu" role="menu">
                   {cat.items.map((item) => {
                     const isItemActive = pathname === item.href;
@@ -271,25 +267,23 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
                 </div>
               )}
 
-              {/* En Móvil: Mostrar items desplegados directamente */}
-              {menuAbierto && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {cat.items.map((item) => {
-                    const isItemActive = pathname === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => sounds.playPop()}
-                        className={`nav-link ${isItemActive ? "nav-link-active" : ""}`}
-                      >
-                        <span className="nav-icon">{item.icon}</span>
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
+              {/* En Móvil: Mostrar items directamente */}
+              <div className="mobile-nav-subitems">
+                {cat.items.map((item) => {
+                  const isItemActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => sounds.playPop()}
+                      className={`nav-link ${isItemActive ? "nav-link-active" : ""}`}
+                    >
+                      <span className="nav-icon">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           );
         })}
@@ -311,7 +305,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
           onClick={handleToggleSound}
           className="theme-toggle-btn"
           title={soundEnabled ? "Sonidos gourmet activados" : "Sonidos silenciados"}
-          aria-label="Toggle sound"
+          aria-label={soundEnabled ? "Silenciar sonidos gourmet" : "Activar sonidos gourmet"}
         >
           {soundEnabled ? "🔔" : "🔕"}
         </button>

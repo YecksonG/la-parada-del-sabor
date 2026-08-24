@@ -346,6 +346,17 @@ a {
   background: var(--border);
 }
 
+.mobile-nav-group-title {
+  display: none;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-left: 8px;
+  margin-top: 4px;
+}
+
 @media (max-width: 1080px) {
   .mobile-hamburger-btn {
     display: flex;
@@ -380,14 +391,22 @@ a {
   }
 
   .mobile-nav-group-title {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding-left: 8px;
-    margin-top: 4px;
+    display: block;
   }
+
+  .nav-dropdown-trigger {
+    display: none !important;
+  }
+
+  .mobile-nav-subitems {
+    display: flex !important;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
+.mobile-nav-subitems {
+  display: none;
 }
 
 .topbar-right {
