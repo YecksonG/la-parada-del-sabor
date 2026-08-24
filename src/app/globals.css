@@ -1908,7 +1908,7 @@ a {
 /* ---------- Insumos / Despensa Styles ---------- */
 .insumos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
   gap: 18px;
 }
 
@@ -1919,79 +1919,117 @@ a {
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .insumo-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+  border-color: var(--primary);
 }
 
 .insumo-card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .insumo-cat-tag {
+  display: inline-block;
   font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.insumo-name {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--text);
-  margin-top: 2px;
-}
-
-.stock-badge {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  white-space: nowrap;
-}
-
-.stock-badge-optimo {
-  background: var(--green-light);
-  color: var(--green);
-  border: 1px solid var(--green-glow);
-}
-
-.stock-badge-bajo {
-  background: var(--primary-light);
+  letter-spacing: 0.5px;
   color: var(--primary-dark);
-  border: 1px solid var(--primary-glow);
+  background: var(--primary-light);
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
 }
 
-[data-theme="dark"] .stock-badge-bajo {
+[data-theme="dark"] .insumo-cat-tag {
   color: var(--primary);
 }
 
-.stock-badge-agotado {
-  background: var(--accent-light);
-  color: var(--accent);
-  border: 1px solid var(--accent-glow);
+.insumo-name {
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+/* Badges con borde y relleno enriquecido */
+.stock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.stock-badge-optimo,
+.stock-badge-ok {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+[data-theme="dark"] .stock-badge-optimo,
+[data-theme="dark"] .stock-badge-ok {
+  background: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.stock-badge-bajo {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+[data-theme="dark"] .stock-badge-bajo {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.stock-badge-agotado,
+.stock-badge-critico {
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid #fecdd3;
+}
+
+[data-theme="dark"] .stock-badge-agotado,
+[data-theme="dark"] .stock-badge-critico {
+  background: rgba(244, 63, 94, 0.16);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
 }
 
 .insumo-stock-display {
   background: var(--bg-subtle);
   border: 1px solid var(--border-subtle);
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
+  gap: 6px;
 }
 
 .insumo-stock-value {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 900;
   color: var(--text);
+  letter-spacing: -0.3px;
 }
 
 .insumo-min-label {
@@ -2000,22 +2038,67 @@ a {
   font-weight: 600;
 }
 
+/* Barra de progreso de stock */
+.stock-progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .stock-progress-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stock-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.fill-ok,
+.fill-optimo {
+  background: var(--green);
+}
+
+.fill-bajo {
+  background: var(--primary);
+}
+
+.fill-critico,
+.fill-agotado {
+  background: var(--accent);
+}
+
 .insumo-cost-details {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: var(--bg-subtle);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
 }
 
 .cost-detail-item {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .cost-detail-item span {
   font-size: 10px;
   color: var(--text-muted);
-  font-weight: 700;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.cost-detail-item strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
 }
 
 .insumo-card-footer {
@@ -2023,7 +2106,7 @@ a {
   align-items: center;
   gap: 8px;
   border-top: 1px solid var(--border-subtle);
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .btn-insumo-adjust {
@@ -2031,7 +2114,7 @@ a {
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--bg-subtle);
+  background: var(--bg-card);
   color: var(--text);
   font-size: 12px;
   font-weight: 800;
@@ -2048,9 +2131,15 @@ a {
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--bg-subtle);
+  background: var(--bg-card);
   cursor: pointer;
   font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.btn-insumo-edit:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
 }
 
 /* ---------- Ventas / Comandas Styles ---------- */

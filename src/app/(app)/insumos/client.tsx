@@ -206,56 +206,67 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
 
             const esCritico = stock <= stockMin * 0.5;
             const esBajo = stock <= stockMin && !esCritico;
+            const estado = esCritico ? "critico" : esBajo ? "bajo" : "ok";
 
             // Formateo visual
             let stockDisplay = `${stock.toLocaleString()} ${ins.unidad_medida}`;
-            if (ins.unidad_medida === "g" && stock >= 1000) {
-              stockDisplay = `${(stock / 1000).toFixed(2)} kg (${stock.toLocaleString()} g)`;
-            } else if (ins.unidad_medida === "ml" && stock >= 1000) {
-              stockDisplay = `${(stock / 1000).toFixed(2)} L (${stock.toLocaleString()} ml)`;
+            let costoRef = "";
+            if (ins.unidad_medida === "g") {
+              if (stock >= 1000) stockDisplay = `${(stock / 1000).toFixed(2)} kg (${stock.toLocaleString()} g)`;
+              costoRef = `$${(costoUnit * 1000).toFixed(2)}/kg`;
+            } else if (ins.unidad_medida === "ml") {
+              if (stock >= 1000) stockDisplay = `${(stock / 1000).toFixed(2)} L (${stock.toLocaleString()} ml)`;
+              costoRef = `$${(costoUnit * 1000).toFixed(2)}/L`;
             }
 
             return (
               <div key={ins.id} className="insumo-card">
                 <div className="insumo-card-header">
                   <div>
+                    <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
                     <h3 className="insumo-name">{ins.nombre}</h3>
-                    <span className="receta-cat-badge">{ins.categoria_insumo}</span>
                   </div>
-                  {esCritico ? (
+                  {estado === "critico" ? (
                     <span className="stock-badge stock-badge-critico">🔴 Crítico</span>
-                  ) : esBajo ? (
+                  ) : estado === "bajo" ? (
                     <span className="stock-badge stock-badge-bajo">🟡 Bajo</span>
                   ) : (
-                    <span className="stock-badge stock-badge-ok">🟢 OK</span>
+                    <span className="stock-badge stock-badge-ok">🟢 Óptimo</span>
                   )}
                 </div>
 
-                <div className="insumo-stock-hero">
-                  <div className="stock-hero-val">{stockDisplay}</div>
-                  <div className="stock-hero-min">Mínimo: {stockMin.toLocaleString()} {ins.unidad_medida}</div>
-                </div>
+                <div className="insumo-stock-display">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span className="insumo-stock-value">{stockDisplay}</span>
+                    <span className="insumo-min-label">Mín: {stockMin.toLocaleString()} {ins.unidad_medida}</span>
+                  </div>
 
-                {/* Barra de Progreso de Stock */}
-                <div className="stock-progress-track">
-                  <div
-                    className={`stock-progress-fill ${
-                      esCritico ? "fill-critico" : esBajo ? "fill-bajo" : "fill-ok"
-                    }`}
-                    style={{
-                      width: `${Math.min(100, Math.max(5, (stock / (stockMin * 3)) * 100))}%`,
-                    }}
-                  />
+                  {/* Barra de Progreso de Stock */}
+                  <div className="stock-progress-track">
+                    <div
+                      className={`stock-progress-fill ${
+                        esCritico ? "fill-critico" : esBajo ? "fill-bajo" : "fill-ok"
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.max(5, (stock / (stockMin * 3)) * 100))}%`,
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div className="insumo-cost-details">
                   <div className="cost-detail-item">
-                    <span>Costo Unitario:</span>
-                    <strong>${costoUnit.toFixed(4)}/{ins.unidad_medida}</strong>
+                    <span>Costo Unitario</span>
+                    <strong>${costoUnit.toFixed(4)} <small style={{ fontWeight: 600, color: "var(--text-muted)", fontSize: 11 }}>/{ins.unidad_medida}</small></strong>
+                    {costoRef && (
+                      <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 700 }}>
+                        {costoRef}
+                      </span>
+                    )}
                   </div>
-                  <div className="cost-detail-item">
-                    <span>Valor en Despensa:</span>
-                    <strong className="text-primary">${valorTotal.toFixed(2)} USD</strong>
+                  <div className="cost-detail-item" style={{ textAlign: "right", alignItems: "flex-end" }}>
+                    <span>Valor en Despensa</span>
+                    <strong className="text-primary" style={{ fontSize: 14 }}>${valorTotal.toFixed(2)} USD</strong>
                   </div>
                 </div>
 
@@ -271,6 +282,7 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                     type="button"
                     onClick={() => abrirEditar(ins)}
                     className="btn-insumo-edit"
+                    title="Editar Insumo"
                   >
                     ✏️
                   </button>
@@ -320,8 +332,8 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                     <td>
                       <div>
                         <strong style={{ fontSize: 14, color: "var(--text)" }}>{ins.nombre}</strong>
-                        <div>
-                          <span className="receta-cat-badge">{ins.categoria_insumo}</span>
+                        <div style={{ marginTop: 2 }}>
+                          <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
                         </div>
                       </div>
                     </td>
@@ -331,15 +343,15 @@ export default function InsumosClient({ insumos }: InsumosClientProps) {
                       </strong>
                     </td>
                     <td style={{ minWidth: 140 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         {esCritico ? (
                           <span className="stock-badge stock-badge-critico">🔴 Crítico</span>
                         ) : esBajo ? (
                           <span className="stock-badge stock-badge-bajo">🟡 Bajo</span>
                         ) : (
-                          <span className="stock-badge stock-badge-ok">🟢 Suficiente</span>
+                          <span className="stock-badge stock-badge-ok">🟢 Óptimo</span>
                         )}
-                        <div className="stock-progress-track" style={{ height: 4 }}>
+                        <div className="stock-progress-track" style={{ height: 5 }}>
                           <div
                             className={`stock-progress-fill ${
                               esCritico ? "fill-critico" : esBajo ? "fill-bajo" : "fill-ok"
