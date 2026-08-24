@@ -75,6 +75,8 @@ function EmojiPicker({
       <button
         type="button"
         className="emoji-picker-trigger"
+        aria-haspopup="dialog"
+        aria-expanded={abierto}
         onClick={() => {
           sounds.playPop();
           setAbierto((prev) => !prev);
@@ -89,13 +91,15 @@ function EmojiPicker({
       </button>
 
       {abierto && (
-        <div className="emoji-picker-dropdown">
+        <div className="emoji-picker-dropdown" role="dialog" aria-label="Selector de emoji">
           {/* Pestañas de categorías */}
-          <div className="emoji-picker-categories">
+          <div className="emoji-picker-categories" role="tablist" aria-label="Categorías de emoji">
             {EMOJI_CATEGORIAS.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
+                role="tab"
+                aria-selected={tabActivo === cat.id}
                 className={`emoji-cat-tab ${tabActivo === cat.id ? "active" : ""}`}
                 onClick={() => {
                   sounds.playPop();
@@ -132,7 +136,7 @@ function EmojiPicker({
               type="text"
               placeholder="Pega otro emoji..."
               value={value}
-              maxLength={4}
+              maxLength={16}
               onChange={(e) => onChange(e.target.value)}
             />
           </div>
