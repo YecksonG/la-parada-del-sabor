@@ -86,9 +86,19 @@ CREATE TABLE IF NOT EXISTS public.proveedores (
     contacto VARCHAR(100),
     direccion TEXT,
     rif VARCHAR(50),
-    notas TEXT,
+    notas TEXT, -- Almacena JSON estructurado { insumos_ids: UUID[], notas_texto: string } con fallback legacy
     activo BOOLEAN DEFAULT true,
     creado_el TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Relación N:M Proveedores e Insumos (Tabla puente formal para migración / reportes avanzados)
+CREATE TABLE IF NOT EXISTS public.proveedor_insumos (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    proveedor_id UUID NOT NULL REFERENCES public.proveedores(id) ON DELETE CASCADE,
+    insumo_id UUID NOT NULL REFERENCES public.insumos(id) ON DELETE CASCADE,
+    precio_referencial_usd NUMERIC(12, 6) DEFAULT 0,
+    creado_el TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(proveedor_id, insumo_id)
 );
 
 -- Tasas de Cambio (Sincronizadas con BCV Oficial, Binance USDT, Euro y Promedio)
