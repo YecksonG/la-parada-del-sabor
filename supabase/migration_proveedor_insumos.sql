@@ -44,7 +44,7 @@ BEGIN
         SELECT p_proveedor_id, unnest(p_insumos_ids);
     END IF;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- RPC Transaccional Atómica: Sincronizar Proveedores de un Insumo
 CREATE OR REPLACE FUNCTION public.sincronizar_insumo_proveedores(
@@ -58,4 +58,4 @@ BEGIN
         SELECT unnest(p_proveedores_ids), p_insumo_id;
     END IF;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
