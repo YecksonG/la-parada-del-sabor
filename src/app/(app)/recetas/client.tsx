@@ -240,7 +240,15 @@ export default function RecetasClient({
               <div key={prod.id} className="receta-card">
                 <div
                   className="receta-card-header"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => abrirDetalle(prod)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      abrirDetalle(prod);
+                    }
+                  }}
                   style={{ cursor: "pointer" }}
                   title="Ver ficha técnica completa"
                 >
@@ -265,7 +273,15 @@ export default function RecetasClient({
                 {/* Métricas de Costo y Margen */}
                 <div
                   className="receta-metrics-row"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => abrirDetalle(prod)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      abrirDetalle(prod);
+                    }
+                  }}
                   style={{ cursor: "pointer" }}
                   title="Ver detalles de costos"
                 >
@@ -286,7 +302,15 @@ export default function RecetasClient({
                 {/* Lista de Ingredientes en Gramos */}
                 <div
                   className="receta-ingredients-list"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => abrirDetalle(prod)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      abrirDetalle(prod);
+                    }
+                  }}
                   style={{ cursor: "pointer" }}
                   title="Ver todos los ingredientes en detalle"
                 >
@@ -360,7 +384,15 @@ export default function RecetasClient({
                 return (
                   <tr key={prod.id} className="detailed-table-row">
                     <td
+                      role="button"
+                      tabIndex={0}
                       onClick={() => abrirDetalle(prod)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          abrirDetalle(prod);
+                        }
+                      }}
                       style={{ cursor: "pointer" }}
                       title="Ver ficha técnica completa"
                     >
@@ -376,7 +408,15 @@ export default function RecetasClient({
                       </div>
                     </td>
                     <td
+                      role="button"
+                      tabIndex={0}
                       onClick={() => abrirDetalle(prod)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          abrirDetalle(prod);
+                        }
+                      }}
                       style={{ maxWidth: 200, fontSize: 12, color: "var(--text-muted)", cursor: "pointer" }}
                     >
                       {prod.descripcion || "—"}
@@ -403,8 +443,16 @@ export default function RecetasClient({
                     </td>
                     {/* Preview de Fórmula con límite de 3 etiquetas */}
                     <td
+                      role="button"
+                      tabIndex={0}
                       style={{ maxWidth: 280, cursor: "pointer" }}
                       onClick={() => abrirDetalle(prod)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          abrirDetalle(prod);
+                        }
+                      }}
                       title="Ver todos los ingredientes en detalle"
                     >
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
@@ -422,7 +470,8 @@ export default function RecetasClient({
                               </span>
                             ))}
                             {prodIngredientes.length > 3 && (
-                              <span
+                              <button
+                                type="button"
                                 className="ingredient-tag-more"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -431,7 +480,7 @@ export default function RecetasClient({
                                 title="Ver todos los ingredientes"
                               >
                                 +{prodIngredientes.length - 3} más
-                              </span>
+                              </button>
                             )}
                           </>
                         )}
