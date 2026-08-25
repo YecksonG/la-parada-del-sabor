@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Categoria, Producto, ExtraModificador } from "@/types/database";
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
@@ -36,6 +36,18 @@ export default function MenuClienteView({
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [notaPersonalizada, setNotaPersonalizada] = useState("");
   const [drawerCheckout, setDrawerCheckout] = useState(false);
+
+  // Bloquear scroll de la página de fondo cuando un modal o bottom sheet está abierto
+  useEffect(() => {
+    if (drawerCheckout || modalItem) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [drawerCheckout, modalItem]);
 
   // Formulario Checkout
   const [nombreCliente, setNombreCliente] = useState("");
@@ -185,12 +197,26 @@ export default function MenuClienteView({
             </div>
           </Link>
 
-          {tasaBcv > 0 && (
-            <div className="pedir-bcv-pill">
-              <span className="pedir-bcv-dot"></span>
-              <span>Tasa del Día: <strong>{tasaBcv.toFixed(2)} Bs</strong></span>
-            </div>
-          )}
+          <div className="pedir-header-actions">
+            {tasaBcv > 0 && (
+              <div className="pedir-bcv-pill">
+                <span className="pedir-bcv-dot"></span>
+                <span>Tasa: <strong>{tasaBcv.toFixed(2)} Bs</strong></span>
+              </div>
+            )}
+
+            {totalItemsCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setDrawerCheckout(true)}
+                className="pedir-header-cart-btn"
+                aria-label="Ver carrito"
+              >
+                <span>🛒</span>
+                <span className="pedir-header-cart-badge">{totalItemsCount}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Buscador de Platos */}
@@ -302,6 +328,7 @@ export default function MenuClienteView({
       {modalItem && (
         <div className="modal-overlay" onClick={() => setModalItem(null)}>
           <div className="pedir-modal-custom" onClick={(e) => e.stopPropagation()}>
+            <div className="pedir-sheet-drag-handle" aria-hidden="true" />
             <div className="pedir-modal-header">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 28 }}>{modalItem.icono || "🫓"}</span>
@@ -321,78 +348,81 @@ export default function MenuClienteView({
               </button>
             </div>
 
-            {modalItem.descripcion && (
-              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 14px 0" }}>
-                {modalItem.descripcion}
-              </p>
-            )}
+            <div className="pedir-modal-body-scroll">
+              {modalItem.descripcion && (
+                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 14px 0" }}>
+                  {modalItem.descripcion}
+                </p>
+              )}
 
-            {/* Extras Disponibles */}
-            {extras.length > 0 && (
-              <div className="pedir-extras-group">
-                <span className="pedir-section-subtitle">¿Deseas agregar extras?</span>
-                <div className="pedir-extras-list">
-                  {extras.map((ext) => {
-                    const isSelected = selectedExtras.includes(ext.id);
-                    const extPriceUsd = Number(ext.precio_extra_usd || 0);
+              {/* Extras Disponibles */}
+              {extras.length > 0 && (
+                <div className="pedir-extras-group">
+                  <span className="pedir-section-subtitle">¿Deseas agregar extras?</span>
+                  <div className="pedir-extras-list">
+                    {extras.map((ext) => {
+                      const isSelected = selectedExtras.includes(ext.id);
+                      const extPriceUsd = Number(ext.precio_extra_usd || 0);
 
-                    return (
-                      <label key={ext.id} className={`pedir-extra-option ${isSelected ? "selected" : ""}`}>
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedExtras((prev) => [...prev, ext.id]);
-                            } else {
-                              setSelectedExtras((prev) => prev.filter((id) => id !== ext.id));
-                            }
-                          }}
-                        />
-                        <span className="pedir-extra-name">{ext.nombre}</span>
-                        <span className="pedir-extra-price">
-                          {extPriceUsd > 0 ? `+$${extPriceUsd.toFixed(2)}` : "Gratis"}
-                        </span>
-                      </label>
-                    );
-                  })}
+                      return (
+                        <label key={ext.id} className={`pedir-extra-option ${isSelected ? "selected" : ""}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedExtras((prev) => [...prev, ext.id]);
+                              } else {
+                                setSelectedExtras((prev) => prev.filter((id) => id !== ext.id));
+                              }
+                            }}
+                          />
+                          <span className="pedir-extra-name">{ext.nombre}</span>
+                          <span className="pedir-extra-price">
+                            {extPriceUsd > 0 ? `+$${extPriceUsd.toFixed(2)}` : "Gratis"}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Nota personalizada */}
-            <div style={{ marginTop: 12 }}>
-              <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                Instrucciones especiales para cocina (Opcional):
-              </label>
-              <input
-                type="text"
-                placeholder="Ej: Bien tostada, sin mayonesa, salsa aparte..."
-                value={notaPersonalizada}
-                onChange={(e) => setNotaPersonalizada(e.target.value)}
-                className="pedir-note-input"
-              />
+              {/* Nota personalizada */}
+              <div style={{ marginTop: 14 }}>
+                <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                  Instrucciones especiales para cocina (Opcional):
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Bien tostada, sin mayonesa, salsa aparte..."
+                  value={notaPersonalizada}
+                  onChange={(e) => setNotaPersonalizada(e.target.value)}
+                  className="pedir-note-input"
+                />
+              </div>
             </div>
 
-            <div style={{ marginTop: 16 }}>
+            <div className="pedir-modal-sticky-footer">
               <button
                 type="button"
                 onClick={handleAgregarAlCarrito}
                 className="pedir-btn-add-confirm"
               >
-                Agregar al Pedido
+                ✓ Agregar al Pedido
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Drawer Checkout Final del Cliente */}
+      {/* Drawer Checkout Final del Cliente (Mobile First Bottom Sheet) */}
       {drawerCheckout && (
         <div className="modal-overlay" onClick={() => setDrawerCheckout(false)}>
           <div className="pedir-drawer-checkout" onClick={(e) => e.stopPropagation()}>
+            <div className="pedir-sheet-drag-handle" aria-hidden="true" />
             <div className="pedir-drawer-header">
-              <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>🛒 Tu Pedido</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>🛒 Tu Pedido ({totalItemsCount})</h2>
               <button
                 type="button"
                 onClick={() => setDrawerCheckout(false)}
@@ -402,177 +432,182 @@ export default function MenuClienteView({
               </button>
             </div>
 
-            {/* Lista de Items en Carrito */}
-            <div className="pedir-cart-items-list">
-              {carrito.map((item) => {
-                const precioTotal =
-                  (Number(item.producto.precio_usd || (item.producto as any).pvp_usd || 0) +
-                    item.extras.reduce((acc, e) => acc + Number(e.precio_extra_usd || 0), 0)) *
-                  item.cantidad;
+            {/* Cuerpo desplazable */}
+            <div className="pedir-drawer-body-scroll">
+              {/* Lista de Items en Carrito */}
+              <div className="pedir-cart-items-list">
+                {carrito.map((item) => {
+                  const precioTotal =
+                    (Number(item.producto.precio_usd || (item.producto as any).pvp_usd || 0) +
+                      item.extras.reduce((acc, e) => acc + Number(e.precio_extra_usd || 0), 0)) *
+                    item.cantidad;
 
-                return (
-                  <div key={item.tempId} className="pedir-cart-item-row">
-                    <div style={{ flex: 1 }}>
-                      <strong style={{ fontSize: 13, display: "block" }}>
-                        {item.producto.icono} {item.producto.nombre}
-                      </strong>
-                      {item.extras.length > 0 && (
-                        <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
-                          Extras: {item.extras.map((e) => e.nombre).join(", ")}
+                  return (
+                    <div key={item.tempId} className="pedir-cart-item-row">
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontSize: 13, display: "block" }}>
+                          {item.producto.icono} {item.producto.nombre}
+                        </strong>
+                        {item.extras.length > 0 && (
+                          <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
+                            Extras: {item.extras.map((e) => e.nombre).join(", ")}
+                          </span>
+                        )}
+                        {item.notas_item && (
+                          <span style={{ fontSize: 11, color: "var(--primary)", fontStyle: "italic", display: "block" }}>
+                            Nota: {item.notas_item}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>
+                          ${precioTotal.toFixed(2)} USD • Bs. {(precioTotal * tasaBcv).toFixed(2)}
                         </span>
-                      )}
-                      {item.notas_item && (
-                        <span style={{ fontSize: 11, color: "var(--primary)", fontStyle: "italic", display: "block" }}>
-                          Nota: {item.notas_item}
-                        </span>
-                      )}
-                      <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>
-                        ${precioTotal.toFixed(2)} USD • Bs. {(precioTotal * tasaBcv).toFixed(2)}
-                      </span>
+                      </div>
+
+                      <div className="pedir-qty-controls">
+                        <button
+                          type="button"
+                          onClick={() => handleModificarCantidad(item.tempId, -1)}
+                          className="pedir-qty-btn"
+                        >
+                          -
+                        </button>
+                        <span className="pedir-qty-num">{item.cantidad}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleModificarCantidad(item.tempId, 1)}
+                          className="pedir-qty-btn"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
-
-                    <div className="pedir-qty-controls">
-                      <button
-                        type="button"
-                        onClick={() => handleModificarCantidad(item.tempId, -1)}
-                        className="pedir-qty-btn"
-                      >
-                        -
-                      </button>
-                      <span className="pedir-qty-num">{item.cantidad}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleModificarCantidad(item.tempId, 1)}
-                        className="pedir-qty-btn"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Formulario de Envío & Datos del Cliente */}
-            <form onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
-              {errorMsg && <div className="pedir-error-alert">{errorMsg}</div>}
-
-              <div className="pedir-form-group">
-                <label>Tu Nombre y Apellido *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej: Carlos Mendoza"
-                  value={nombreCliente}
-                  onChange={(e) => setNombreCliente(e.target.value)}
-                  className="pedir-form-input"
-                />
+                  );
+                })}
               </div>
 
-              <div className="pedir-form-group">
-                <label>Teléfono / WhatsApp *</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="Ej: 0412 1234567"
-                  value={telefonoCliente}
-                  onChange={(e) => setTelefonoCliente(e.target.value)}
-                  className="pedir-form-input"
-                />
-              </div>
+              {/* Formulario de Envío & Datos del Cliente */}
+              <form id="pedir-checkout-form-id" onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
+                {errorMsg && <div className="pedir-error-alert">{errorMsg}</div>}
 
-              {/* Modalidad de Entrega */}
-              <div className="pedir-form-group">
-                <label>Modalidad de Entrega</label>
-                <div className="pedir-delivery-switch">
-                  <button
-                    type="button"
-                    className={`pedir-switch-opt ${tipoEntrega === "pickup" ? "active" : ""}`}
-                    onClick={() => setTipoEntrega("pickup")}
-                  >
-                    🛍️ Para Llevar / Retiro
-                  </button>
-                  <button
-                    type="button"
-                    className={`pedir-switch-opt ${tipoEntrega === "delivery" ? "active" : ""}`}
-                    onClick={() => setTipoEntrega("delivery")}
-                  >
-                    🛵 Delivery a Domicilio
-                  </button>
-                </div>
-              </div>
-
-              {tipoEntrega === "delivery" && (
                 <div className="pedir-form-group">
-                  <label>Dirección Exacta de Entrega *</label>
-                  <textarea
+                  <label>Tu Nombre y Apellido *</label>
+                  <input
+                    type="text"
                     required
-                    rows={2}
-                    placeholder="Calle, número de casa, punto de referencia..."
-                    value={direccionDelivery}
-                    onChange={(e) => setDireccionDelivery(e.target.value)}
+                    placeholder="Ej: Carlos Mendoza"
+                    value={nombreCliente}
+                    onChange={(e) => setNombreCliente(e.target.value)}
                     className="pedir-form-input"
                   />
                 </div>
-              )}
 
-              {/* Método de Pago */}
-              <div className="pedir-form-group">
-                <label>Método de Pago</label>
-                <select
-                  value={metodoPago}
-                  onChange={(e) => setMetodoPago(e.target.value)}
-                  className="pedir-form-input"
-                >
-                  <option value="pago_movil">📱 Pago Móvil (Bs)</option>
-                  <option value="efectivo_usd">💵 Efectivo USD</option>
-                  <option value="efectivo_bs">🇻🇪 Efectivo Bolívares</option>
-                  <option value="punto">💳 Tarjeta / Punto de Venta</option>
-                  <option value="binance">🟡 Binance USDT</option>
-                  <option value="zelle">🟣 Zelle</option>
-                </select>
-              </div>
-
-              {/* Datos de Pago Móvil BFC */}
-              {metodoPago === "pago_movil" && (
-                <div className="pedir-pm-box">
-                  <div className="pedir-pm-header">
-                    <span>🏦 Datos para Pago Móvil</span>
-                    <span className="pedir-pm-bank">BFC (0151)</span>
-                  </div>
-                  <div className="pedir-pm-grid">
-                    <div className="pedir-pm-item">
-                      <span className="pedir-pm-label">Banco:</span>
-                      <strong className="pedir-pm-val">Banco Fondo Común (0151)</strong>
-                    </div>
-                    <div className="pedir-pm-item">
-                      <span className="pedir-pm-label">Cédula:</span>
-                      <strong className="pedir-pm-val">29.524.904</strong>
-                    </div>
-                    <div className="pedir-pm-item">
-                      <span className="pedir-pm-label">Teléfono:</span>
-                      <strong className="pedir-pm-val">0424-4325183</strong>
-                    </div>
-                  </div>
-                  <p className="pedir-pm-hint">
-                    💡 Podrás enviar tu comprobante directo a nuestro WhatsApp tras confirmar el pedido.
-                  </p>
+                <div className="pedir-form-group">
+                  <label>Teléfono / WhatsApp *</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="Ej: 0412 1234567"
+                    value={telefonoCliente}
+                    onChange={(e) => setTelefonoCliente(e.target.value)}
+                    className="pedir-form-input"
+                  />
                 </div>
-              )}
 
-              {/* Notas generales */}
-              <div className="pedir-form-group">
-                <label>Comentarios adicionales (Opcional)</label>
-                <input
-                  type="text"
-                  placeholder="Ej: Tengo billete de $20 para vuelto..."
-                  value={notasGenerales}
-                  onChange={(e) => setNotasGenerales(e.target.value)}
-                  className="pedir-form-input"
-                />
-              </div>
+                {/* Modalidad de Entrega */}
+                <div className="pedir-form-group">
+                  <label>Modalidad de Entrega</label>
+                  <div className="pedir-delivery-switch">
+                    <button
+                      type="button"
+                      className={`pedir-switch-opt ${tipoEntrega === "pickup" ? "active" : ""}`}
+                      onClick={() => setTipoEntrega("pickup")}
+                    >
+                      🛍️ Para Llevar / Retiro
+                    </button>
+                    <button
+                      type="button"
+                      className={`pedir-switch-opt ${tipoEntrega === "delivery" ? "active" : ""}`}
+                      onClick={() => setTipoEntrega("delivery")}
+                    >
+                      🛵 Delivery a Domicilio
+                    </button>
+                  </div>
+                </div>
 
-              {/* Resumen Total */}
+                {tipoEntrega === "delivery" && (
+                  <div className="pedir-form-group">
+                    <label>Dirección Exacta de Entrega *</label>
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="Calle, número de casa, punto de referencia..."
+                      value={direccionDelivery}
+                      onChange={(e) => setDireccionDelivery(e.target.value)}
+                      className="pedir-form-input"
+                    />
+                  </div>
+                )}
+
+                {/* Método de Pago */}
+                <div className="pedir-form-group">
+                  <label>Método de Pago</label>
+                  <select
+                    value={metodoPago}
+                    onChange={(e) => setMetodoPago(e.target.value)}
+                    className="pedir-form-input"
+                  >
+                    <option value="pago_movil">📱 Pago Móvil (Bs)</option>
+                    <option value="efectivo_usd">💵 Efectivo USD</option>
+                    <option value="efectivo_bs">🇻🇪 Efectivo Bolívares</option>
+                    <option value="punto">💳 Tarjeta / Punto de Venta</option>
+                    <option value="binance">🟡 Binance USDT</option>
+                    <option value="zelle">🟣 Zelle</option>
+                  </select>
+                </div>
+
+                {/* Datos de Pago Móvil BFC */}
+                {metodoPago === "pago_movil" && (
+                  <div className="pedir-pm-box">
+                    <div className="pedir-pm-header">
+                      <span>🏦 Datos para Pago Móvil</span>
+                      <span className="pedir-pm-bank">BFC (0151)</span>
+                    </div>
+                    <div className="pedir-pm-grid">
+                      <div className="pedir-pm-item">
+                        <span className="pedir-pm-label">Banco:</span>
+                        <strong className="pedir-pm-val">Banco Fondo Común (0151)</strong>
+                      </div>
+                      <div className="pedir-pm-item">
+                        <span className="pedir-pm-label">Cédula:</span>
+                        <strong className="pedir-pm-val">29.524.904</strong>
+                      </div>
+                      <div className="pedir-pm-item">
+                        <span className="pedir-pm-label">Teléfono:</span>
+                        <strong className="pedir-pm-val">0424-4325183</strong>
+                      </div>
+                    </div>
+                    <p className="pedir-pm-hint">
+                      💡 Podrás enviar tu comprobante directo a nuestro WhatsApp tras confirmar el pedido.
+                    </p>
+                  </div>
+                )}
+
+                {/* Notas generales */}
+                <div className="pedir-form-group">
+                  <label>Comentarios adicionales (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Tengo billete de $20 para vuelto..."
+                    value={notasGenerales}
+                    onChange={(e) => setNotasGenerales(e.target.value)}
+                    className="pedir-form-input"
+                  />
+                </div>
+              </form>
+            </div>
+
+            {/* Pie Fijo con Resumen y Botón de Enviar Pedido */}
+            <div className="pedir-drawer-sticky-footer">
               <div className="pedir-checkout-totals">
                 <div className="pedir-checkout-line">
                   <span>Total en Dólares:</span>
@@ -592,15 +627,28 @@ export default function MenuClienteView({
 
               <button
                 type="submit"
+                form="pedir-checkout-form-id"
                 disabled={enviando}
                 className="pedir-btn-submit-order"
               >
                 {enviando ? "Enviando Pedido..." : "🚀 Enviar Pedido a Cocina"}
               </button>
-            </form>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Botón flotante de contacto de WhatsApp para dudas */}
+      <a
+        href="https://wa.me/584122595386?text=¡Hola!%20Tengo%20una%20consulta%20sobre%20mi%20pedido%20en%20La%20Parada%20del%20Sabor"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="pedir-floating-whatsapp-btn"
+        title="¿Dudas? Escríbenos al WhatsApp"
+        aria-label="Contactar por WhatsApp"
+      >
+        <span>💬</span>
+      </a>
     </div>
   );
 }
