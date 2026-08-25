@@ -382,11 +382,11 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
           </div>
         </div>
 
-        {/* Resumen de Pago Móvil para el Cliente (Si aplica) */}
+        {/* 1. Resumen de Pago Móvil para el Cliente */}
         {venta.metodo_pago === "pago_movil" && (
           <div className="recibo-pm-card no-print">
             <div className="recibo-pm-title">
-              <span>🏦 Datos de Pago Móvil</span>
+              <span>📱 Datos de Pago Móvil</span>
               <span className="badge-popular">BFC (0151)</span>
             </div>
 
@@ -418,6 +418,132 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               target="_blank"
               rel="noopener noreferrer"
               className="btn-pm-whatsapp"
+            >
+              <span>📲 Enviar Comprobante por WhatsApp</span>
+            </a>
+          </div>
+        )}
+
+        {/* 2. Resumen de Transferencia Bancaria BFC */}
+        {venta.metodo_pago === "transferencia" && (
+          <div className="recibo-pm-card no-print">
+            <div className="recibo-pm-title">
+              <span>🏦 Transferencia Bancaria (VES)</span>
+              <span className="badge-popular">BFC (0151)</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  navigator.clipboard.writeText("01510035451002204840");
+                  setCopiadoLabel("transf");
+                  setTimeout(() => setCopiadoLabel(null), 2500);
+                }
+              }}
+              className="pedir-btn-copy-all"
+              style={{ marginBottom: 12 }}
+            >
+              <span>{copiadoLabel === "transf" ? "✅ ¡Número de Cuenta Copiado!" : "📋 Copiar N° de Cuenta (20 Dígitos)"}</span>
+            </button>
+
+            <div className="recibo-pm-details">
+              <div><span>Banco:</span> <strong>Banco Fondo Común (BFC)</strong></div>
+              <div><span>Titular:</span> <strong>GONZALEZ NOGUERA YECKSON</strong></div>
+              <div><span>Cédula:</span> <strong>V-29524904</strong></div>
+              <div><span>N° Cuenta:</span> <strong style={{ fontSize: 11 }}>01510035451002204840</strong></div>
+              <div><span>Monto:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
+            </div>
+            <a
+              href={`https://wa.me/584122595386?text=${encodeURIComponent(
+                `¡Hola! 👋 Te adjunto el comprobante de mi Transferencia Bancaria para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)}.\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-pm-whatsapp"
+            >
+              <span>📲 Enviar Comprobante por WhatsApp</span>
+            </a>
+          </div>
+        )}
+
+        {/* 3. Resumen de Binance Pay USDT */}
+        {venta.metodo_pago === "binance" && (
+          <div className="recibo-pm-card no-print" style={{ borderLeftColor: "#F3BA2F" }}>
+            <div className="recibo-pm-title">
+              <span>🟡 Binance Pay (USDT)</span>
+              <span className="badge-popular" style={{ background: "#F3BA2F", color: "#000" }}>Binance Pay</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  navigator.clipboard.writeText("371902899");
+                  setCopiadoLabel("binance_id");
+                  setTimeout(() => setCopiadoLabel(null), 2500);
+                }
+              }}
+              className="pedir-btn-copy-all"
+              style={{ background: "#F3BA2F", color: "#000", marginBottom: 12 }}
+            >
+              <span>{copiadoLabel === "binance_id" ? "✅ ¡Binance ID Copiado!" : "📋 Copiar Binance Pay ID (371902899)"}</span>
+            </button>
+
+            <div className="recibo-pm-details">
+              <div><span>Binance Pay ID:</span> <strong>371902899</strong></div>
+              <div><span>Correo:</span> <strong style={{ fontSize: 11 }}>yecksongonza2002@gmail.com</strong></div>
+              <div><span>Monto:</span> <strong style={{ color: "#F3BA2F" }}>${Number(venta.total_usd).toFixed(2)} USDT</strong></div>
+            </div>
+            <a
+              href={`https://wa.me/584122595386?text=${encodeURIComponent(
+                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Binance Pay para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USDT.\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-pm-whatsapp"
+              style={{ background: "#F3BA2F", color: "#000" }}
+            >
+              <span>📲 Enviar Comprobante por WhatsApp</span>
+            </a>
+          </div>
+        )}
+
+        {/* 4. Resumen de Zelle */}
+        {venta.metodo_pago === "zelle" && (
+          <div className="recibo-pm-card no-print" style={{ borderLeftColor: "#7414CA" }}>
+            <div className="recibo-pm-title">
+              <span>🟣 Pago por Zelle (USD)</span>
+              <span className="badge-popular" style={{ background: "#7414CA" }}>Zelle</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  navigator.clipboard.writeText("yasbetnoguer@hotmail.com");
+                  setCopiadoLabel("zelle");
+                  setTimeout(() => setCopiadoLabel(null), 2500);
+                }
+              }}
+              className="pedir-btn-copy-all"
+              style={{ background: "#7414CA", marginBottom: 12 }}
+            >
+              <span>{copiadoLabel === "zelle" ? "✅ ¡Correo Zelle Copiado!" : "📋 Copiar Correo Zelle"}</span>
+            </button>
+
+            <div className="recibo-pm-details">
+              <div><span>Correo Zelle:</span> <strong>yasbetnoguer@hotmail.com</strong></div>
+              <div><span>Monto a Enviar:</span> <strong style={{ color: "#7414CA" }}>${Number(venta.total_usd).toFixed(2)} USD</strong></div>
+            </div>
+            <a
+              href={`https://wa.me/584122595386?text=${encodeURIComponent(
+                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Zelle para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USD.\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-pm-whatsapp"
+              style={{ background: "#7414CA" }}
             >
               <span>📲 Enviar Comprobante por WhatsApp</span>
             </a>
