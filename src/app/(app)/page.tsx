@@ -35,12 +35,24 @@ export default async function PosPage() {
 
   const bcvTasa = Number(tasaReciente?.bcv_usd_bs || tasaReciente?.tasa_usd_bs) || 65.50;
 
+  // 5. Obtener pedidos web pendientes por confirmar
+  const { data: pedidosPendientes } = await supabase
+    .from("ventas")
+    .select(`
+      *,
+      cliente:clientes(*),
+      items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))
+    `)
+    .eq("estado", "pendiente")
+    .order("fecha", { ascending: false });
+
   return (
     <PosClient
       categorias={(categorias as Categoria[]) || []}
       productos={(productos as Producto[]) || []}
       extras={(extras as ExtraModificador[]) || []}
       tasaBcv={bcvTasa}
+      pedidosPendientes={pedidosPendientes || []}
     />
   );
 }

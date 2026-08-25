@@ -3,7 +3,13 @@
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Producto, Categoria, ExtraModificador } from "@/types/database";
-import { registrarVentaPos, CartItem, CartItemExtra } from "./pos-actions";
+import {
+  registrarVentaPos,
+  aceptarPedidoWeb,
+  rechazarPedidoWeb,
+  CartItem,
+  CartItemExtra,
+} from "./pos-actions";
 import { sounds } from "@/lib/sound-effects";
 
 interface PosClientProps {
@@ -11,6 +17,7 @@ interface PosClientProps {
   productos: Producto[];
   extras: ExtraModificador[];
   tasaBcv: number;
+  pedidosPendientes?: any[];
 }
 
 export default function PosClient({
@@ -18,8 +25,11 @@ export default function PosClient({
   productos,
   extras,
   tasaBcv,
+  pedidosPendientes = [],
 }: PosClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
+  const [modalPedidosWeb, setModalPedidosWeb] = useState(false);
+  const [procesandoWebId, setProcesandoWebId] = useState<string | null>(null);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
@@ -242,24 +252,52 @@ export default function PosClient({
               ))}
             </div>
 
-            {/* Toggle de Vistas POS */}
-            <div className="view-mode-toggle">
+            {/* Botón de Pedidos Web Entrantes */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <button
                 type="button"
-                onClick={() => cambiarModoVista("grid")}
-                className={`view-mode-btn ${modoVista === "grid" ? "active" : ""}`}
-                title="Vista en Cuadros"
+                onClick={() => {
+                  sounds.playPop();
+                  setModalPedidosWeb(true);
+                }}
+                className={`btn-pedidos-web-inbox ${pedidosPendientes.length > 0 ? "has-orders" : ""}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 12px",
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  background: pedidosPendientes.length > 0 ? "rgba(234, 179, 8, 0.2)" : "var(--bg-subtle)",
+                  color: pedidosPendientes.length > 0 ? "#eab308" : "var(--text-muted)",
+                  border: pedidosPendientes.length > 0 ? "1px solid #eab308" : "1px solid var(--border)",
+                }}
               >
-                ⊞ Cuadros
+                <span>{pedidosPendientes.length > 0 ? "🔔" : "📱"}</span>
+                <span>Pedidos Web ({pedidosPendientes.length})</span>
               </button>
-              <button
-                type="button"
-                onClick={() => cambiarModoVista("filas")}
-                className={`view-mode-btn ${modoVista === "filas" ? "active" : ""}`}
-                title="Vista en Filas"
-              >
-                ☰ Filas
-              </button>
+
+              {/* Toggle de Vistas POS */}
+              <div className="view-mode-toggle">
+                <button
+                  type="button"
+                  onClick={() => cambiarModoVista("grid")}
+                  className={`view-mode-btn ${modoVista === "grid" ? "active" : ""}`}
+                  title="Vista en Cuadros"
+                >
+                  ⊞ Cuadros
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cambiarModoVista("filas")}
+                  className={`view-mode-btn ${modoVista === "filas" ? "active" : ""}`}
+                  title="Vista en Filas"
+                >
+                  ☰ Filas
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -630,6 +668,181 @@ export default function PosClient({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Bandeja de Pedidos Web / WhatsApp */}
+      {modalPedidosWeb && (
+        <div className="modal-overlay" onClick={() => setModalPedidosWeb(false)}>
+          <div
+            className="modal-ticket-card"
+            style={{ maxWidth: 520, maxHeight: "90vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>
+                📱 Bandeja de Pedidos Web / WhatsApp
+              </h2>
+              <button
+                type="button"
+                onClick={() => setModalPedidosWeb(false)}
+                className="pedir-btn-close-modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            {pedidosPendientes.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "30px 10px", color: "var(--text-muted)" }}>
+                <span style={{ fontSize: 40, display: "block", marginBottom: 6 }}>📭</span>
+                <strong style={{ display: "block", fontSize: 15, color: "var(--text)" }}>
+                  No hay pedidos web pendientes
+                </strong>
+                <p style={{ fontSize: 12, marginTop: 4 }}>
+                  Los pedidos que tus clientes hagan desde <code>/pedir</code> o WhatsApp aparecerán aquí al instante para ser confirmados.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {pedidosPendientes.map((p) => {
+                  return (
+                    <div
+                      key={p.id}
+                      style={{
+                        background: "var(--bg-subtle)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 14,
+                        padding: 14,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div>
+                          <strong style={{ fontSize: 14, color: "var(--text)" }}>
+                            #{p.numero_comanda} • {p.cliente?.nombre || "Cliente Web"}
+                          </strong>
+                          {p.cliente?.telefono && (
+                            <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
+                              📞 {p.cliente.telefono}
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            padding: "2px 8px",
+                            borderRadius: 6,
+                            background: "rgba(234, 179, 8, 0.15)",
+                            color: "#eab308",
+                          }}
+                        >
+                          {p.tipo_entrega === "delivery" ? "🛵 Delivery" : "🛍️ Retiro"}
+                        </span>
+                      </div>
+
+                      {p.cliente?.direccion_delivery && p.tipo_entrega === "delivery" && (
+                        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>
+                          📍 Dirección: {p.cliente.direccion_delivery}
+                        </p>
+                      )}
+
+                      {/* Items del pedido */}
+                      <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 6 }}>
+                        {(p.items || []).map((it: any, iIdx: number) => (
+                          <div key={iIdx} style={{ fontSize: 12, display: "flex", justifyContent: "space-between" }}>
+                            <span>
+                              <strong>{it.cantidad}x</strong> {it.producto?.icono} {it.producto?.nombre}
+                              {it.notas_item && <em style={{ color: "var(--primary)" }}> ({it.notas_item})</em>}
+                            </span>
+                            <span>${Number(it.subtotal_usd).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {p.notas_comanda && (
+                        <p style={{ fontSize: 11, color: "var(--primary)", margin: 0, fontStyle: "italic" }}>
+                          💬 Nota: {p.notas_comanda}
+                        </p>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: 6 }}>
+                        <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                          Total: <strong style={{ color: "var(--text)", fontSize: 13 }}>${Number(p.total_usd).toFixed(2)} USD</strong> ({Number(p.total_bs).toFixed(2)} Bs)
+                        </span>
+
+                        <a
+                          href={`/recibo/${p.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ fontSize: 11, fontWeight: 800, color: "var(--primary)", textDecoration: "none" }}
+                        >
+                          🧾 Ver Factura
+                        </a>
+                      </div>
+
+                      {/* Botones de Acción */}
+                      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                        <button
+                          type="button"
+                          disabled={procesandoWebId === p.id}
+                          onClick={async () => {
+                            setProcesandoWebId(p.id);
+                            const res = await aceptarPedidoWeb(p.id);
+                            setProcesandoWebId(null);
+                            if (res.ok) {
+                              sounds.playKitchenBell();
+                              // Si tiene teléfono, ofrecer abrir WhatsApp
+                              if (p.cliente?.telefono) {
+                                const url = `${window.location.origin}/recibo/${p.id}`;
+                                const txt = `¡Hola ${p.cliente.nombre}! 🫓 Tu pedido en *La Parada del Sabor* ha sido confirmado y ya está en cocina 🍳.\n\n🔗 Puedes seguir el estado y ver tu factura aquí: ${url}`;
+                                window.open(`https://wa.me/${p.cliente.telefono.replace(/\D/g, "")}?text=${encodeURIComponent(txt)}`, "_blank");
+                              }
+                            }
+                          }}
+                          className="btn-ticket-close"
+                          style={{
+                            background: "linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)",
+                            color: "#ffffff",
+                            flex: 2,
+                            padding: "8px 12px",
+                            fontSize: 12,
+                          }}
+                        >
+                          {procesandoWebId === p.id ? "Procesando..." : "✅ Aceptar & Enviar a Cocina"}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={procesandoWebId === p.id}
+                          onClick={async () => {
+                            if (confirm("¿Seguro que deseas rechazar este pedido web?")) {
+                              setProcesandoWebId(p.id);
+                              await rechazarPedidoWeb(p.id);
+                              setProcesandoWebId(null);
+                            }
+                          }}
+                          className="btn-ticket-close"
+                          style={{
+                            background: "var(--bg-subtle)",
+                            color: "#ef4444",
+                            border: "1px solid var(--border)",
+                            flex: 1,
+                            padding: "8px 10px",
+                            fontSize: 12,
+                          }}
+                        >
+                          ❌ Rechazar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

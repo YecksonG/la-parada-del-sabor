@@ -104,3 +104,38 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
     venta_id: venta.id,
   };
 }
+
+export async function aceptarPedidoWeb(ventaId: string) {
+  const supabase = await createClient();
+
+  // Al pasar a 'preparando', el trigger PostgreSQL `trg_confirmar_pedido_web`
+  // descontará automáticamente los insumos en gramos de la despensa
+  const { error } = await supabase
+    .from("ventas")
+    .update({ estado: "preparando" })
+    .eq("id", ventaId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/ventas");
+  revalidatePath("/insumos");
+
+  return { ok: true };
+}
+
+export async function rechazarPedidoWeb(ventaId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("ventas")
+    .update({ estado: "cancelada" })
+    .eq("id", ventaId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/ventas");
+
+  return { ok: true };
+}
