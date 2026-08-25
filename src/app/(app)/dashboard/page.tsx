@@ -43,7 +43,7 @@ export default async function DashboardPage() {
       clientes={(clientes as Cliente[]) || []}
       insumos={(insumos as Insumo[]) || []}
       productos={(productos as Producto[]) || []}
-      tasaBcv={Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 65.50}
+      tasaBcv={Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 0}
     />
   );
 }

@@ -170,6 +170,11 @@ export default function PosClient({
   const handleEnviarComanda = async () => {
     if (carrito.length === 0 || procesando) return;
 
+    if (tasaBcv <= 0) {
+      alert("No hay tasa de cambio configurada para hoy. Sincroniza la tasa en la sección de Tasas antes de enviar comandas.");
+      return;
+    }
+
     setProcesando(true);
     const res = await registrarVentaPos({
       metodo_pago: metodoPago,

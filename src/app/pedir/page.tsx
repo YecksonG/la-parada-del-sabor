@@ -33,7 +33,7 @@ export default async function PedirPage() {
   const categorias = catRes.data || [];
   const productos = prodRes.data || [];
   const extras = extRes.data || [];
-  const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 65.50;
+  const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 0;
 
   return (
     <MenuClienteView

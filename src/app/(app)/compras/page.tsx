@@ -30,7 +30,7 @@ export default async function ComprasPage() {
     .limit(1)
     .maybeSingle();
 
-  const bcvTasa = Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 65.50;
+  const bcvTasa = Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 0;
 
   return (
     <ComprasClient

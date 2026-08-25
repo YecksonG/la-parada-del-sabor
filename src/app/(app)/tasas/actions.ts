@@ -97,14 +97,28 @@ export async function fijarTasaActivaFacturacion(payload: {
     return { ok: false, error: "No hay registro de tasas para el día de hoy." };
   }
 
-  let tasaEfectiva = Number(tasaActual.bcv_usd_bs) || 65.50;
+  let tasaEfectiva = Number(tasaActual.bcv_usd_bs) || 0;
 
-  if (payload.tasa_activa_tipo === "usdt") {
-    tasaEfectiva = Number(tasaActual.usdt_bs) || tasaEfectiva;
+  if (payload.tasa_activa_tipo === "bcv") {
+    if (!tasaActual.bcv_usd_bs || Number(tasaActual.bcv_usd_bs) <= 0) {
+      return { ok: false, error: "La tasa BCV aún no está sincronizada. Pulsa Sincronizar APIs Ahora." };
+    }
+    tasaEfectiva = Number(tasaActual.bcv_usd_bs);
+  } else if (payload.tasa_activa_tipo === "usdt") {
+    if (!tasaActual.usdt_bs || Number(tasaActual.usdt_bs) <= 0) {
+      return { ok: false, error: "La tasa USDT aún no está sincronizada. Pulsa Sincronizar APIs Ahora." };
+    }
+    tasaEfectiva = Number(tasaActual.usdt_bs);
   } else if (payload.tasa_activa_tipo === "eur") {
-    tasaEfectiva = Number(tasaActual.eur_bs) || tasaEfectiva;
+    if (!tasaActual.eur_bs || Number(tasaActual.eur_bs) <= 0) {
+      return { ok: false, error: "La tasa EUR aún no está sincronizada. Pulsa Sincronizar APIs Ahora." };
+    }
+    tasaEfectiva = Number(tasaActual.eur_bs);
   } else if (payload.tasa_activa_tipo === "promedio") {
-    tasaEfectiva = Number(tasaActual.promedio_bs) || tasaEfectiva;
+    if (!tasaActual.promedio_bs || Number(tasaActual.promedio_bs) <= 0) {
+      return { ok: false, error: "La tasa Promedio aún no está calculada. Pulsa Sincronizar APIs Ahora." };
+    }
+    tasaEfectiva = Number(tasaActual.promedio_bs);
   } else if (payload.tasa_activa_tipo === "personalizada") {
     if (!payload.tasa_personalizada_bs || payload.tasa_personalizada_bs <= 0) {
       return { ok: false, error: "Ingresa una tasa personalizada válida mayor a 0." };

@@ -131,6 +131,11 @@ export default function MenuClienteView({
       return;
     }
 
+    if (tasaBcv <= 0) {
+      setErrorMsg("El restaurante está actualizando la tasa del día. Por favor intenta en unos instantes.");
+      return;
+    }
+
     setEnviando(true);
 
     const itemsPayload: ItemPedidoWeb[] = carrito.map((item) => ({
@@ -180,10 +185,12 @@ export default function MenuClienteView({
             </div>
           </Link>
 
-          <div className="pedir-bcv-pill">
-            <span className="pedir-bcv-dot"></span>
-            <span>BCV: <strong>{tasaBcv.toFixed(2)} Bs</strong></span>
-          </div>
+          {tasaBcv > 0 && (
+            <div className="pedir-bcv-pill">
+              <span className="pedir-bcv-dot"></span>
+              <span>Tasa del Día: <strong>{tasaBcv.toFixed(2)} Bs</strong></span>
+            </div>
+          )}
         </div>
 
         {/* Buscador de Platos */}
@@ -545,8 +552,14 @@ export default function MenuClienteView({
                   <strong className="pedir-val-usd">${totalCarritoUsd.toFixed(2)} USD</strong>
                 </div>
                 <div className="pedir-checkout-line">
-                  <span>Total en Bolívares (BCV):</span>
-                  <strong className="pedir-val-bs">Bs. {totalCarritoBs.toFixed(2)}</strong>
+                  <span>Total en Bolívares:</span>
+                  {tasaBcv > 0 ? (
+                    <strong className="pedir-val-bs">Bs. {totalCarritoBs.toFixed(2)}</strong>
+                  ) : (
+                    <strong className="pedir-val-bs" style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                      Tasa en actualización...
+                    </strong>
+                  )}
                 </div>
               </div>
 

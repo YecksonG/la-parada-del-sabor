@@ -13,6 +13,9 @@ SET tasa_usd_bs = bcv_usd_bs,
     tasa_activa_tipo = 'bcv'
 WHERE tasa_usd_bs IS NULL OR tasa_activa_tipo IS NULL;
 
+-- 3. Documentación semántica de ventas.tasa_bcv
+COMMENT ON COLUMN public.ventas.tasa_bcv IS 'Tasa de cambio efectiva aplicada a la comanda/factura al momento de registrar la venta';
+
 -- 3. Actualizar la función RPC fn_crear_pedido_web para usar la tasa_usd_bs activa
 CREATE OR REPLACE FUNCTION public.fn_crear_pedido_web(p_payload JSONB)
 RETURNS JSONB
