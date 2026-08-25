@@ -111,7 +111,7 @@ const ESTADOS_CONFIG: Record<
 };
 
 export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
-  const [copiado, setCopiado] = useState(false);
+  const [copiadoLabel, setCopiadoLabel] = useState<string | null>(null);
 
   const fechaObj = new Date(venta.fecha);
   const fechaFormateada = fechaObj.toLocaleDateString("es-VE", {
@@ -135,10 +135,10 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
   const urlRecibo = typeof window !== "undefined" ? window.location.href : "";
 
   const handleCopiarEnlace = () => {
-    if (navigator.clipboard) {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(urlRecibo);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2500);
+      setCopiadoLabel("enlace");
+      setTimeout(() => setCopiadoLabel(null), 2500);
     }
   };
 
@@ -389,6 +389,22 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               <span>🏦 Datos de Pago Móvil</span>
               <span className="badge-popular">BFC (0151)</span>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard) {
+                  navigator.clipboard.writeText("0151 04244325183 29524904");
+                  setCopiadoLabel("pm");
+                  setTimeout(() => setCopiadoLabel(null), 2500);
+                }
+              }}
+              className="pedir-btn-copy-all"
+              style={{ marginBottom: 12 }}
+            >
+              <span>{copiadoLabel === "pm" ? "✅ ¡Datos Copiados para Banco!" : "📋 Copiar Datos (Pegar en tu Banco)"}</span>
+            </button>
+
             <div className="recibo-pm-details">
               <div><span>Banco:</span> <strong>Banco Fondo Común (0151)</strong></div>
               <div><span>Cédula:</span> <strong>29.524.904</strong></div>
@@ -423,7 +439,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             onClick={handleCopiarEnlace}
             className="recibo-btn-secondary"
           >
-            <span>{copiado ? "✅ ¡Enlace Copiado!" : "🔗 Copiar Enlace"}</span>
+            <span>{copiadoLabel === "enlace" ? "✅ ¡Enlace Copiado!" : "🔗 Copiar Enlace"}</span>
           </button>
 
           <button

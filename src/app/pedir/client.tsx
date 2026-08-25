@@ -55,6 +55,61 @@ export default function MenuClienteView({
   const [notasGenerales, setNotasGenerales] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const [cargandoGps, setCargandoGps] = useState(false);
+  const [gpsOk, setGpsOk] = useState(false);
+
+  const handleCopiarTexto = (texto: string, label: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(texto);
+      setCopiado(label);
+      setTimeout(() => setCopiado(null), 2500);
+    }
+  };
+
+  const handleObtenerUbicacionGps = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setErrorMsg("Tu navegador no soporta geolocalización GPS. Por favor escribe tu dirección manualmente.");
+      return;
+    }
+
+    setCargandoGps(true);
+    setErrorMsg("");
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const mapsUrl = `https://maps.google.com/?q=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+        
+        setDireccionDelivery((prev) => {
+          const gpsTag = `📍 Ubicación GPS: ${mapsUrl}`;
+          if (!prev.trim()) {
+            return `${gpsTag}\n(Casa/Piso/Punto de referencia: )`;
+          }
+          if (prev.includes("maps.google.com")) {
+            return prev.replace(/📍 Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, gpsTag);
+          }
+          return `${prev.trim()}\n${gpsTag}`;
+        });
+
+        setGpsOk(true);
+        setCargandoGps(false);
+      },
+      (err) => {
+        setCargandoGps(false);
+        let msg = "No se pudo obtener la ubicación GPS.";
+        if (err.code === 1) {
+          msg = "Permiso de ubicación denegado. Por favor permite el acceso al GPS en tu navegador o escribe tu dirección.";
+        } else if (err.code === 2) {
+          msg = "Ubicación no disponible en este momento. Por favor escribe tu dirección manualmente.";
+        } else if (err.code === 3) {
+          msg = "Tiempo de espera agotado al conectar con el GPS.";
+        }
+        setErrorMsg(msg);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
 
   const productosFiltrados = useMemo(() => {
     return productos.filter((p) => {
@@ -480,19 +535,35 @@ export default function MenuClienteView({
 
                 {tipoEntrega === "delivery" && (
                   <div className="pedir-form-group">
-                    <label>Dirección Exacta de Entrega *</label>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <label style={{ margin: 0 }}>Dirección Exacta de Entrega *</label>
+                      <button
+                        type="button"
+                        onClick={handleObtenerUbicacionGps}
+                        disabled={cargandoGps}
+                        className="pedir-btn-gps"
+                        title="Detectar ubicación GPS automáticamente"
+                      >
+                        {cargandoGps ? "⏳ Buscando satélites..." : gpsOk ? "📍 GPS Detectado ✓" : "📍 Usar mi GPS Actual"}
+                      </button>
+                    </div>
                     <textarea
                       required
                       rows={2}
-                      placeholder="Calle, número de casa, punto de referencia..."
+                      placeholder="Calle, número de casa, punto de referencia o enlace GPS..."
                       value={direccionDelivery}
                       onChange={(e) => setDireccionDelivery(e.target.value)}
                       className="pedir-form-input"
                     />
+                    {gpsOk && (
+                      <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 700, marginTop: 4, display: "block" }}>
+                        ✨ Tu enlace de Google Maps se adjuntará automáticamente a la comanda para el repartidor.
+                      </span>
+                    )}
                   </div>
                 )}
 
-                {/* Método de Pago */}
+                {/* Método de Pago (Sin Punto de Venta para pedidos web) */}
                 <div className="pedir-form-group">
                   <label>Método de Pago</label>
                   <select
@@ -503,35 +574,93 @@ export default function MenuClienteView({
                     <option value="pago_movil">📱 Pago Móvil (Bs)</option>
                     <option value="efectivo_usd">💵 Efectivo USD</option>
                     <option value="efectivo_bs">🇻🇪 Efectivo Bolívares</option>
-                    <option value="punto">💳 Tarjeta / Punto de Venta</option>
                     <option value="binance">🟡 Binance USDT</option>
                     <option value="zelle">🟣 Zelle</option>
                   </select>
                 </div>
 
-                {/* Datos de Pago Móvil BFC */}
+                {/* Datos de Pago Móvil BFC con Botones de Copiado Rápido */}
                 {metodoPago === "pago_movil" && (
                   <div className="pedir-pm-box">
                     <div className="pedir-pm-header">
                       <span>🏦 Datos para Pago Móvil</span>
                       <span className="pedir-pm-bank">BFC (0151)</span>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCopiarTexto("0151 04244325183 29524904", "todo")}
+                      className="pedir-btn-copy-all"
+                    >
+                      <span>{copiado === "todo" ? "✅ ¡Datos Copiados para Banco!" : "📋 Copiar Datos (Pegar en tu Banco)"}</span>
+                    </button>
+
                     <div className="pedir-pm-grid">
                       <div className="pedir-pm-item">
                         <span className="pedir-pm-label">Banco:</span>
-                        <strong className="pedir-pm-val">Banco Fondo Común (0151)</strong>
+                        <div className="pedir-pm-val-wrap">
+                          <strong className="pedir-pm-val">Fondo Común (0151)</strong>
+                          <button
+                            type="button"
+                            onClick={() => handleCopiarTexto("0151", "banco")}
+                            className="pedir-btn-mini-copy"
+                            title="Copiar código de banco"
+                          >
+                            {copiado === "banco" ? "✓" : "📋"}
+                          </button>
+                        </div>
                       </div>
+
                       <div className="pedir-pm-item">
                         <span className="pedir-pm-label">Cédula:</span>
-                        <strong className="pedir-pm-val">29.524.904</strong>
+                        <div className="pedir-pm-val-wrap">
+                          <strong className="pedir-pm-val">29.524.904</strong>
+                          <button
+                            type="button"
+                            onClick={() => handleCopiarTexto("29524904", "ci")}
+                            className="pedir-btn-mini-copy"
+                            title="Copiar cédula"
+                          >
+                            {copiado === "ci" ? "✓" : "📋"}
+                          </button>
+                        </div>
                       </div>
+
                       <div className="pedir-pm-item">
                         <span className="pedir-pm-label">Teléfono:</span>
-                        <strong className="pedir-pm-val">0424-4325183</strong>
+                        <div className="pedir-pm-val-wrap">
+                          <strong className="pedir-pm-val">0424-4325183</strong>
+                          <button
+                            type="button"
+                            onClick={() => handleCopiarTexto("04244325183", "tlf")}
+                            className="pedir-btn-mini-copy"
+                            title="Copiar teléfono"
+                          >
+                            {copiado === "tlf" ? "✓" : "📋"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pedir-pm-item">
+                        <span className="pedir-pm-label">Monto Bs:</span>
+                        <div className="pedir-pm-val-wrap">
+                          <strong className="pedir-pm-val" style={{ color: "var(--primary)" }}>
+                            Bs. {totalCarritoBs.toFixed(2)}
+                          </strong>
+                          <button
+                            type="button"
+                            onClick={() => handleCopiarTexto(totalCarritoBs.toFixed(2), "monto")}
+                            className="pedir-btn-mini-copy"
+                            title="Copiar monto en Bs"
+                          >
+                            {copiado === "monto" ? "✓" : "📋"}
+                          </button>
+                        </div>
                       </div>
                     </div>
+
                     <p className="pedir-pm-hint">
-                      💡 Podrás enviar tu comprobante directo a nuestro WhatsApp tras confirmar el pedido.
+                      💡 Copia los datos para pegarlos directamente en la app de tu banco y luego envíanos la captura por WhatsApp.
                     </p>
                   </div>
                 )}
