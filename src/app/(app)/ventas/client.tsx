@@ -86,13 +86,37 @@ export default function VentasClient({ ventas }: VentasClientProps) {
                     <span className="comanda-number">#{v.numero_comanda}</span>
                     <span className="comanda-time">🕒 {fechaStr}</span>
                   </div>
-                  <span className={`comanda-status-pill status-${v.estado}`}>
-                    {v.estado === "preparando"
-                      ? "🍳 En Cocina"
-                      : v.estado === "completada"
-                      ? "✅ Entregada"
-                      : "❌ Cancelada"}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <a
+                      href={`/recibo/${v.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-ticket-receipt-link"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        color: "var(--primary-dark)",
+                        textDecoration: "none",
+                        padding: "3px 8px",
+                        borderRadius: 8,
+                        background: "var(--primary-light)",
+                        border: "1px solid var(--border)",
+                      }}
+                      title="Ver o compartir factura digital gourmet"
+                    >
+                      🧾 Recibo
+                    </a>
+                    <span className={`comanda-status-pill status-${v.estado}`}>
+                      {v.estado === "preparando"
+                        ? "🍳 En Cocina"
+                        : v.estado === "completada"
+                        ? "✅ Entregada"
+                        : "❌ Cancelada"}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="comanda-type-row">

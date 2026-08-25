@@ -43,7 +43,12 @@ export default function PosClient({
   const [metodoPago, setMetodoPago] = useState<string>("efectivo_usd");
   const [notasComanda, setNotasComanda] = useState("");
   const [procesando, setProcesando] = useState(false);
-  const [comandaExitosa, setComandaExitosa] = useState<{ numero: number; totalUsd: number; totalBs: number } | null>(null);
+  const [comandaExitosa, setComandaExitosa] = useState<{
+    numero: number;
+    totalUsd: number;
+    totalBs: number;
+    ventaId?: string;
+  } | null>(null);
   const [itemParaExtras, setItemParaExtras] = useState<number | null>(null);
 
   // Filtrar productos
@@ -173,6 +178,7 @@ export default function PosClient({
         numero: res.numero_comanda,
         totalUsd,
         totalBs,
+        ventaId: res.venta_id,
       });
       setCarrito([]);
       setNotasComanda("");
@@ -557,22 +563,70 @@ export default function PosClient({
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+              <a
+                href={`/recibo/${comandaExitosa.ventaId || comandaExitosa.numero}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ticket-close"
+                style={{
+                  background: "linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)",
+                  color: "#ffffff",
+                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  fontWeight: 800,
+                }}
+              >
+                🧾 Ver Factura Digital Gourmet
+              </a>
+
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => {
+                  const url = `${window.location.origin}/recibo/${comandaExitosa.ventaId || comandaExitosa.numero}`;
+                  const txt = `🧾 *Recibo de Compra - La Parada del Sabor*\n📌 *Comanda:* #${comandaExitosa.numero}\n💰 *Total:* $${comandaExitosa.totalUsd.toFixed(2)} USD / Bs. ${comandaExitosa.totalBs.toFixed(2)}\n🔗 *Ver Factura & Estado:* ${url}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
+                }}
                 className="btn-ticket-close"
-                style={{ background: "var(--bg-subtle)", color: "var(--text)", border: "1px solid var(--border)" }}
+                style={{
+                  background: "#25d366",
+                  color: "#ffffff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  fontWeight: 800,
+                }}
               >
-                🖨️ Imprimir Ticket
+                📲 Enviar Factura por WhatsApp
               </button>
-              <button
-                type="button"
-                onClick={() => setComandaExitosa(null)}
-                className="btn-ticket-close"
-              >
-                ✅ Nueva Orden
-              </button>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="btn-ticket-close"
+                  style={{
+                    background: "var(--bg-subtle)",
+                    color: "var(--text)",
+                    border: "1px solid var(--border)",
+                    flex: 1,
+                  }}
+                >
+                  🖨️ Imprimir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setComandaExitosa(null)}
+                  className="btn-ticket-close"
+                  style={{ flex: 1 }}
+                >
+                  ✅ Nueva Orden
+                </button>
+              </div>
             </div>
           </div>
         </div>
