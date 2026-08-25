@@ -267,14 +267,14 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'Indica la dirección para el delivery.');
     END IF;
 
-    -- 1. Obtener tasa BCV
-    SELECT coalesce(bcv_usd_bs, 1.0) INTO v_tasa_bcv
+    -- 1. Obtener tasa BCV oficial
+    SELECT bcv_usd_bs INTO v_tasa_bcv
     FROM public.tasas_cambio
     ORDER BY fecha DESC
     LIMIT 1;
 
     IF v_tasa_bcv IS NULL OR v_tasa_bcv <= 0 THEN
-        v_tasa_bcv := 1.0;
+        RETURN jsonb_build_object('ok', false, 'error', 'No se pudo obtener la tasa de cambio oficial. Intenta en unos momentos.');
     END IF;
 
     -- 2. Cliente
@@ -406,7 +406,7 @@ BEGIN
     );
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+        RETURN jsonb_build_object('ok', false, 'error', 'No se pudo procesar el pedido. Por favor verifica los datos e intenta nuevamente.');
 END;
 $$;
 
