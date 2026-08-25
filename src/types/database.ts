@@ -91,6 +91,8 @@ export type ProveedorInsumo = {
   insumo?: Insumo;
 };
 
+export type TasaActivaTipo = "bcv" | "usdt" | "eur" | "promedio" | "personalizada";
+
 export type TasaCambio = {
   id: string;
   fecha: string;
@@ -99,6 +101,8 @@ export type TasaCambio = {
   promedio_bs: number | null;
   eur_bs: number | null;
   tasa_usd_bs: number | null;
+  tasa_activa_tipo?: TasaActivaTipo | null;
+  tasa_personalizada_bs?: number | null;
   cop_usd: number | null;
   creado_el: string;
 };

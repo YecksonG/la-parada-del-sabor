@@ -350,7 +350,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               <strong>{metodoPago}</strong>
             </div>
             <div className="recibo-total-line">
-              <span>Tasa Oficial BCV Aplicada:</span>
+              <span>Tasa de Cambio Aplicada:</span>
               <strong>{Number(venta.tasa_bcv).toFixed(2)} Bs / USD</strong>
             </div>
 

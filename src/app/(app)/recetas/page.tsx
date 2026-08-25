@@ -27,12 +27,12 @@ export default async function RecetasPage() {
       .order("orden", { ascending: true }),
     supabase
       .from("tasas_cambio")
-      .select("bcv_usd_bs")
+      .select("bcv_usd_bs, tasa_usd_bs")
       .order("fecha", { ascending: false })
       .limit(1),
   ]);
 
-  const tasaBcv = Number(tasas?.[0]?.bcv_usd_bs) || 0;
+  const tasaBcv = Number(tasas?.[0]?.tasa_usd_bs || tasas?.[0]?.bcv_usd_bs) || 0;
 
   return (
     <RecetasClient

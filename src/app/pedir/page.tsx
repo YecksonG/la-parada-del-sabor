@@ -24,7 +24,7 @@ export default async function PedirPage() {
       .order("nombre", { ascending: true }),
     supabase
       .from("tasas_cambio")
-      .select("bcv_usd_bs")
+      .select("bcv_usd_bs, tasa_usd_bs")
       .order("fecha", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -33,7 +33,7 @@ export default async function PedirPage() {
   const categorias = catRes.data || [];
   const productos = prodRes.data || [];
   const extras = extRes.data || [];
-  const tasaBcv = Number(tasaRes.data?.bcv_usd_bs) || 1;
+  const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 65.50;
 
   return (
     <MenuClienteView

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { TasaCambio } from "@/types/database";
-import { autoSincronizarTasas } from "./actions";
+import { TasaCambio, TasaActivaTipo } from "@/types/database";
+import { autoSincronizarTasas, fijarTasaActivaFacturacion } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 
 interface TasasClientProps {
@@ -16,6 +16,8 @@ export default function TasasClient({ tasas }: TasasClientProps) {
     eur_bs: 70.80,
     promedio_bs: 69.15,
     tasa_usd_bs: 65.50,
+    tasa_activa_tipo: "bcv",
+    tasa_personalizada_bs: null,
     fecha: new Date().toISOString().split("T")[0],
   };
 
@@ -24,8 +26,32 @@ export default function TasasClient({ tasas }: TasasClientProps) {
   const eur = Number(tasaActual.eur_bs) || 70.80;
   const promedio = Number(tasaActual.promedio_bs) || 69.15;
 
+  const [tipoActivo, setTipoActivo] = useState<TasaActivaTipo>(
+    (tasaActual.tasa_activa_tipo as TasaActivaTipo) || "bcv"
+  );
+  const [tasaPersonalizada, setTasaPersonalizada] = useState<string>(
+    tasaActual.tasa_personalizada_bs ? String(tasaActual.tasa_personalizada_bs) : ""
+  );
+  const [cambiandoTasa, setCambiandoTasa] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
+
+  const handleSeleccionarTasaActiva = async (tipo: TasaActivaTipo, valorPers?: number) => {
+    sounds.playPop();
+    setCambiandoTasa(true);
+    const res = await fijarTasaActivaFacturacion({
+      tasa_activa_tipo: tipo,
+      tasa_personalizada_bs: valorPers,
+    });
+    setCambiandoTasa(false);
+
+    if (res.ok) {
+      sounds.playKitchenBell();
+      setTipoActivo(tipo);
+    } else {
+      alert(res.error || "No se pudo actualizar la tasa activa.");
+    }
+  };
 
   // Estados de la Calculadora Física
   const [calcDisplay, setCalcDisplay] = useState<string>("10");
@@ -139,14 +165,16 @@ export default function TasasClient({ tasas }: TasasClientProps) {
     }
   };
 
+  const valorTasaActiva = Number(tasaActual.tasa_usd_bs || tasaActual.bcv_usd_bs).toFixed(2);
+
   return (
     <main className="recetas-container">
       {/* Header con botón de sincronización automática */}
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">💵 Tasas de Cambio Automáticas</h1>
+          <h1 className="recetas-title">💵 Configuración de Tasas y Facturación</h1>
           <p className="recetas-subtitle">
-            Sincronización 100% automática desde <strong>bcv.today</strong> y <strong>dolarflow.com</strong> (BCV, USDT, EUR, Promedio).
+            Selecciona a qué tasa van a recibir hoy los clientes sus facturas y sincroniza APIs externas.
           </p>
         </div>
         <button
@@ -159,58 +187,194 @@ export default function TasasClient({ tasas }: TasasClientProps) {
         </button>
       </div>
 
-      {/* Grid de las 4 Tasas en Vivo (Orden Dabajuro) */}
+      {/* Banner de Tasa Activa para Facturación a Clientes */}
+      <div className="tasa-activa-selector-banner">
+        <div className="tasa-activa-info">
+          <span className="tasa-activa-chip">⭐ TASA ACTIVA PARA FACTURAR HOY</span>
+          <div className="tasa-activa-headline">
+            <span className="tasa-activa-type-pill">
+              {tipoActivo === "bcv" && "🟢 BCV Oficial"}
+              {tipoActivo === "usdt" && "🟡 USDT / P2P"}
+              {tipoActivo === "eur" && "🇪🇺 Euro BCV"}
+              {tipoActivo === "promedio" && "⚡ Promedio Ponderado"}
+              {tipoActivo === "personalizada" && "✏️ Tasa Manual"}
+            </span>
+            <strong className="tasa-activa-val">{valorTasaActiva} Bs / USD</strong>
+          </div>
+          <p className="tasa-activa-desc">
+            Esta tasa rige en tiempo real para las comandas del <strong>POS</strong>, el catálogo <strong>/pedir</strong> y las <strong>Facturas Digitales de los clientes</strong>.
+          </p>
+        </div>
+
+        {/* Selector Rápido */}
+        <div className="tasa-activa-buttons">
+          <button
+            type="button"
+            disabled={cambiandoTasa}
+            onClick={() => handleSeleccionarTasaActiva("bcv")}
+            className={`btn-select-tasa-activa ${tipoActivo === "bcv" ? "active-rate-btn" : ""}`}
+          >
+            🟢 BCV ({bcv.toFixed(2)})
+          </button>
+          <button
+            type="button"
+            disabled={cambiandoTasa}
+            onClick={() => handleSeleccionarTasaActiva("usdt")}
+            className={`btn-select-tasa-activa ${tipoActivo === "usdt" ? "active-rate-btn" : ""}`}
+          >
+            🟡 USDT ({usdt.toFixed(2)})
+          </button>
+          <button
+            type="button"
+            disabled={cambiandoTasa}
+            onClick={() => handleSeleccionarTasaActiva("promedio")}
+            className={`btn-select-tasa-activa ${tipoActivo === "promedio" ? "active-rate-btn" : ""}`}
+          >
+            ⚡ Promedio ({promedio.toFixed(2)})
+          </button>
+          <button
+            type="button"
+            disabled={cambiandoTasa}
+            onClick={() => handleSeleccionarTasaActiva("eur")}
+            className={`btn-select-tasa-activa ${tipoActivo === "eur" ? "active-rate-btn" : ""}`}
+          >
+            🇪🇺 EUR ({eur.toFixed(2)})
+          </button>
+        </div>
+      </div>
+
+      {/* Grid de Tasas en Vivo con Selección Directa */}
       <div className="tasas-cards-grid">
-        <div className="tasa-badge-card bcv-border">
+        <div className={`tasa-badge-card bcv-border ${tipoActivo === "bcv" ? "card-is-active" : ""}`}>
           <div className="tasa-card-top">
             <span className="tasa-pill-label bcv-tag">🟢 BCV oficial</span>
-            <span className="tasa-date">{tasaActual.fecha}</span>
+            {tipoActivo === "bcv" ? (
+              <span className="badge-tasa-activa">⭐ FACTURANDO</span>
+            ) : (
+              <span className="tasa-date">{tasaActual.fecha}</span>
+            )}
           </div>
           <div className="tasa-value-row">
             <strong className="tasa-number">{bcv.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
-          <span className="tasa-hint">Tasa oficial de facturación</span>
+          <button
+            type="button"
+            disabled={cambiandoTasa || tipoActivo === "bcv"}
+            onClick={() => handleSeleccionarTasaActiva("bcv")}
+            className={`btn-card-select-tasa ${tipoActivo === "bcv" ? "is-active" : ""}`}
+          >
+            {tipoActivo === "bcv" ? "✓ Tasa Activa Actual" : "👉 Cobrar a Tasa BCV"}
+          </button>
         </div>
 
-        <div className="tasa-badge-card paralelo-border">
+        <div className={`tasa-badge-card paralelo-border ${tipoActivo === "usdt" ? "card-is-active" : ""}`}>
           <div className="tasa-card-top">
-            <span className="tasa-pill-label paralelo-tag">🟡 USDT</span>
-            <span className="tasa-date">DolarFlow P2P</span>
+            <span className="tasa-pill-label paralelo-tag">🟡 USDT / P2P</span>
+            {tipoActivo === "usdt" ? (
+              <span className="badge-tasa-activa">⭐ FACTURANDO</span>
+            ) : (
+              <span className="tasa-date">DolarFlow</span>
+            )}
           </div>
           <div className="tasa-value-row">
             <strong className="tasa-number">{usdt.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
-          <span className="tasa-hint">Referencia reposición</span>
+          <button
+            type="button"
+            disabled={cambiandoTasa || tipoActivo === "usdt"}
+            onClick={() => handleSeleccionarTasaActiva("usdt")}
+            className={`btn-card-select-tasa ${tipoActivo === "usdt" ? "is-active" : ""}`}
+          >
+            {tipoActivo === "usdt" ? "✓ Tasa Activa Actual" : "👉 Cobrar a Tasa USDT"}
+          </button>
         </div>
 
-        <div className="tasa-badge-card cop-border" style={{ borderTopColor: "#6366f1" }}>
+        <div className={`tasa-badge-card cop-border ${tipoActivo === "eur" ? "card-is-active" : ""}`} style={{ borderTopColor: "#6366f1" }}>
           <div className="tasa-card-top">
             <span className="tasa-pill-label cop-tag" style={{ background: "rgba(99, 102, 241, 0.15)", color: "#6366f1" }}>
               🇪🇺 EUR
             </span>
-            <span className="tasa-date">Oficial BCV</span>
+            {tipoActivo === "eur" ? (
+              <span className="badge-tasa-activa">⭐ FACTURANDO</span>
+            ) : (
+              <span className="tasa-date">Oficial BCV</span>
+            )}
           </div>
           <div className="tasa-value-row">
             <strong className="tasa-number">{eur.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / €</span>
           </div>
-          <span className="tasa-hint">Divisa europea oficial</span>
+          <button
+            type="button"
+            disabled={cambiandoTasa || tipoActivo === "eur"}
+            onClick={() => handleSeleccionarTasaActiva("eur")}
+            className={`btn-card-select-tasa ${tipoActivo === "eur" ? "is-active" : ""}`}
+          >
+            {tipoActivo === "eur" ? "✓ Tasa Activa Actual" : "👉 Cobrar a Tasa EUR"}
+          </button>
         </div>
 
-        <div className="tasa-badge-card efectivo-border" style={{ borderTopColor: "#ec4899" }}>
+        <div className={`tasa-badge-card efectivo-border ${tipoActivo === "promedio" ? "card-is-active" : ""}`} style={{ borderTopColor: "#ec4899" }}>
           <div className="tasa-card-top">
             <span className="tasa-pill-label efectivo-tag" style={{ background: "rgba(236, 72, 153, 0.15)", color: "#ec4899" }}>
               ⚡ Promedio
             </span>
-            <span className="tasa-date">(BCV + USDT) / 2</span>
+            {tipoActivo === "promedio" ? (
+              <span className="badge-tasa-activa">⭐ FACTURANDO</span>
+            ) : (
+              <span className="tasa-date">Media Día</span>
+            )}
           </div>
           <div className="tasa-value-row">
             <strong className="tasa-number">{promedio.toFixed(2)}</strong>
             <span className="tasa-unit">Bs / $</span>
           </div>
-          <span className="tasa-hint">Media ponderada del día</span>
+          <button
+            type="button"
+            disabled={cambiandoTasa || tipoActivo === "promedio"}
+            onClick={() => handleSeleccionarTasaActiva("promedio")}
+            className={`btn-card-select-tasa ${tipoActivo === "promedio" ? "is-active" : ""}`}
+          >
+            {tipoActivo === "promedio" ? "✓ Tasa Activa Actual" : "👉 Cobrar a Promedio"}
+          </button>
+        </div>
+
+        {/* 5ta Tarjeta: Tasa Personalizada Manual */}
+        <div className={`tasa-badge-card custom-rate-border ${tipoActivo === "personalizada" ? "card-is-active" : ""}`}>
+          <div className="tasa-card-top">
+            <span className="tasa-pill-label" style={{ background: "rgba(234, 179, 8, 0.15)", color: "#eab308" }}>
+              ✏️ Personalizada
+            </span>
+            {tipoActivo === "personalizada" && (
+              <span className="badge-tasa-activa">⭐ FACTURANDO</span>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "10px 0" }}>
+            <input
+              type="number"
+              step="0.01"
+              min="1"
+              placeholder="Ej: 70.00"
+              value={tasaPersonalizada}
+              onChange={(e) => setTasaPersonalizada(e.target.value)}
+              className="tasa-custom-input"
+            />
+            <span className="tasa-unit" style={{ fontSize: 13, fontWeight: 800 }}>Bs / $</span>
+          </div>
+          <button
+            type="button"
+            disabled={cambiandoTasa || !tasaPersonalizada || parseFloat(tasaPersonalizada) <= 0}
+            onClick={() => handleSeleccionarTasaActiva("personalizada", parseFloat(tasaPersonalizada))}
+            className="btn-card-select-tasa"
+            style={{
+              background: tipoActivo === "personalizada" ? "var(--green)" : "linear-gradient(135deg, #eab308 0%, #ca8a04 100%)",
+              color: "#fff",
+            }}
+          >
+            {tipoActivo === "personalizada" ? "✓ Tasa Manual Activa" : "👉 Fijar Tasa Manual"}
+          </button>
         </div>
       </div>
 
