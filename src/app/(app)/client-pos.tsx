@@ -564,29 +564,31 @@ export default function PosClient({
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
-              <a
-                href={`/recibo/${comandaExitosa.ventaId || comandaExitosa.numero}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-ticket-close"
-                style={{
-                  background: "linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)",
-                  color: "#ffffff",
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  fontWeight: 800,
-                }}
-              >
-                🧾 Ver Factura Digital Gourmet
-              </a>
+              {comandaExitosa.ventaId && (
+                <a
+                  href={`/recibo/${comandaExitosa.ventaId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-ticket-close"
+                  style={{
+                    background: "linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%)",
+                    color: "#ffffff",
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    fontWeight: 800,
+                  }}
+                >
+                  🧾 Ver Factura Digital Gourmet
+                </a>
+              )}
 
               <button
                 type="button"
                 onClick={() => {
-                  const url = `${window.location.origin}/recibo/${comandaExitosa.ventaId || comandaExitosa.numero}`;
+                  const url = `${window.location.origin}/recibo/${comandaExitosa.ventaId || ""}`;
                   const txt = `🧾 *Recibo de Compra - La Parada del Sabor*\n📌 *Comanda:* #${comandaExitosa.numero}\n💰 *Total:* $${comandaExitosa.totalUsd.toFixed(2)} USD / Bs. ${comandaExitosa.totalBs.toFixed(2)}\n🔗 *Ver Factura & Estado:* ${url}`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
                 }}
