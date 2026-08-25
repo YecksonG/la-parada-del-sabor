@@ -1174,7 +1174,7 @@ a {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 2000;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -4598,6 +4598,50 @@ a {
 .pedir-btn-add:hover {
   filter: brightness(1.1);
   transform: scale(1.03);
+}
+
+.pedir-card-qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  padding: 2px 4px;
+}
+
+.pedir-card-qty-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.pedir-card-qty-btn.plus {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.pedir-card-qty-btn:hover {
+  filter: brightness(1.1);
+}
+
+.pedir-card-qty-num {
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--text);
+  min-width: 18px;
+  text-align: center;
 }
 
 /* Header Actions */

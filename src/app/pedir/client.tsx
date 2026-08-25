@@ -32,14 +32,11 @@ export default function MenuClienteView({
   const [catSeleccionada, setCatSeleccionada] = useState<string>("todas");
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CarritoItemWeb[]>([]);
-  const [modalItem, setModalItem] = useState<Producto | null>(null);
-  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
-  const [notaPersonalizada, setNotaPersonalizada] = useState("");
   const [drawerCheckout, setDrawerCheckout] = useState(false);
 
-  // Bloquear scroll de la página de fondo cuando un modal o bottom sheet está abierto
+  // Bloquear scroll de la página de fondo cuando el drawer de checkout está abierto
   useEffect(() => {
-    if (drawerCheckout || modalItem) {
+    if (drawerCheckout) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -47,7 +44,7 @@ export default function MenuClienteView({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [drawerCheckout, modalItem]);
+  }, [drawerCheckout]);
 
   // Formulario Checkout
   const [nombreCliente, setNombreCliente] = useState("");
@@ -84,28 +81,42 @@ export default function MenuClienteView({
   const totalCarritoBs = Number((totalCarritoUsd * tasaBcv).toFixed(2));
   const totalItemsCount = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
-  // Abrir modal de configuración de producto
-  const handleAbrirModalProducto = (prod: Producto) => {
-    setModalItem(prod);
-    setSelectedExtras([]);
-    setNotaPersonalizada("");
+  // Agregar al carrito directamente
+  const handleAgregarProductoDirecto = (prod: Producto) => {
+    setCarrito((prev) => {
+      const existingIdx = prev.findIndex((item) => item.producto.id === prod.id);
+      if (existingIdx >= 0) {
+        const next = [...prev];
+        next[existingIdx] = {
+          ...next[existingIdx],
+          cantidad: next[existingIdx].cantidad + 1,
+        };
+        return next;
+      }
+      return [
+        ...prev,
+        {
+          tempId: `${prod.id}-${Date.now()}-${Math.random()}`,
+          producto: prod,
+          cantidad: 1,
+          extras: [],
+        },
+      ];
+    });
   };
 
-  // Agregar al carrito
-  const handleAgregarAlCarrito = () => {
-    if (!modalItem) return;
-
-    const extrasElegidos = extras.filter((e) => selectedExtras.includes(e.id));
-    const nuevoItem: CarritoItemWeb = {
-      tempId: `${modalItem.id}-${Date.now()}-${Math.random()}`,
-      producto: modalItem,
-      cantidad: 1,
-      notas_item: notaPersonalizada.trim() || undefined,
-      extras: extrasElegidos,
-    };
-
-    setCarrito((prev) => [...prev, nuevoItem]);
-    setModalItem(null);
+  const handleModificarCantidadPorProducto = (productoId: string, delta: number) => {
+    setCarrito((prev) =>
+      prev
+        .map((item) => {
+          if (item.producto.id === productoId) {
+            const nuevaCantidad = item.cantidad + delta;
+            return nuevaCantidad > 0 ? { ...item, cantidad: nuevaCantidad } : null;
+          }
+          return item;
+        })
+        .filter(Boolean) as CarritoItemWeb[]
+    );
   };
 
   const handleModificarCantidad = (tempId: string, delta: number) => {
@@ -266,6 +277,8 @@ export default function MenuClienteView({
             {productosFiltrados.map((prod) => {
               const precioUsd = Number(prod.precio_usd || (prod as any).pvp_usd || 0);
               const precioBs = precioUsd * tasaBcv;
+              const itemEnCarrito = carrito.find((item) => item.producto.id === prod.id);
+              const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
 
               return (
                 <div key={prod.id} className="pedir-product-card">
@@ -289,13 +302,36 @@ export default function MenuClienteView({
                       <span className="pedir-price-usd">${precioUsd.toFixed(2)}</span>
                       <span className="pedir-price-bs">Bs. {precioBs.toFixed(2)}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleAbrirModalProducto(prod)}
-                      className="pedir-btn-add"
-                    >
-                      + Agregar
-                    </button>
+
+                    {cantidadEnCarrito > 0 ? (
+                      <div className="pedir-card-qty-controls">
+                        <button
+                          type="button"
+                          onClick={() => handleModificarCantidadPorProducto(prod.id, -1)}
+                          className="pedir-card-qty-btn"
+                          aria-label="Restar una unidad"
+                        >
+                          -
+                        </button>
+                        <span className="pedir-card-qty-num">{cantidadEnCarrito}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleModificarCantidadPorProducto(prod.id, 1)}
+                          className="pedir-card-qty-btn plus"
+                          aria-label="Sumar una unidad"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleAgregarProductoDirecto(prod)}
+                        className="pedir-btn-add"
+                      >
+                        + Agregar
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -304,8 +340,8 @@ export default function MenuClienteView({
         )}
       </main>
 
-      {/* Barra Flotante de Carrito Inferior */}
-      {totalItemsCount > 0 && (
+      {/* Barra Flotante de Carrito Inferior (Oculta si el checkout está abierto) */}
+      {totalItemsCount > 0 && !drawerCheckout && (
         <div className="pedir-floating-cart-bar">
           <div className="pedir-cart-summary">
             <span className="pedir-cart-badge">{totalItemsCount}</span>
@@ -321,98 +357,6 @@ export default function MenuClienteView({
           >
             <span>Ver Pedido ➔</span>
           </button>
-        </div>
-      )}
-
-      {/* Modal para Personalizar Producto / Extras */}
-      {modalItem && (
-        <div className="modal-overlay" onClick={() => setModalItem(null)}>
-          <div className="pedir-modal-custom" onClick={(e) => e.stopPropagation()}>
-            <div className="pedir-sheet-drag-handle" aria-hidden="true" />
-            <div className="pedir-modal-header">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 28 }}>{modalItem.icono || "🫓"}</span>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900 }}>{modalItem.nombre}</h3>
-                  <span style={{ fontSize: 13, color: "var(--primary)", fontWeight: 800 }}>
-                    ${Number(modalItem.precio_usd || (modalItem as any).pvp_usd || 0).toFixed(2)} USD • Bs. {(Number(modalItem.precio_usd || (modalItem as any).pvp_usd || 0) * tasaBcv).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalItem(null)}
-                className="pedir-btn-close-modal"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="pedir-modal-body-scroll">
-              {modalItem.descripcion && (
-                <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "8px 0 14px 0" }}>
-                  {modalItem.descripcion}
-                </p>
-              )}
-
-              {/* Extras Disponibles */}
-              {extras.length > 0 && (
-                <div className="pedir-extras-group">
-                  <span className="pedir-section-subtitle">¿Deseas agregar extras?</span>
-                  <div className="pedir-extras-list">
-                    {extras.map((ext) => {
-                      const isSelected = selectedExtras.includes(ext.id);
-                      const extPriceUsd = Number(ext.precio_extra_usd || 0);
-
-                      return (
-                        <label key={ext.id} className={`pedir-extra-option ${isSelected ? "selected" : ""}`}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedExtras((prev) => [...prev, ext.id]);
-                              } else {
-                                setSelectedExtras((prev) => prev.filter((id) => id !== ext.id));
-                              }
-                            }}
-                          />
-                          <span className="pedir-extra-name">{ext.nombre}</span>
-                          <span className="pedir-extra-price">
-                            {extPriceUsd > 0 ? `+$${extPriceUsd.toFixed(2)}` : "Gratis"}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Nota personalizada */}
-              <div style={{ marginTop: 14 }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                  Instrucciones especiales para cocina (Opcional):
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej: Bien tostada, sin mayonesa, salsa aparte..."
-                  value={notaPersonalizada}
-                  onChange={(e) => setNotaPersonalizada(e.target.value)}
-                  className="pedir-note-input"
-                />
-              </div>
-            </div>
-
-            <div className="pedir-modal-sticky-footer">
-              <button
-                type="button"
-                onClick={handleAgregarAlCarrito}
-                className="pedir-btn-add-confirm"
-              >
-                ✓ Agregar al Pedido
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
