@@ -5105,3 +5105,90 @@ a {
   font-weight: 800;
   outline: none;
 }
+
+/* ==========================================================================
+   DATOS DE PAGO MÓVIL EN CHECKOUT Y RECIBO
+   ========================================================================== */
+.pedir-pm-box, .recibo-pm-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pedir-pm-header, .recibo-pm-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.pedir-pm-bank {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 800;
+}
+
+.pedir-pm-grid, .recibo-pm-details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  font-size: 12px;
+  background: var(--bg-subtle);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.pedir-pm-item, .recibo-pm-details > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pedir-pm-label {
+  color: var(--text-muted);
+}
+
+.pedir-pm-val {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.pedir-pm-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.btn-pm-whatsapp {
+  background: #25d366;
+  color: #ffffff;
+  padding: 12px 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-pm-whatsapp:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.4);
+}

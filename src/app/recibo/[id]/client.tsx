@@ -382,6 +382,32 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
           </div>
         </div>
 
+        {/* Resumen de Pago Móvil para el Cliente (Si aplica) */}
+        {venta.metodo_pago === "pago_movil" && (
+          <div className="recibo-pm-card no-print">
+            <div className="recibo-pm-title">
+              <span>🏦 Datos de Pago Móvil</span>
+              <span className="badge-popular">BFC (0151)</span>
+            </div>
+            <div className="recibo-pm-details">
+              <div><span>Banco:</span> <strong>Banco Fondo Común (0151)</strong></div>
+              <div><span>Cédula:</span> <strong>29.524.904</strong></div>
+              <div><span>Teléfono:</span> <strong>0424-4325183</strong></div>
+              <div><span>Monto a Transferir:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
+            </div>
+            <a
+              href={`https://wa.me/584122595386?text=${encodeURIComponent(
+                `¡Hola! 👋 Te adjunto el comprobante de mi Pago Móvil para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)} ($${Number(venta.total_usd).toFixed(2)} USD).\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-pm-whatsapp"
+            >
+              <span>📲 Enviar Comprobante por WhatsApp</span>
+            </a>
+          </div>
+        )}
+
         {/* Botones de Acción al Pie (No se imprimen) */}
         <div className="recibo-share-actions no-print">
           <button
@@ -389,7 +415,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             onClick={handleCompartirWhatsApp}
             className="recibo-btn-whatsapp"
           >
-            <span>📲 Compartir por WhatsApp</span>
+            <span>📲 Compartir Factura</span>
           </button>
 
           <button

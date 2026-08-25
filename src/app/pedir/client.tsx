@@ -533,6 +533,33 @@ export default function MenuClienteView({
                 </select>
               </div>
 
+              {/* Datos de Pago Móvil BFC */}
+              {metodoPago === "pago_movil" && (
+                <div className="pedir-pm-box">
+                  <div className="pedir-pm-header">
+                    <span>🏦 Datos para Pago Móvil</span>
+                    <span className="pedir-pm-bank">BFC (0151)</span>
+                  </div>
+                  <div className="pedir-pm-grid">
+                    <div className="pedir-pm-item">
+                      <span className="pedir-pm-label">Banco:</span>
+                      <strong className="pedir-pm-val">Banco Fondo Común (0151)</strong>
+                    </div>
+                    <div className="pedir-pm-item">
+                      <span className="pedir-pm-label">Cédula:</span>
+                      <strong className="pedir-pm-val">29.524.904</strong>
+                    </div>
+                    <div className="pedir-pm-item">
+                      <span className="pedir-pm-label">Teléfono:</span>
+                      <strong className="pedir-pm-val">0424-4325183</strong>
+                    </div>
+                  </div>
+                  <p className="pedir-pm-hint">
+                    💡 Podrás enviar tu comprobante directo a nuestro WhatsApp tras confirmar el pedido.
+                  </p>
+                </div>
+              )}
+
               {/* Notas generales */}
               <div className="pedir-form-group">
                 <label>Comentarios adicionales (Opcional)</label>
