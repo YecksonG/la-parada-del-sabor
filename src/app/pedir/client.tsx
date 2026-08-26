@@ -62,6 +62,7 @@ export default function MenuClienteView({
   // Temporizador y persistencia de último pedido en curso (10 minutos)
   const [ultimoPedido, setUltimoPedido] = useState<{ id: string; numero: number; time: number } | null>(null);
   const [tiempoRestanteSeg, setTiempoRestanteSeg] = useState<number>(0);
+  const [permitirOtroPedido, setPermitirOtroPedido] = useState(false);
 
   useEffect(() => {
     try {
@@ -1032,14 +1033,43 @@ export default function MenuClienteView({
                 </div>
               </div>
 
-              <button
-                type="submit"
-                form="pedir-checkout-form-id"
-                disabled={enviando}
-                className="pedir-btn-submit-order"
-              >
-                {enviando ? "Enviando Pedido..." : "🚀 Enviar Pedido a Cocina"}
-              </button>
+              {tiempoRestanteSeg > 0 && !permitirOtroPedido ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    type="button"
+                    disabled
+                    className="pedir-btn-submit-order"
+                    style={{ opacity: 0.6, cursor: "not-allowed", background: "#64748b" }}
+                  >
+                    ⏱️ Espera {Math.floor(tiempoRestanteSeg / 60)}:{(tiempoRestanteSeg % 60).toString().padStart(2, "0")} para nuevo pedido
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPermitirOtroPedido(true)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "var(--primary-dark)",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      padding: "4px 0",
+                    }}
+                  >
+                    ¿Necesitas hacer otro pedido ya? Haz clic aquí para desbloquear
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  form="pedir-checkout-form-id"
+                  disabled={enviando}
+                  className="pedir-btn-submit-order"
+                >
+                  {enviando ? "Enviando Pedido..." : "🚀 Enviar Pedido a Cocina"}
+                </button>
+              )}
             </div>
           </div>
         </div>
