@@ -140,9 +140,29 @@ export default function VentasClient({ ventas }: VentasClientProps) {
                     <span className="comanda-badge-payment">
                       {v.metodo_pago.replace("_", " ").toUpperCase()}
                     </span>
-                    {v.creado_por === "web_cliente" && (
+                    {v.origen_pedido === "instagram" ? (
+                      <span style={{ fontSize: 11, fontWeight: 800, background: "linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)", color: "#ffffff", padding: "2px 8px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        📸 Instagram
+                      </span>
+                    ) : v.origen_pedido === "whatsapp" ? (
+                      <span style={{ fontSize: 11, fontWeight: 800, background: "#25D366", color: "#ffffff", padding: "2px 8px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        💬 WhatsApp
+                      </span>
+                    ) : v.origen_pedido === "qr" ? (
+                      <span style={{ fontSize: 11, fontWeight: 800, background: "#06b6d4", color: "#ffffff", padding: "2px 8px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        📲 QR Mesa
+                      </span>
+                    ) : v.origen_pedido === "tiktok" ? (
+                      <span style={{ fontSize: 11, fontWeight: 800, background: "#000000", color: "#ffffff", border: "1px solid #fe2c55", padding: "2px 8px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 3 }}>
+                        🎵 TikTok
+                      </span>
+                    ) : v.creado_por === "web_cliente" ? (
                       <span style={{ fontSize: 11, fontWeight: 700, background: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", padding: "2px 6px", borderRadius: 4 }}>
-                        🌐 Web
+                        🌐 Web Directa
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, fontWeight: 700, background: "var(--bg-subtle)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: 4 }}>
+                        🖥️ POS
                       </span>
                     )}
                   </div>

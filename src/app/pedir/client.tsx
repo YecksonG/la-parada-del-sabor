@@ -54,11 +54,58 @@ export default function MenuClienteView({
   const [direccionDelivery, setDireccionDelivery] = useState("");
   const [metodoPago, setMetodoPago] = useState("pago_movil");
   const [notasGenerales, setNotasGenerales] = useState("");
+  const [origenPedido, setOrigenPedido] = useState<string>("directo");
   const [enviando, setEnviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [copiado, setCopiado] = useState<string | null>(null);
   const [cargandoGps, setCargandoGps] = useState(false);
   const [gpsOk, setGpsOk] = useState(false);
+
+  // RASTREO INTELIGENTE DE CANAL DE ORIGEN (Instagram / WhatsApp / TikTok / QR / Directo)
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(window.location.search);
+      const refParam = (params.get("ref") || params.get("src") || params.get("utm_source") || "").toLowerCase().trim();
+
+      let detectado = "directo";
+      if (refParam.includes("instagram") || refParam === "ig") {
+        detectado = "instagram";
+      } else if (refParam.includes("whatsapp") || refParam === "ws" || refParam === "wa") {
+        detectado = "whatsapp";
+      } else if (refParam.includes("tiktok") || refParam === "tt") {
+        detectado = "tiktok";
+      } else if (refParam.includes("qr")) {
+        detectado = "qr";
+      } else if (refParam) {
+        detectado = refParam;
+      } else {
+        // Detección automática por document.referrer si no viene parámetro explícito
+        const refUrl = (document.referrer || "").toLowerCase();
+        if (refUrl.includes("instagram.com")) {
+          detectado = "instagram";
+        } else if (refUrl.includes("whatsapp.com") || refUrl.includes("wa.me")) {
+          detectado = "whatsapp";
+        } else if (refUrl.includes("tiktok.com")) {
+          detectado = "tiktok";
+        } else if (refUrl.includes("facebook.com")) {
+          detectado = "facebook";
+        }
+      }
+
+      // Persistencia en sessionStorage para todo el flujo de compra
+      const storedRef = sessionStorage.getItem("laparada_ref_origen");
+      if (refParam) {
+        sessionStorage.setItem("laparada_ref_origen", detectado);
+        setOrigenPedido(detectado);
+      } else if (storedRef) {
+        setOrigenPedido(storedRef);
+      } else {
+        sessionStorage.setItem("laparada_ref_origen", detectado);
+        setOrigenPedido(detectado);
+      }
+    } catch {}
+  }, []);
 
   // Temporizador y persistencia de último pedido en curso (10 minutos)
   const [ultimoPedido, setUltimoPedido] = useState<{ id: string; numero: number; time: number } | null>(null);
@@ -264,6 +311,7 @@ export default function MenuClienteView({
       direccion_delivery: direccionDelivery,
       metodo_pago: metodoPago,
       notas_pedido: notasGenerales,
+      origen_pedido: origenPedido,
       items: itemsPayload,
     });
 

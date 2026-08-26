@@ -121,6 +121,45 @@ export default function DashboardClient({
     };
   }, [clientes]);
 
+  // Métricas de Canales de Origen (Instagram / WhatsApp / QR / Web / POS)
+  const metricasCanales = useMemo(() => {
+    let instagram = { count: 0, totalUsd: 0 };
+    let whatsapp = { count: 0, totalUsd: 0 };
+    let qr = { count: 0, totalUsd: 0 };
+    let webDirecto = { count: 0, totalUsd: 0 };
+    let posMostrador = { count: 0, totalUsd: 0 };
+
+    ventasFiltradas.forEach((v) => {
+      const monto = Number(v.total_usd) || 0;
+      const origen = (v.origen_pedido || "").toLowerCase();
+
+      if (origen === "instagram" || origen === "ig") {
+        instagram.count += 1;
+        instagram.totalUsd += monto;
+      } else if (origen === "whatsapp" || origen === "ws" || origen === "wa") {
+        whatsapp.count += 1;
+        whatsapp.totalUsd += monto;
+      } else if (origen === "qr") {
+        qr.count += 1;
+        qr.totalUsd += monto;
+      } else if (v.creado_por === "web_cliente" || origen === "directo" || origen === "web") {
+        webDirecto.count += 1;
+        webDirecto.totalUsd += monto;
+      } else {
+        posMostrador.count += 1;
+        posMostrador.totalUsd += monto;
+      }
+    });
+
+    return {
+      instagram,
+      whatsapp,
+      qr,
+      webDirecto,
+      posMostrador,
+    };
+  }, [ventasFiltradas]);
+
   return (
     <main className="recetas-container">
       {/* Header con Filtro de Periodo */}
@@ -317,6 +356,80 @@ export default function DashboardClient({
               </div>
             ))
           )}
+        </div>
+      </div>
+
+      {/* Sección de Canales de Adquisición (Instagram / WhatsApp / Directo / POS) */}
+      <div className="receta-card" style={{ marginTop: 16 }}>
+        <div className="receta-card-header">
+          <h3 className="receta-name">🌐 Canales de Venta & Rendimiento de Redes Sociales</h3>
+        </div>
+
+        <div className="receta-metrics-row" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          {/* Instagram */}
+          <div className="metric-box" style={{ borderLeft: "4px solid #dc2743" }}>
+            <span className="metric-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              📸 <strong>Instagram</strong>
+            </span>
+            <strong className="metric-val" style={{ fontSize: 18, color: "#dc2743" }}>
+              ${metricasCanales.instagram.totalUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {metricasCanales.instagram.count} pedidos (?ref=instagram)
+            </span>
+          </div>
+
+          {/* WhatsApp */}
+          <div className="metric-box" style={{ borderLeft: "4px solid #25D366" }}>
+            <span className="metric-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              💬 <strong>WhatsApp</strong>
+            </span>
+            <strong className="metric-val" style={{ fontSize: 18, color: "#25D366" }}>
+              ${metricasCanales.whatsapp.totalUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {metricasCanales.whatsapp.count} pedidos (?ref=whatsapp)
+            </span>
+          </div>
+
+          {/* Web Directo */}
+          <div className="metric-box" style={{ borderLeft: "4px solid #3b82f6" }}>
+            <span className="metric-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              🌐 <strong>Web Directa</strong>
+            </span>
+            <strong className="metric-val" style={{ fontSize: 18, color: "#3b82f6" }}>
+              ${metricasCanales.webDirecto.totalUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {metricasCanales.webDirecto.count} pedidos online
+            </span>
+          </div>
+
+          {/* QR Mesa / Local */}
+          <div className="metric-box" style={{ borderLeft: "4px solid #06b6d4" }}>
+            <span className="metric-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              📲 <strong>QR Mesa</strong>
+            </span>
+            <strong className="metric-val" style={{ fontSize: 18, color: "#06b6d4" }}>
+              ${metricasCanales.qr.totalUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {metricasCanales.qr.count} pedidos en local
+            </span>
+          </div>
+
+          {/* POS Mostrador */}
+          <div className="metric-box" style={{ borderLeft: "4px solid var(--primary)" }}>
+            <span className="metric-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              🖥️ <strong>POS Mostrador</strong>
+            </span>
+            <strong className="metric-val" style={{ fontSize: 18, color: "var(--primary-dark)" }}>
+              ${metricasCanales.posMostrador.totalUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              {metricasCanales.posMostrador.count} comandas físicas
+            </span>
+          </div>
         </div>
       </div>
     </main>

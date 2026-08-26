@@ -17,6 +17,7 @@ export type PayloadPedidoWeb = {
   direccion_delivery?: string;
   metodo_pago: string;
   notas_pedido?: string;
+  origen_pedido?: string;
   items: ItemPedidoWeb[];
 };
 

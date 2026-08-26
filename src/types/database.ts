@@ -124,6 +124,7 @@ export type Venta = {
   estado: EstadoVenta;
   notas_comanda: string | null;
   creado_por?: string | null;
+  origen_pedido?: "instagram" | "whatsapp" | "tiktok" | "qr" | "directo" | "pos" | string | null;
   creado_el: string;
   cliente?: Cliente;
   items?: VentaItem[];
