@@ -385,7 +385,13 @@ export default function MenuClienteView({
       {/* Header Público de La Parada del Sabor */}
       <header className="pedir-hero-header">
         <div className="pedir-header-top">
-          <Link href="/" className="pedir-brand-brand">
+          <div
+            className="pedir-brand-brand"
+            style={{ cursor: "pointer", userSelect: "none" }}
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            role="button"
+            tabIndex={0}
+          >
             <Image
               src="/images/logo-badge.png"
               alt="Logo La Parada del Sabor"
@@ -398,7 +404,7 @@ export default function MenuClienteView({
               <span className="pedir-brand-title">La Parada del Sabor</span>
               <span className="pedir-brand-subtitle">Arepas Tradicionales & Más</span>
             </div>
-          </Link>
+          </div>
 
           <div className="pedir-header-actions">
             <ThemeToggle />

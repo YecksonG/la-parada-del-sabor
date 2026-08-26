@@ -2,6 +2,29 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+
+// Mapa de control de tasa en memoria por IP (máximo 4 pedidos por minuto, 20 por hora)
+const ipRateLimitMap = new Map<string, number[]>();
+
+function checkIpRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const oneMinuteAgo = now - 60 * 1000;
+  const oneHourAgo = now - 60 * 60 * 1000;
+
+  const timestamps = (ipRateLimitMap.get(ip) || []).filter((t) => t > oneHourAgo);
+
+  const ordersLastMinute = timestamps.filter((t) => t > oneMinuteAgo).length;
+  const ordersLastHour = timestamps.length;
+
+  if (ordersLastMinute >= 4 || ordersLastHour >= 20) {
+    return false; // Límite excedido
+  }
+
+  timestamps.push(now);
+  ipRateLimitMap.set(ip, timestamps);
+  return true;
+}
 
 export type ItemPedidoWeb = {
   producto_id: string;
@@ -22,6 +45,19 @@ export type PayloadPedidoWeb = {
 };
 
 export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
+  // Verificación de Rate Limiting por dirección IP
+  const headersList = await headers();
+  const forwardedFor = headersList.get("x-forwarded-for");
+  const realIp = headersList.get("x-real-ip");
+  const clientIp = forwardedFor ? forwardedFor.split(",")[0].trim() : realIp || "127.0.0.1";
+
+  if (!checkIpRateLimit(clientIp)) {
+    return {
+      ok: false,
+      error: "Has realizado varias solicitudes en poco tiempo. Por favor espera un momento antes de volver a pedir.",
+    };
+  }
+
   if (!payload.nombre_cliente?.trim()) {
     return { ok: false, error: "Por favor indica tu nombre." };
   }
