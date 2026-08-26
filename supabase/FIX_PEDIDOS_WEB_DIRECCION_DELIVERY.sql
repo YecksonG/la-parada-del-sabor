@@ -1,16 +1,34 @@
 -- ==============================================================================
--- CORRECCIÓN URGENTE: COLUMNAS EN VENTAS Y ACTUALIZACIÓN RPC fn_crear_pedido_web
+-- CORRECCIÓN DEFINITIVA Y ROBUSTA: PEDIDOS WEB, COLUMNAS & RPC ATÓMICA
 -- ==============================================================================
 
--- 1. Asegurar columnas en tablas
+-- 1. Actualizar Check Constraints de Ventas para soportar 'pendiente' y 'lista'
+ALTER TABLE public.ventas DROP CONSTRAINT IF EXISTS ventas_estado_check;
+ALTER TABLE public.ventas ADD CONSTRAINT ventas_estado_check 
+  CHECK (estado IN ('pendiente', 'preparando', 'lista', 'completada', 'cancelada'));
+
+-- 2. Asegurar todas las columnas en public.ventas
 ALTER TABLE public.ventas ADD COLUMN IF NOT EXISTS direccion_delivery TEXT;
 ALTER TABLE public.ventas ADD COLUMN IF NOT EXISTS origen_pedido VARCHAR(50) DEFAULT 'directo';
 ALTER TABLE public.ventas ADD COLUMN IF NOT EXISTS notas_comanda TEXT;
 ALTER TABLE public.ventas ADD COLUMN IF NOT EXISTS creado_por VARCHAR(100) DEFAULT 'cajero';
+
+-- 3. Asegurar columnas en public.clientes
 ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS direccion_delivery TEXT;
 ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS actualizado_el TIMESTAMPTZ DEFAULT NOW();
 
--- 2. Función RPC blindada y 100% compatible con todas las columnas
+-- 4. Asegurar columnas en public.ventas_items
+ALTER TABLE public.ventas_items ADD COLUMN IF NOT EXISTS precio_unitario_bs NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.ventas_items ADD COLUMN IF NOT EXISTS notas TEXT;
+ALTER TABLE public.ventas_items ADD COLUMN IF NOT EXISTS notas_item VARCHAR(150);
+
+-- 5. Asegurar columnas en public.ventas_items_extras
+ALTER TABLE public.ventas_items_extras ADD COLUMN IF NOT EXISTS precio_extra_usd NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.ventas_items_extras ADD COLUMN IF NOT EXISTS precio_extra_bs NUMERIC(12, 2) DEFAULT 0;
+ALTER TABLE public.ventas_items_extras ADD COLUMN IF NOT EXISTS precio_unitario_usd NUMERIC(10, 2) DEFAULT 0;
+ALTER TABLE public.ventas_items_extras ADD COLUMN IF NOT EXISTS subtotal_usd NUMERIC(10, 2) DEFAULT 0;
+
+-- 6. Función RPC atómica blindada
 CREATE OR REPLACE FUNCTION public.fn_crear_pedido_web(p_payload JSONB)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -145,7 +163,7 @@ BEGIN
         RETURNING id INTO v_cliente_id;
     END IF;
 
-    -- 3. Crear Venta cabecera (compatible con todas las columnas existentes)
+    -- 3. Crear Venta cabecera
     INSERT INTO public.ventas (
         cliente_id,
         tasa_bcv,
@@ -202,13 +220,15 @@ BEGIN
             cantidad,
             precio_unitario_usd,
             precio_unitario_bs,
-            notas
+            notas,
+            notas_item
         ) VALUES (
             v_venta_id,
             v_producto_id,
             v_cantidad,
             v_prod_precio,
             v_prod_precio * v_tasa_bcv,
+            nullif(v_notas_item, ''),
             nullif(v_notas_item, '')
         )
         RETURNING id INTO v_venta_item_id;
@@ -226,12 +246,16 @@ BEGIN
                         venta_item_id,
                         extra_id,
                         precio_extra_usd,
-                        precio_extra_bs
+                        precio_extra_bs,
+                        precio_unitario_usd,
+                        subtotal_usd
                     ) VALUES (
                         v_venta_item_id,
                         v_extra_id::UUID,
                         v_ext_precio,
-                        v_ext_precio * v_tasa_bcv
+                        v_ext_precio * v_tasa_bcv,
+                        v_ext_precio,
+                        v_ext_precio * v_cantidad
                     );
                     v_subtotal_item := v_subtotal_item + (v_ext_precio * v_cantidad);
                 END IF;

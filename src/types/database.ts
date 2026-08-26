@@ -65,6 +65,7 @@ export type Cliente = {
   notas_preferencias: string | null;
   total_pedidos: number;
   creado_el: string;
+  actualizado_el?: string | null;
 };
 
 export type Proveedor = {
@@ -122,6 +123,7 @@ export type Venta = {
   tasa_bcv: number;
   metodo_pago: MetodoPago;
   tipo_entrega: TipoEntrega;
+  direccion_delivery?: string | null;
   estado: EstadoVenta;
   notas_comanda: string | null;
   creado_por?: string | null;
