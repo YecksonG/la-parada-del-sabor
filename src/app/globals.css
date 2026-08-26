@@ -4278,7 +4278,10 @@ a {
 .recibo-share-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 .recibo-btn-whatsapp {
@@ -4306,23 +4309,27 @@ a {
 
 .recibo-btn-secondary {
   width: 100%;
-  padding: 12px 18px;
+  padding: 13px 18px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fdfbf7;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  color: var(--text);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
 }
 
 .recibo-btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--bg-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
 }
 
 /* Print CSS */
