@@ -3,17 +3,46 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: "preparando" | "completada" | "cancelada") {
+export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
+
+const TRANSICIONES_VALIDAS: Record<EstadoVenta, EstadoVenta[]> = {
+  pendiente: ["preparando", "cancelada"],
+  preparando: ["lista", "completada", "cancelada"],
+  lista: ["completada", "cancelada"],
+  completada: ["cancelada"],
+  cancelada: ["preparando"],
+};
+
+export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: EstadoVenta) {
   const supabase = await createClient();
 
-  // Al actualizar el estado, si pasa a 'cancelada', el trigger PostgreSQL `trg_reconciliar_cambio_estado_venta`
-  // devolverá de inmediato los insumos de recetas y extras al stock general
-  const { error } = await supabase
+  // 1. Obtener estado actual y verificar existencia
+  const { data: ventaActual, error: errorFetch } = await supabase
+    .from("ventas")
+    .select("id, estado")
+    .eq("id", venta_id)
+    .single();
+
+  if (errorFetch || !ventaActual) {
+    return { ok: false, error: "La comanda no existe o no se pudo encontrar." };
+  }
+
+  // 2. Validar transición de estado
+  const permitidos = TRANSICIONES_VALIDAS[ventaActual.estado as EstadoVenta] || [];
+  if (!permitidos.includes(nuevoEstado)) {
+    return {
+      ok: false,
+      error: `Transición no permitida: no se puede cambiar de '${ventaActual.estado}' a '${nuevoEstado}'.`,
+    };
+  }
+
+  // 3. Actualizar estado
+  const { error: errorUpdate } = await supabase
     .from("ventas")
     .update({ estado: nuevoEstado })
     .eq("id", venta_id);
 
-  if (error) return { ok: false, error: error.message };
+  if (errorUpdate) return { ok: false, error: errorUpdate.message };
 
   revalidatePath("/ventas");
   revalidatePath("/insumos");

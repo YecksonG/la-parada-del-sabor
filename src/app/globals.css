@@ -2944,8 +2944,17 @@ a {
   box-shadow: var(--shadow-md);
 }
 
+.comanda-pendiente {
+  border-top: 3px solid #eab308;
+  background: var(--bg-card);
+}
+
 .comanda-preparando {
   border-top: 3px solid var(--primary);
+}
+
+.comanda-lista {
+  border-top: 3px solid #3b82f6;
 }
 
 .comanda-completada {
@@ -2982,6 +2991,15 @@ a {
   border-radius: 9999px;
 }
 
+.status-pendiente {
+  background: rgba(234, 179, 8, 0.15);
+  color: #ca8a04;
+}
+
+[data-theme="dark"] .status-pendiente {
+  color: #facc15;
+}
+
 .status-preparando {
   background: var(--primary-light);
   color: var(--primary-dark);
@@ -2989,6 +3007,15 @@ a {
 
 [data-theme="dark"] .status-preparando {
   color: var(--primary);
+}
+
+.status-lista {
+  background: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+}
+
+[data-theme="dark"] .status-lista {
+  color: #60a5fa;
 }
 
 .status-completada {

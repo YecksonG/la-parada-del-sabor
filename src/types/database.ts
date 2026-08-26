@@ -108,8 +108,8 @@ export type TasaCambio = {
 };
 
 export type TipoEntrega = "puerta_cerrada" | "mesa" | "pickup" | "delivery";
-export type MetodoPago = "efectivo_usd" | "pago_movil_bs" | "punto_bs" | "binance" | "pesos_cop";
-export type EstadoVenta = "preparando" | "completada" | "cancelada";
+export type MetodoPago = "efectivo_usd" | "pago_movil_bs" | "pago_movil" | "transferencia" | "punto_bs" | "punto" | "binance" | "zelle" | "pesos_cop" | "efectivo_bs";
+export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
 
 export type Venta = {
   id: string;
@@ -123,6 +123,7 @@ export type Venta = {
   tipo_entrega: TipoEntrega;
   estado: EstadoVenta;
   notas_comanda: string | null;
+  creado_por?: string | null;
   creado_el: string;
   cliente?: Cliente;
   items?: VentaItem[];

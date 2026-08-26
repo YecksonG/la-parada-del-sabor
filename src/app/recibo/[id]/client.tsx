@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type ReciboItemExtra = {
   id: string;
@@ -112,10 +112,17 @@ const ESTADOS_CONFIG: Record<
 
 export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
   const [copiadoLabel, setCopiadoLabel] = useState<string | null>(null);
+  const [reciboUrl, setReciboUrl] = useState<string>(`https://la-parada-del-sabor.vercel.app/recibo/${venta.id}`);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setReciboUrl(`${window.location.origin}/recibo/${venta.id}`);
+    }
+  }, [venta.id]);
 
   const fechaObj = new Date(venta.fecha);
   const fechaFormateada = fechaObj.toLocaleDateString("es-VE", {
-    weekday: "long",
+    weekday: "short",
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -132,11 +139,9 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
   };
   const metodoPago = METODOS_PAGO_LABEL[venta.metodo_pago] || venta.metodo_pago;
 
-  const urlRecibo = typeof window !== "undefined" ? window.location.href : "";
-
   const handleCopiarEnlace = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(urlRecibo);
+      navigator.clipboard.writeText(reciboUrl);
       setCopiadoLabel("enlace");
       setTimeout(() => setCopiadoLabel(null), 2500);
     }
@@ -147,9 +152,27 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
       `📌 *Comanda:* #${venta.numero_comanda.toString().padStart(4, "0")}\n` +
       `👤 *Cliente:* ${venta.cliente?.nombre || "Cliente Mostrador"}\n` +
       `💰 *Total:* $${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}\n` +
-      `🔗 *Ver Detalle & Estado en vivo:* ${urlRecibo}`;
+      `🔗 *Ver Detalle & Estado en vivo:* ${reciboUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
   };
+
+  // Stepper de estados
+  const pasosEstado = [
+    { key: "pendiente", label: "Por Confirmar", icon: "🟡" },
+    { key: "preparando", label: "En Cocina", icon: "🍳" },
+    { key: "lista", label: "Listo para Despacho", icon: "🔔" },
+    { key: "completada", label: "Entregado", icon: "✅" },
+  ];
+
+  const pasoIndexActual = (() => {
+    switch (venta.estado) {
+      case "pendiente": return 0;
+      case "preparando": return 1;
+      case "lista": return 2;
+      case "completada": return 3;
+      default: return 0;
+    }
+  })();
 
   return (
     <div className="recibo-page-wrapper">
@@ -169,6 +192,9 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
         </Link>
 
         <div className="recibo-actions-top no-print">
+          <Link href="/pedir" className="recibo-btn-pill" style={{ textDecoration: "none" }}>
+            🛍️ Nuevo Pedido
+          </Link>
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -240,6 +266,61 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               {fechaFormateada} • {horaFormateada}
             </p>
           </div>
+
+          {/* Stepper Visual de Progreso del Pedido */}
+          {venta.estado !== "cancelada" && (
+            <nav
+              aria-label="Progreso de preparación del pedido"
+              className="recibo-stepper no-print"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                margin: "12px 0 16px",
+                padding: "10px 12px",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+              }}
+            >
+              {pasosEstado.map((p, idx) => {
+                const activo = idx <= pasoIndexActual;
+                const actual = idx === pasoIndexActual;
+                return (
+                  <div
+                    key={p.key}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 4,
+                      flex: 1,
+                      opacity: activo ? 1 : 0.4,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: actual ? 22 : 16,
+                        transform: actual ? "scale(1.15)" : "none",
+                        transition: "transform 0.2s",
+                      }}
+                    >
+                      {p.icon}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: actual ? 800 : 600,
+                        color: actual ? "var(--primary-dark)" : "var(--text-muted)",
+                        textAlign: "center",
+                      }}
+                    >
+                      {p.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </nav>
+          )}
 
           {/* Tarjeta de Estado en Vivo (Live Status) */}
           <div
@@ -413,7 +494,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             </div>
             <a
               href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi Pago Móvil para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)} ($${Number(venta.total_usd).toFixed(2)} USD).\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+                `¡Hola! 👋 Te adjunto el comprobante de mi Pago Móvil para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)} ($${Number(venta.total_usd).toFixed(2)} USD).\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -456,7 +537,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             </div>
             <a
               href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi Transferencia Bancaria para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)}.\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+                `¡Hola! 👋 Te adjunto el comprobante de mi Transferencia Bancaria para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)}.\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -497,7 +578,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             </div>
             <a
               href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Binance Pay para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USDT.\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Binance Pay para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USDT.\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -538,7 +619,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             </div>
             <a
               href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Zelle para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USD.\n\n🧾 Ver mi factura digital: ${typeof window !== "undefined" ? window.location.href : ""}`
+                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Zelle para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USD.\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"

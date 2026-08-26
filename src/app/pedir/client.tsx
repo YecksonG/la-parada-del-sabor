@@ -59,6 +59,38 @@ export default function MenuClienteView({
   const [cargandoGps, setCargandoGps] = useState(false);
   const [gpsOk, setGpsOk] = useState(false);
 
+  // Temporizador y persistencia de último pedido en curso (10 minutos)
+  const [ultimoPedido, setUltimoPedido] = useState<{ id: string; numero: number; time: number } | null>(null);
+  const [tiempoRestanteSeg, setTiempoRestanteSeg] = useState<number>(0);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("laparada_ultimo_pedido");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const diffSeg = Math.floor((10 * 60 * 1000 - (Date.now() - parsed.time)) / 1000);
+        if (diffSeg > 0) {
+          setUltimoPedido(parsed);
+          setTiempoRestanteSeg(diffSeg);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (tiempoRestanteSeg <= 0) return;
+    const timer = setInterval(() => {
+      setTiempoRestanteSeg((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [tiempoRestanteSeg]);
+
   const handleCopiarTexto = (texto: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(texto);
@@ -236,6 +268,16 @@ export default function MenuClienteView({
     setEnviando(false);
 
     if (res.ok && res.venta_id) {
+      try {
+        localStorage.setItem(
+          "laparada_ultimo_pedido",
+          JSON.stringify({
+            id: res.venta_id,
+            numero: res.numero_comanda,
+            time: Date.now(),
+          })
+        );
+      } catch {}
       // Redirigir de inmediato a la Factura Digital Gourmet
       router.push(`/recibo/${res.venta_id}`);
     } else {
@@ -245,6 +287,51 @@ export default function MenuClienteView({
 
   return (
     <div className="pedir-page-layout">
+      {/* Banner de Pedido en Curso / Cooldown de 10 minutos */}
+      {tiempoRestanteSeg > 0 && ultimoPedido && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, #1e293b, #0f172a)",
+            color: "#ffffff",
+            padding: "10px 16px",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            fontSize: 13,
+            borderBottom: "2px solid var(--primary)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 18 }}>🕒</span>
+            <span>
+              Tienes un pedido en curso <strong>(Comanda #{ultimoPedido.numero.toString().padStart(4, "0")})</strong>.
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: 6 }}>
+              ⏱️ Próximo pedido en: <strong>{Math.floor(tiempoRestanteSeg / 60)}:{(tiempoRestanteSeg % 60).toString().padStart(2, "0")}</strong>
+            </span>
+            <Link
+              href={`/recibo/${ultimoPedido.id}`}
+              style={{
+                color: "#ffffff",
+                background: "var(--primary)",
+                padding: "4px 10px",
+                borderRadius: 6,
+                fontWeight: 700,
+                textDecoration: "none",
+                fontSize: 12,
+              }}
+            >
+              👉 Ver Mi Pedido
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Header Público de La Parada del Sabor */}
       <header className="pedir-hero-header">
         <div className="pedir-header-top">

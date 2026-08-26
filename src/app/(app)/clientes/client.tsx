@@ -48,6 +48,15 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
     setModalAbierto(true);
   };
 
+  const [modalHistorial, setModalHistorial] = useState(false);
+  const [clienteHistorial, setClienteHistorial] = useState<Cliente | null>(null);
+
+  const abrirHistorial = (c: Cliente) => {
+    sounds.playPop();
+    setClienteHistorial(c);
+    setModalHistorial(true);
+  };
+
   const abrirEditar = (c: Cliente) => {
     sounds.playPop();
     setClienteSeleccionado(c);
@@ -174,13 +183,22 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
                 </div>
               )}
 
-              <div className="insumo-card-footer">
+              <div className="insumo-card-footer" style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => abrirHistorial(c)}
+                  className="btn-insumo-adjust"
+                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                  title="Ver perfil completo del cliente"
+                >
+                  👁️ Perfil
+                </button>
                 <button
                   type="button"
                   onClick={() => abrirEditar(c)}
                   className="btn-insumo-adjust"
                 >
-                  ✏️ Editar Información
+                  ✏️ Editar
                 </button>
               </div>
             </div>
@@ -240,14 +258,25 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
                     )}
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    <button
-                      type="button"
-                      onClick={() => abrirEditar(c)}
-                      className="btn-insumo-adjust"
-                      style={{ padding: "5px 12px", fontSize: 12 }}
-                    >
-                      ✏️ Editar
-                    </button>
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => abrirHistorial(c)}
+                        className="btn-insumo-adjust"
+                        style={{ padding: "5px 10px", fontSize: 12, background: "var(--surface)", border: "1px solid var(--border)" }}
+                        title="Ver perfil completo del cliente"
+                      >
+                        👁️ Perfil
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => abrirEditar(c)}
+                        className="btn-insumo-adjust"
+                        style={{ padding: "5px 12px", fontSize: 12 }}
+                      >
+                        ✏️ Editar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -333,6 +362,110 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Perfil & Historial del Cliente */}
+      {modalHistorial && clienteHistorial && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Perfil del Cliente"
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setModalHistorial(false);
+          }}
+        >
+          <div className="modal-recipe-card" style={{ maxWidth: 480, maxHeight: "90vh", overflowY: "auto" }}>
+            <div className="modal-recipe-header">
+              <h2>👤 Perfil del Cliente</h2>
+              <button
+                type="button"
+                onClick={() => setModalHistorial(false)}
+                className="btn-modal-close"
+                aria-label="Cerrar modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "16px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 36 }}>👑</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, color: "var(--text)" }}>{clienteHistorial.nombre}</h3>
+                  <span className="badge-ticket" style={{ fontSize: 12 }}>
+                    ⭐ {clienteHistorial.total_pedidos} Pedidos Realizados
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ background: "var(--surface)", padding: 14, borderRadius: 12, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
+                <div>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Teléfono / WhatsApp</span>
+                  <strong style={{ fontSize: 14 }}>{clienteHistorial.telefono || "No registrado"}</strong>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Dirección de Delivery</span>
+                  <p style={{ margin: 0, fontSize: 13 }}>{clienteHistorial.direccion_delivery || "Sin dirección fija registrada"}</p>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Preferencias & Notas</span>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--primary-dark)", fontWeight: 600 }}>
+                    {clienteHistorial.notas_preferencias || "Sin notas especiales registradas"}
+                  </p>
+                </div>
+              </div>
+
+              {clienteHistorial.telefono && (() => {
+                const rawDigits = clienteHistorial.telefono.replace(/\D/g, "");
+                const cleanPhone = rawDigits.startsWith("58") ? rawDigits.slice(2) : rawDigits.replace(/^0/, "");
+                return (
+                  <a
+                    href={`https://wa.me/58${cleanPhone}?text=${encodeURIComponent(
+                      `¡Hola ${clienteHistorial.nombre}! 👋 Te escribimos de La Parada del Sabor 🫓`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-submit-recipe"
+                    style={{
+                      textAlign: "center",
+                      textDecoration: "none",
+                      background: "#25D366",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span>💬 Abrir Chat de WhatsApp</span>
+                  </a>
+                );
+              })()}
+            </div>
+
+            <div className="modal-recipe-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalHistorial(false);
+                  abrirEditar(clienteHistorial);
+                }}
+                className="btn-insumo-adjust"
+              >
+                ✏️ Editar Datos
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalHistorial(false)}
+                className="btn-cancel"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

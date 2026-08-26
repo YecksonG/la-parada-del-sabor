@@ -190,11 +190,22 @@ BEGIN
         RETURN jsonb_build_object('ok', false, 'error', 'No se pudo obtener la tasa de cambio oficial. Intenta en unos momentos.');
     END IF;
 
-    -- 2. Cliente
-    SELECT id INTO v_cliente_id FROM public.clientes WHERE telefono = v_telefono LIMIT 1;
+    -- 2. Cliente: Búsqueda inteligente por teléfono normalizado o por nombre (sin duplicar)
+    SELECT id INTO v_cliente_id 
+    FROM public.clientes 
+    WHERE (
+        length(regexp_replace(coalesce(telefono, ''), '\D', '', 'g')) >= 7 
+        AND regexp_replace(coalesce(telefono, ''), '\D', '', 'g') = regexp_replace(v_telefono, '\D', '', 'g')
+    ) OR (
+        lower(trim(nombre)) = lower(trim(v_nombre_cliente))
+    )
+    ORDER BY total_pedidos DESC
+    LIMIT 1;
+
     IF v_cliente_id IS NOT NULL THEN
         UPDATE public.clientes
         SET nombre = v_nombre_cliente,
+            telefono = coalesce(nullif(v_telefono, ''), telefono),
             direccion_delivery = coalesce(nullif(v_direccion_delivery, ''), direccion_delivery),
             total_pedidos = total_pedidos + 1,
             actualizado_el = NOW()

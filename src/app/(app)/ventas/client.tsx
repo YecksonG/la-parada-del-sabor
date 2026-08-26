@@ -19,18 +19,25 @@ export default function VentasClient({ ventas }: VentasClientProps) {
 
   const totalVentasUsd = useMemo(() => {
     return ventas
-      .filter((v) => v.estado !== "cancelada")
+      .filter((v) => v.estado === "preparando" || v.estado === "lista" || v.estado === "completada")
       .reduce((acc, v) => acc + Number(v.total_usd), 0);
   }, [ventas]);
 
   const handleCambiarEstado = async (
     ventaId: string,
-    nuevoEstado: "preparando" | "completada" | "cancelada"
+    nuevoEstado: "pendiente" | "preparando" | "lista" | "completada" | "cancelada"
   ) => {
     setProcesandoId(ventaId);
-    await cambiarEstadoVenta(ventaId, nuevoEstado);
+    const res = await cambiarEstadoVenta(ventaId, nuevoEstado);
     setProcesandoId(null);
+    if (!res.ok) {
+      alert(res.error || "No se pudo actualizar el estado de la comanda.");
+    }
   };
+
+  const conteoPendientes = useMemo(() => {
+    return ventas.filter((v) => v.estado === "pendiente").length;
+  }, [ventas]);
 
   return (
     <main className="recetas-container">
@@ -39,7 +46,7 @@ export default function VentasClient({ ventas }: VentasClientProps) {
         <div>
           <h1 className="recetas-title">📋 Comandas & Historial de Ventas</h1>
           <p className="recetas-subtitle">
-            Monitoreo en tiempo real. Total facturado activo:{" "}
+            Monitoreo en tiempo real de pedidos web y comandas de salón. Facturación activa:{" "}
             <strong className="text-primary">${totalVentasUsd.toFixed(2)} USD</strong>
           </p>
         </div>
@@ -48,8 +55,10 @@ export default function VentasClient({ ventas }: VentasClientProps) {
         <div className="pos-category-pills">
           {[
             { id: "todos", label: "Todas", icon: "📋" },
+            { id: "pendiente", label: `Por Confirmar (${conteoPendientes})`, icon: "🟡", badge: conteoPendientes > 0 },
             { id: "preparando", label: "En Cocina", icon: "🍳" },
-            { id: "completada", label: "Completadas", icon: "✅" },
+            { id: "lista", label: "Listas / En Camino", icon: "🛵" },
+            { id: "completada", label: "Entregadas", icon: "✅" },
             { id: "cancelada", label: "Canceladas", icon: "❌" },
           ].map((f) => (
             <button
@@ -57,6 +66,7 @@ export default function VentasClient({ ventas }: VentasClientProps) {
               type="button"
               onClick={() => setFiltroEstado(f.id)}
               className={`cat-pill ${filtroEstado === f.id ? "cat-pill-active" : ""}`}
+              style={f.badge ? { border: "2px solid #eab308", background: "rgba(234, 179, 8, 0.15)", fontWeight: 800 } : {}}
             >
               <span>{f.icon}</span> {f.label}
             </button>
@@ -69,8 +79,8 @@ export default function VentasClient({ ventas }: VentasClientProps) {
         {ventasFiltradas.length === 0 ? (
           <div className="recetas-empty-box">
             <span style={{ fontSize: 48 }}>📋</span>
-            <h3>No hay comandas registradas</h3>
-            <p>Las ventas realizadas desde el POS aparecerán aquí al instante.</p>
+            <h3>No hay comandas con este filtro</h3>
+            <p>Las ventas realizadas desde el POS y la web aparecerán aquí al instante.</p>
           </div>
         ) : (
           ventasFiltradas.map((v) => {
@@ -110,8 +120,12 @@ export default function VentasClient({ ventas }: VentasClientProps) {
                       🧾 Recibo
                     </a>
                     <span className={`comanda-status-pill status-${v.estado}`}>
-                      {v.estado === "preparando"
+                      {v.estado === "pendiente"
+                        ? "🟡 Por Confirmar"
+                        : v.estado === "preparando"
                         ? "🍳 En Cocina"
+                        : v.estado === "lista"
+                        ? "🛵 Lista / En Camino"
                         : v.estado === "completada"
                         ? "✅ Entregada"
                         : "❌ Cancelada"}
@@ -124,6 +138,11 @@ export default function VentasClient({ ventas }: VentasClientProps) {
                   <span className="comanda-badge-payment">
                     {v.metodo_pago.replace("_", " ").toUpperCase()}
                   </span>
+                  {v.creado_por === "web_cliente" && (
+                    <span style={{ fontSize: 11, fontWeight: 700, background: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", padding: "2px 6px", borderRadius: 4 }}>
+                      🌐 Web
+                    </span>
+                  )}
                 </div>
 
                 {/* Items de la Comanda */}
@@ -166,17 +185,56 @@ export default function VentasClient({ ventas }: VentasClientProps) {
 
                 {/* Acciones de Cocina / Estado */}
                 <div className="comanda-actions">
+                  {/* 1. Si está Pendiente (Web) */}
+                  {v.estado === "pendiente" && (
+                    <button
+                      type="button"
+                      disabled={procesandoId === v.id}
+                      onClick={() => handleCambiarEstado(v.id, "preparando")}
+                      className="btn-comanda-complete"
+                      style={{ background: "#f97316" }}
+                    >
+                      {procesandoId === v.id ? "Procesando..." : "🍳 Confirmar & Enviar a Cocina"}
+                    </button>
+                  )}
+
+                  {/* 2. Si está en Cocina (Preparando) */}
                   {v.estado === "preparando" && (
+                    <div style={{ display: "flex", gap: 6, width: "100%" }}>
+                      <button
+                        type="button"
+                        disabled={procesandoId === v.id}
+                        onClick={() => handleCambiarEstado(v.id, "lista")}
+                        className="btn-comanda-complete"
+                        style={{ background: "#3b82f6" }}
+                      >
+                        {procesandoId === v.id ? "..." : "🛵 Marcar Lista / En Camino"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={procesandoId === v.id}
+                        onClick={() => handleCambiarEstado(v.id, "completada")}
+                        className="btn-comanda-complete"
+                      >
+                        {procesandoId === v.id ? "..." : "✅ Entregada"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 3. Si está Lista */}
+                  {v.estado === "lista" && (
                     <button
                       type="button"
                       disabled={procesandoId === v.id}
                       onClick={() => handleCambiarEstado(v.id, "completada")}
                       className="btn-comanda-complete"
                     >
-                      ✅ Marcar Entregada
+                      {procesandoId === v.id ? "Procesando..." : "✅ Marcar Entregada"}
                     </button>
                   )}
-                  {v.estado !== "cancelada" && (
+
+                  {/* 4. Opción de Cancelar / Reactivar */}
+                  {v.estado !== "cancelada" && v.estado !== "completada" && (
                     <button
                       type="button"
                       disabled={procesandoId === v.id}
@@ -184,9 +242,10 @@ export default function VentasClient({ ventas }: VentasClientProps) {
                       className="btn-comanda-cancel"
                       title="Cancelar comanda y devolver insumos al stock"
                     >
-                      ❌ Cancelar & Devolver Stock
+                      ❌ Cancelar
                     </button>
                   )}
+
                   {v.estado === "cancelada" && (
                     <button
                       type="button"
