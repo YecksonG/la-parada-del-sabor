@@ -91,171 +91,177 @@ export default function VentasClient({ ventas }: VentasClientProps) {
 
             return (
               <div key={v.id} className={`comanda-card comanda-${v.estado}`}>
-                <div className="comanda-card-header">
-                  <div>
-                    <span className="comanda-number">#{v.numero_comanda}</span>
-                    <span className="comanda-time">🕒 {fechaStr}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <a
-                      href={`/recibo/${v.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-ticket-receipt-link"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 4,
-                        fontSize: 11,
-                        fontWeight: 800,
-                        color: "var(--primary-dark)",
-                        textDecoration: "none",
-                        padding: "3px 8px",
-                        borderRadius: 8,
-                        background: "var(--primary-light)",
-                        border: "1px solid var(--border)",
-                      }}
-                      title="Ver o compartir factura digital gourmet"
-                    >
-                      🧾 Recibo
-                    </a>
-                    <span className={`comanda-status-pill status-${v.estado}`}>
-                      {v.estado === "pendiente"
-                        ? "🟡 Por Confirmar"
-                        : v.estado === "preparando"
-                        ? "🍳 En Cocina"
-                        : v.estado === "lista"
-                        ? "🛵 Lista / En Camino"
-                        : v.estado === "completada"
-                        ? "✅ Entregada"
-                        : "❌ Cancelada"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="comanda-type-row">
-                  <span className="comanda-badge-type">{v.tipo_entrega.toUpperCase()}</span>
-                  <span className="comanda-badge-payment">
-                    {v.metodo_pago.replace("_", " ").toUpperCase()}
-                  </span>
-                  {v.creado_por === "web_cliente" && (
-                    <span style={{ fontSize: 11, fontWeight: 700, background: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", padding: "2px 6px", borderRadius: 4 }}>
-                      🌐 Web
-                    </span>
-                  )}
-                </div>
-
-                {/* Items de la Comanda */}
-                <div className="comanda-items-list">
-                  {(v.items || []).map((item, iIdx) => (
-                    <div key={iIdx} className="comanda-item-entry">
-                      <div className="comanda-item-top">
-                        <span>
-                          <strong>{item.cantidad}x</strong> {item.producto?.nombre || "Producto"}
-                        </span>
-                        <span>${Number(item.subtotal_usd).toFixed(2)}</span>
-                      </div>
-                      {item.extras && item.extras.length > 0 && (
-                        <div className="comanda-extras-line">
-                          {item.extras.map((ext, eIdx) => (
-                            <span key={eIdx} className="comanda-extra-tag">
-                              +{ext.extra?.nombre || "Extra"} (${Number(ext.precio_unitario_usd).toFixed(2)})
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                {/* Cuerpo superior de la comanda (ocupa espacio disponible) */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+                  <div className="comanda-card-header">
+                    <div>
+                      <span className="comanda-number">#{v.numero_comanda}</span>
+                      <span className="comanda-time">🕒 {fechaStr}</span>
                     </div>
-                  ))}
-                </div>
-
-                {v.notas_comanda && (
-                  <div className="comanda-notes-box">
-                    <span>📝 {v.notas_comanda}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <a
+                        href={`/recibo/${v.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-ticket-receipt-link"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          color: "var(--primary-dark)",
+                          textDecoration: "none",
+                          padding: "3px 8px",
+                          borderRadius: 8,
+                          background: "var(--primary-light)",
+                          border: "1px solid var(--border)",
+                        }}
+                        title="Ver o compartir factura digital gourmet"
+                      >
+                        🧾 Recibo
+                      </a>
+                      <span className={`comanda-status-pill status-${v.estado}`}>
+                        {v.estado === "pendiente"
+                          ? "🟡 Por Confirmar"
+                          : v.estado === "preparando"
+                          ? "🍳 En Cocina"
+                          : v.estado === "lista"
+                          ? (v.tipo_entrega === "delivery" ? "🛵 En Camino" : "🛍️ Lista")
+                          : v.estado === "completada"
+                          ? "✅ Entregada"
+                          : "❌ Cancelada"}
+                      </span>
+                    </div>
                   </div>
-                )}
 
-                {/* Totales */}
-                <div className="comanda-totals">
-                  <div className="comanda-total-row">
-                    <span>Total:</span>
-                    <strong>${Number(v.total_usd).toFixed(2)} USD</strong>
+                  <div className="comanda-type-row">
+                    <span className="comanda-badge-type">{v.tipo_entrega.toUpperCase()}</span>
+                    <span className="comanda-badge-payment">
+                      {v.metodo_pago.replace("_", " ").toUpperCase()}
+                    </span>
+                    {v.creado_por === "web_cliente" && (
+                      <span style={{ fontSize: 11, fontWeight: 700, background: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", padding: "2px 6px", borderRadius: 4 }}>
+                        🌐 Web
+                      </span>
+                    )}
                   </div>
-                  <span className="comanda-bs-label">{Number(v.total_bs).toFixed(2)} Bs</span>
-                </div>
 
-                {/* Acciones de Cocina / Estado */}
-                <div className="comanda-actions">
-                  {/* 1. Si está Pendiente (Web) */}
-                  {v.estado === "pendiente" && (
-                    <button
-                      type="button"
-                      disabled={procesandoId === v.id}
-                      onClick={() => handleCambiarEstado(v.id, "preparando")}
-                      className="btn-comanda-complete"
-                      style={{ background: "#f97316" }}
-                    >
-                      {procesandoId === v.id ? "Procesando..." : "🍳 Confirmar & Enviar a Cocina"}
-                    </button>
+                  {/* Items de la Comanda */}
+                  <div className="comanda-items-list">
+                    {(v.items || []).map((item, iIdx) => (
+                      <div key={iIdx} className="comanda-item-entry">
+                        <div className="comanda-item-top">
+                          <span>
+                            <strong>{item.cantidad}x</strong> {item.producto?.nombre || "Producto"}
+                          </span>
+                          <span>${Number(item.subtotal_usd).toFixed(2)}</span>
+                        </div>
+                        {item.extras && item.extras.length > 0 && (
+                          <div className="comanda-extras-line">
+                            {item.extras.map((ext, eIdx) => (
+                              <span key={eIdx} className="comanda-extra-tag">
+                                +{ext.extra?.nombre || "Extra"} (${Number(ext.precio_unitario_usd).toFixed(2)})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {v.notas_comanda && (
+                    <div className="comanda-notes-box">
+                      <span>📝 {v.notas_comanda}</span>
+                    </div>
                   )}
+                </div>
 
-                  {/* 2. Si está en Cocina (Preparando) */}
-                  {v.estado === "preparando" && (
-                    <div style={{ display: "flex", gap: 6, width: "100%" }}>
+                {/* Pie fijo de la comanda (Totales & Acciones alineados abajo) */}
+                <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10, paddingTop: 6 }}>
+                  {/* Totales */}
+                  <div className="comanda-totals">
+                    <div className="comanda-total-row">
+                      <span>Total:</span>
+                      <strong>${Number(v.total_usd).toFixed(2)} USD</strong>
+                    </div>
+                    <span className="comanda-bs-label">{Number(v.total_bs).toFixed(2)} Bs</span>
+                  </div>
+
+                  {/* Acciones de Cocina / Estado */}
+                  <div className="comanda-actions">
+                    {/* 1. Si está Pendiente (Web) */}
+                    {v.estado === "pendiente" && (
                       <button
                         type="button"
                         disabled={procesandoId === v.id}
-                        onClick={() => handleCambiarEstado(v.id, "lista")}
+                        onClick={() => handleCambiarEstado(v.id, "preparando")}
                         className="btn-comanda-complete"
-                        style={{ background: "#3b82f6" }}
+                        style={{ background: "#f97316" }}
                       >
-                        {procesandoId === v.id ? "..." : "🛵 Marcar Lista / En Camino"}
+                        {procesandoId === v.id ? "Procesando..." : "🍳 Confirmar & Enviar a Cocina"}
                       </button>
+                    )}
+
+                    {/* 2. Si está en Cocina (Preparando) */}
+                    {v.estado === "preparando" && (
+                      <div style={{ display: "flex", gap: 6, width: "100%" }}>
+                        <button
+                          type="button"
+                          disabled={procesandoId === v.id}
+                          onClick={() => handleCambiarEstado(v.id, "lista")}
+                          className="btn-comanda-complete"
+                          style={{ background: "#3b82f6" }}
+                        >
+                          {procesandoId === v.id ? "..." : (v.tipo_entrega === "delivery" ? "🛵 En Camino" : "🛍️ Marcar Lista")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={procesandoId === v.id}
+                          onClick={() => handleCambiarEstado(v.id, "completada")}
+                          className="btn-comanda-complete"
+                        >
+                          {procesandoId === v.id ? "..." : "✅ Entregada"}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 3. Si está Lista */}
+                    {v.estado === "lista" && (
                       <button
                         type="button"
                         disabled={procesandoId === v.id}
                         onClick={() => handleCambiarEstado(v.id, "completada")}
                         className="btn-comanda-complete"
                       >
-                        {procesandoId === v.id ? "..." : "✅ Entregada"}
+                        {procesandoId === v.id ? "Procesando..." : "✅ Marcar Entregada"}
                       </button>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 3. Si está Lista */}
-                  {v.estado === "lista" && (
-                    <button
-                      type="button"
-                      disabled={procesandoId === v.id}
-                      onClick={() => handleCambiarEstado(v.id, "completada")}
-                      className="btn-comanda-complete"
-                    >
-                      {procesandoId === v.id ? "Procesando..." : "✅ Marcar Entregada"}
-                    </button>
-                  )}
+                    {/* 4. Opción de Cancelar / Reactivar */}
+                    {v.estado !== "cancelada" && v.estado !== "completada" && (
+                      <button
+                        type="button"
+                        disabled={procesandoId === v.id}
+                        onClick={() => handleCambiarEstado(v.id, "cancelada")}
+                        className="btn-comanda-cancel"
+                        title="Cancelar comanda y devolver insumos al stock"
+                      >
+                        ❌ Cancelar
+                      </button>
+                    )}
 
-                  {/* 4. Opción de Cancelar / Reactivar */}
-                  {v.estado !== "cancelada" && v.estado !== "completada" && (
-                    <button
-                      type="button"
-                      disabled={procesandoId === v.id}
-                      onClick={() => handleCambiarEstado(v.id, "cancelada")}
-                      className="btn-comanda-cancel"
-                      title="Cancelar comanda y devolver insumos al stock"
-                    >
-                      ❌ Cancelar
-                    </button>
-                  )}
-
-                  {v.estado === "cancelada" && (
-                    <button
-                      type="button"
-                      disabled={procesandoId === v.id}
-                      onClick={() => handleCambiarEstado(v.id, "preparando")}
-                      className="btn-comanda-reactivate"
-                    >
-                      🔄 Reactivar Comanda
-                    </button>
-                  )}
+                    {v.estado === "cancelada" && (
+                      <button
+                        type="button"
+                        disabled={procesandoId === v.id}
+                        onClick={() => handleCambiarEstado(v.id, "preparando")}
+                        className="btn-comanda-reactivate"
+                      >
+                        🔄 Reactivar Comanda
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

@@ -23,7 +23,7 @@ export default function ThemeToggle() {
   };
 
   if (!montado) {
-    return <div style={{ width: 36, height: 36 }} />;
+    return <div style={{ width: 38, height: 38 }} />;
   }
 
   return (

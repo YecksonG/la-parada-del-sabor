@@ -2934,6 +2934,8 @@ a {
   padding: 18px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
   gap: 12px;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease;
@@ -3815,22 +3817,26 @@ a {
   width: 100%;
   max-width: 600px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  gap: 12px;
+  padding: 14px 18px;
 }
 
 .recibo-brand-link {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   text-decoration: none;
+  min-width: 0;
 }
 
 .recibo-brand-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
-  color: #fff;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
 .recibo-brand-accent {
@@ -3840,14 +3846,15 @@ a {
 .recibo-actions-top {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .recibo-btn-pill {
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #fdfbf7;
   font-size: 12px;
   font-weight: 700;
@@ -3856,7 +3863,7 @@ a {
 }
 
 .recibo-btn-pill:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .recibo-container {
@@ -4346,6 +4353,150 @@ a {
     border-radius: 0 !important;
     padding: 16px !important;
   }
+}
+
+/* ==========================================================================
+   RECIBO DIGITAL - DARK MODE THEME ADAPTATION
+   ========================================================================== */
+[data-theme="dark"] .recibo-ticket-card {
+  background: #171310;
+  color: #f1ede8;
+  border-color: #352b22;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .recibo-title {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .recibo-subtitle {
+  color: #a89f91;
+}
+
+[data-theme="dark"] .recibo-badge-comanda {
+  background: #2b1f14;
+  border-color: #4a341e;
+}
+
+[data-theme="dark"] .recibo-badge-comanda span {
+  color: #f97316;
+}
+
+[data-theme="dark"] .recibo-badge-comanda strong {
+  color: #fb923c;
+}
+
+[data-theme="dark"] .recibo-fecha {
+  color: #9c8e7e;
+}
+
+[data-theme="dark"] .recibo-info-grid {
+  background: #1f1a15;
+  border-color: #352b22;
+}
+
+[data-theme="dark"] .recibo-info-lbl {
+  color: #9c8e7e;
+}
+
+[data-theme="dark"] .recibo-info-val {
+  color: #f1ede8;
+}
+
+[data-theme="dark"] .recibo-info-sub {
+  color: #b0a495;
+}
+
+[data-theme="dark"] .recibo-status-desc {
+  color: #d1c7bc;
+}
+
+[data-theme="dark"] .recibo-section-title {
+  color: #9c8e7e;
+}
+
+[data-theme="dark"] .recibo-item-row {
+  border-color: #352b22;
+}
+
+[data-theme="dark"] .recibo-item-name {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .recibo-item-total-usd {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .recibo-item-total-bs {
+  color: #a89f91;
+}
+
+[data-theme="dark"] .recibo-item-qty {
+  background: #382110;
+  color: #fb923c;
+}
+
+[data-theme="dark"] .recibo-extra-pill {
+  background: #26201a;
+  color: #d1c7bc;
+}
+
+[data-theme="dark"] .recibo-order-note {
+  background: #2b1f14;
+  border-left-color: #f97316;
+}
+
+[data-theme="dark"] .recibo-order-note-title {
+  color: #fb923c;
+}
+
+[data-theme="dark"] .recibo-order-note p {
+  color: #e5ddd3;
+}
+
+[data-theme="dark"] .recibo-totals-box {
+  background: #1f1a15;
+  border-color: #352b22;
+}
+
+[data-theme="dark"] .recibo-total-line {
+  color: #a89f91;
+}
+
+[data-theme="dark"] .recibo-total-line strong {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .recibo-divider-dashed {
+  border-color: #352b22;
+}
+
+[data-theme="dark"] .recibo-total-title {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .recibo-total-subtitle {
+  color: #9c8e7e;
+}
+
+[data-theme="dark"] .recibo-price-usd {
+  color: #fb923c;
+}
+
+[data-theme="dark"] .recibo-price-bs {
+  color: #c4b8aa;
+}
+
+[data-theme="dark"] .recibo-footer-message {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .recibo-footer-sub {
+  color: #9c8e7e;
+}
+
+[data-theme="dark"] .recibo-cut-line {
+  color: #352b22;
 }
 
 /* ==========================================================================

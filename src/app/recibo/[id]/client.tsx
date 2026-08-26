@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import ThemeToggle from "@/components/theme-toggle";
 
 type ReciboItemExtra = {
   id: string;
@@ -21,7 +22,7 @@ type ReciboItem = {
   cantidad: number;
   precio_unitario_usd: number;
   subtotal_usd: number;
-  notas_item?: string;
+  notas_item?: string | null;
   producto?: {
     id: string;
     nombre: string;
@@ -30,7 +31,7 @@ type ReciboItem = {
   extras?: ReciboItemExtra[];
 };
 
-type ReciboVenta = {
+export type ReciboVenta = {
   id: string;
   numero_comanda: number;
   fecha: string;
@@ -40,13 +41,12 @@ type ReciboVenta = {
   metodo_pago: string;
   tipo_entrega: string;
   estado: string;
-  notas_comanda?: string;
-  creado_por?: string;
+  notas_comanda?: string | null;
   cliente?: {
     id: string;
     nombre: string;
-    telefono?: string;
-    direccion_delivery?: string;
+    telefono?: string | null;
+    direccion_delivery?: string | null;
   };
   items?: ReciboItem[];
 };
@@ -132,7 +132,30 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
     minute: "2-digit",
   });
 
-  const estadoInfo = ESTADOS_CONFIG[venta.estado] || ESTADOS_CONFIG.completada;
+  const esDelivery = venta.tipo_entrega === "delivery";
+
+  // Estado contextual según tipo de entrega (Delivery vs Retiro)
+  const estadoInfo = useMemo(() => {
+    if (venta.estado === "lista") {
+      return esDelivery
+        ? {
+            label: "¡En Camino a tu Dirección!",
+            icon: "🛵",
+            bg: "rgba(59, 130, 246, 0.15)",
+            color: "#3b82f6",
+            desc: "Tu repartidor ya va en camino con tu pedido calientito a tu ubicación.",
+          }
+        : {
+            label: "¡Listo para Retirar!",
+            icon: "🛍️",
+            bg: "rgba(59, 130, 246, 0.15)",
+            color: "#3b82f6",
+            desc: "Tu pedido está listo y empacado en mostrador. ¡Puedes pasar a retirarlo!",
+          };
+    }
+    return ESTADOS_CONFIG[venta.estado] || ESTADOS_CONFIG.completada;
+  }, [venta.estado, esDelivery]);
+
   const entregaInfo = TIPOS_ENTREGA_LABEL[venta.tipo_entrega] || {
     label: "Para Llevar",
     icon: "🛍️",
@@ -156,13 +179,13 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
   };
 
-  // Stepper de estados
-  const pasosEstado = [
+  // Stepper dinámico según tipo de entrega
+  const pasosEstado = useMemo(() => [
     { key: "pendiente", label: "Por Confirmar", icon: "🟡" },
     { key: "preparando", label: "En Cocina", icon: "🍳" },
-    { key: "lista", label: "Listo para Despacho", icon: "🔔" },
-    { key: "completada", label: "Entregado", icon: "✅" },
-  ];
+    { key: "lista", label: esDelivery ? "En Camino" : "Listo p/ Retirar", icon: esDelivery ? "🛵" : "🛍️" },
+    { key: "completada", label: esDelivery ? "Entregado" : "Retirado", icon: "✅" },
+  ], [esDelivery]);
 
   const pasoIndexActual = (() => {
     switch (venta.estado) {
@@ -177,13 +200,13 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
   return (
     <div className="recibo-page-wrapper">
       {/* Barra de Navegación Simple para Clientes */}
-      <header className="recibo-top-banner">
+      <header className="recibo-top-banner no-print">
         <Link href="/" className="recibo-brand-link">
           <Image
             src="/images/logo-badge.png"
             alt="La Parada del Sabor"
-            width={34}
-            height={34}
+            width={32}
+            height={32}
             className="recibo-logo-img"
           />
           <span className="recibo-brand-title">
@@ -191,9 +214,14 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
           </span>
         </Link>
 
-        <div className="recibo-actions-top no-print">
-          <Link href="/pedir" className="recibo-btn-pill" style={{ textDecoration: "none" }}>
-            🛍️ Nuevo Pedido
+        <div className="recibo-actions-top">
+          <ThemeToggle />
+          <Link
+            href="/pedir"
+            className="recibo-btn-pill"
+            style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 4 }}
+          >
+            🛍️ <span>Nuevo Pedido</span>
           </Link>
           <button
             type="button"
@@ -201,7 +229,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             className="recibo-btn-pill"
             title="Actualizar estado del pedido"
           >
-            🔄 Actualizar
+            🔄 <span>Actualizar</span>
           </button>
           <button
             type="button"
@@ -209,7 +237,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             className="recibo-btn-pill"
             title="Imprimir o Guardar en PDF"
           >
-            🖨️ Imprimir
+            🖨️ <span>PDF</span>
           </button>
         </div>
       </header>
@@ -553,7 +581,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
           <div className="recibo-pm-card no-print" style={{ borderLeftColor: "#F3BA2F" }}>
             <div className="recibo-pm-title">
               <span>🟡 Binance Pay (USDT)</span>
-              <span className="badge-popular" style={{ background: "#F3BA2F", color: "#000" }}>Binance Pay</span>
+              <span className="badge-popular" style={{ background: "#F3BA2F", color: "#1e293b", fontWeight: 800 }}>Binance Pay</span>
             </div>
 
             <button
@@ -566,7 +594,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
                 }
               }}
               className="pedir-btn-copy-all"
-              style={{ background: "#F3BA2F", color: "#000", marginBottom: 12 }}
+              style={{ background: "#F3BA2F", color: "#1e293b", fontWeight: 800, marginBottom: 12 }}
             >
               <span>{copiadoLabel === "binance_id" ? "✅ ¡Binance ID Copiado!" : "📋 Copiar Binance Pay ID (371902899)"}</span>
             </button>
@@ -574,7 +602,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             <div className="recibo-pm-details">
               <div><span>Binance Pay ID:</span> <strong>371902899</strong></div>
               <div><span>Correo:</span> <strong style={{ fontSize: 11 }}>yecksongonza2002@gmail.com</strong></div>
-              <div><span>Monto:</span> <strong style={{ color: "#F3BA2F" }}>${Number(venta.total_usd).toFixed(2)} USDT</strong></div>
+              <div><span>Monto:</span> <strong style={{ color: "#d97706" }}>${Number(venta.total_usd).toFixed(2)} USDT</strong></div>
             </div>
             <a
               href={`https://wa.me/584122595386?text=${encodeURIComponent(
@@ -583,7 +611,6 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               target="_blank"
               rel="noopener noreferrer"
               className="btn-pm-whatsapp"
-              style={{ background: "#F3BA2F", color: "#000" }}
             >
               <span>📲 Enviar Comprobante por WhatsApp</span>
             </a>
@@ -631,6 +658,72 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
           </div>
         )}
 
+        {/* Callout Indispensable: Enviar Comprobante a Cocina */}
+        <div
+          className="no-print"
+          style={{
+            background: "linear-gradient(135deg, #128C7E, #075E54)",
+            borderRadius: 16,
+            padding: "18px",
+            margin: "18px 0 12px",
+            color: "#ffffff",
+            boxShadow: "0 8px 24px rgba(18, 140, 126, 0.35)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              background: "rgba(255, 255, 255, 0.2)",
+              borderRadius: 9999,
+              padding: "4px 12px",
+              width: "fit-content",
+              margin: "0 auto",
+              fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: 0.5,
+            }}
+          >
+            ⚡ PASO INDISPENSABLE
+          </div>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: "#ffffff" }}>
+            📲 Envía tu comprobante a nuestro WhatsApp
+          </h3>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.95, lineHeight: 1.4 }}>
+            Para que cocina confirme tu pago y comience a preparar tus arepas calientitas sin demora, envíanos el comprobante por WhatsApp:
+          </p>
+          <a
+            href={`https://wa.me/584122595386?text=${encodeURIComponent(
+              `¡Hola La Parada del Sabor! 👋 Adjunto mi comprobante para la comanda #${venta.numero_comanda.toString().padStart(4, "0")}.\n\n🧾 Factura digital & estado en vivo:\n${reciboUrl}`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: "#25D366",
+              color: "#ffffff",
+              padding: "13px 18px",
+              borderRadius: 12,
+              fontWeight: 900,
+              fontSize: 14,
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+              marginTop: 4,
+            }}
+          >
+            <span>💬 Enviar Comprobante al WhatsApp (+58 412-2595386)</span>
+          </a>
+        </div>
+
         {/* Botones de Acción al Pie (No se imprimen) */}
         <div className="recibo-share-actions no-print">
           <button
@@ -638,7 +731,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             onClick={handleCompartirWhatsApp}
             className="recibo-btn-whatsapp"
           >
-            <span>📲 Compartir Factura</span>
+            <span>📤 Compartir Factura</span>
           </button>
 
           <button

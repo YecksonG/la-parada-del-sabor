@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import ThemeToggle from "@/components/theme-toggle";
 import { Categoria, Producto, ExtraModificador } from "@/types/database";
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
 
@@ -352,6 +353,7 @@ export default function MenuClienteView({
           </Link>
 
           <div className="pedir-header-actions">
+            <ThemeToggle />
             {tasaBcv > 0 && (
               <div className="pedir-bcv-pill">
                 <span className="pedir-bcv-dot"></span>
