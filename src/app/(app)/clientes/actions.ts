@@ -40,3 +40,42 @@ export async function guardarCliente(payload: GuardarClientePayload) {
   revalidatePath("/clientes");
   return { ok: true };
 }
+
+export async function eliminarCliente(id: string) {
+  if (!id || typeof id !== "string") {
+    return { ok: false, error: "ID de cliente no proporcionado o inválido." };
+  }
+
+  // Validación de formato UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(id)) {
+    return { ok: false, error: "Identificador de cliente no válido." };
+  }
+
+  const supabase = await createClient();
+
+  // 1. Desvincular ventas históricas de forma segura con verificación de error
+  const { error: errorDesvincular } = await supabase
+    .from("ventas")
+    .update({ cliente_id: null })
+    .eq("cliente_id", id);
+
+  if (errorDesvincular) {
+    return { ok: false, error: `Error al desvincular comandas del cliente: ${errorDesvincular.message}` };
+  }
+
+  // 2. Eliminar registro del cliente
+  const { error: errorDelete } = await supabase
+    .from("clientes")
+    .delete()
+    .eq("id", id);
+
+  if (errorDelete) {
+    return { ok: false, error: `Error al eliminar el cliente: ${errorDelete.message}` };
+  }
+
+  revalidatePath("/clientes");
+  revalidatePath("/");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}

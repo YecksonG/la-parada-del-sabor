@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Cliente } from "@/types/database";
-import { guardarCliente } from "./actions";
+import { guardarCliente, eliminarCliente } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 
 interface ClientesClientProps {
@@ -10,11 +10,22 @@ interface ClientesClientProps {
 }
 
 export default function ClientesClient({ clientes }: ClientesClientProps) {
+  const [listaClientes, setListaClientes] = useState<Cliente[]>(clientes);
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [busqueda, setBusqueda] = useState("");
   const [modalAbierto, setModalAbierto] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+
+  // Estado para modal de confirmación de eliminación
+  const [clienteAEliminar, setClienteAEliminar] = useState<Cliente | null>(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
+
+  // Sincronizar clientes cuando cambian las props
+  useEffect(() => {
+    setListaClientes(clientes);
+  }, [clientes]);
 
   // Cargar preferencia guardada al montar
   useEffect(() => {
@@ -67,14 +78,40 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
     setModalAbierto(true);
   };
 
+  const pedirConfirmacionEliminar = (c: Cliente) => {
+    sounds.playPop();
+    setErrorEliminar(null);
+    setClienteAEliminar(c);
+  };
+
+  const ejecutarEliminar = async () => {
+    if (!clienteAEliminar || eliminando) return;
+
+    setEliminando(true);
+    setErrorEliminar(null);
+    const targetId = clienteAEliminar.id;
+    const res = await eliminarCliente(targetId);
+    setEliminando(false);
+
+    if (res.ok) {
+      sounds.playDelete();
+      setListaClientes((prev) => prev.filter((c) => c.id !== targetId));
+      setClienteAEliminar(null);
+      setModalAbierto(false);
+      setModalHistorial(false);
+    } else {
+      setErrorEliminar(res.error || "No se pudo eliminar el cliente.");
+    }
+  };
+
   const clientesFiltrados = useMemo(() => {
-    return clientes.filter(
+    return listaClientes.filter(
       (c) =>
         c.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         c.telefono?.includes(busqueda) ||
         c.direccion_delivery?.toLowerCase().includes(busqueda.toLowerCase())
     );
-  }, [clientes, busqueda]);
+  }, [listaClientes, busqueda]);
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,6 +237,15 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
                 >
                   ✏️ Editar
                 </button>
+                <button
+                  type="button"
+                  onClick={() => pedirConfirmacionEliminar(c)}
+                  className="btn-insumo-adjust"
+                  style={{ color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.3)" }}
+                  title="Eliminar cliente"
+                >
+                  🗑️
+                </button>
               </div>
             </div>
           ))}
@@ -276,6 +322,15 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
                       >
                         ✏️ Editar
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => pedirConfirmacionEliminar(c)}
+                        className="btn-insumo-adjust"
+                        style={{ padding: "5px 10px", fontSize: 12, color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.3)" }}
+                        title="Eliminar cliente"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -345,21 +400,39 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
                 />
               </div>
 
-              <div className="modal-recipe-actions">
-                <button
-                  type="button"
-                  onClick={() => setModalAbierto(false)}
-                  className="btn-cancel"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="btn-submit-recipe"
-                >
-                  {guardando ? "Guardando..." : "💾 Guardar Cliente"}
-                </button>
+              <div className="modal-recipe-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                {clienteSeleccionado ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalAbierto(false);
+                      pedirConfirmacionEliminar(clienteSeleccionado);
+                    }}
+                    className="btn-cancel"
+                    style={{ color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.4)" }}
+                  >
+                    🗑️ Eliminar
+                  </button>
+                ) : (
+                  <div></div>
+                )}
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalAbierto(false)}
+                    className="btn-cancel"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={guardando}
+                    className="btn-submit-recipe"
+                  >
+                    {guardando ? "Guardando..." : "💾 Guardar Cliente"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -447,23 +520,90 @@ export default function ClientesClient({ clientes }: ClientesClientProps) {
               })()}
             </div>
 
-            <div className="modal-recipe-actions">
+            <div className="modal-recipe-actions" style={{ display: "flex", justifyContent: "space-between" }}>
               <button
                 type="button"
                 onClick={() => {
                   setModalHistorial(false);
-                  abrirEditar(clienteHistorial);
+                  pedirConfirmacionEliminar(clienteHistorial);
                 }}
-                className="btn-insumo-adjust"
+                className="btn-cancel"
+                style={{ color: "#ef4444", borderColor: "rgba(239, 68, 68, 0.4)" }}
               >
-                ✏️ Editar Datos
+                🗑️ Eliminar
+              </button>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalHistorial(false);
+                    abrirEditar(clienteHistorial);
+                  }}
+                  className="btn-insumo-adjust"
+                >
+                  ✏️ Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalHistorial(false)}
+                  className="btn-cancel"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      {clienteAEliminar && (
+        <div className="modal-overlay" onClick={() => setClienteAEliminar(null)}>
+          <div className="modal-recipe-card" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-recipe-header">
+              <h2 style={{ color: "#ef4444" }}>⚠️ Eliminar Cliente</h2>
+              <button
+                type="button"
+                onClick={() => setClienteAEliminar(null)}
+                className="btn-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 0" }}>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--text)" }}>
+                ¿Estás seguro de que deseas eliminar permanentemente a <strong>{clienteAEliminar.nombre}</strong> del directorio?
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--text-muted)" }}>
+                Esta acción no se puede deshacer. Sus ventas históricas no se borrarán pero quedarán desvinculadas.
+              </p>
+
+              {errorEliminar && (
+                <div style={{ marginTop: 12, padding: "8px 12px", background: "rgba(239, 68, 68, 0.12)", color: "#ef4444", borderRadius: 8, fontSize: 12, fontWeight: 700 }}>
+                  ⚠️ {errorEliminar}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-recipe-actions">
+              <button
+                type="button"
+                onClick={() => setClienteAEliminar(null)}
+                className="btn-cancel"
+                disabled={eliminando}
+              >
+                Cancelar
               </button>
               <button
                 type="button"
-                onClick={() => setModalHistorial(false)}
-                className="btn-cancel"
+                onClick={ejecutarEliminar}
+                disabled={eliminando}
+                className="btn-submit-recipe"
+                style={{ background: "#ef4444", color: "#ffffff" }}
               >
-                Cerrar
+                {eliminando ? "Eliminando..." : "🗑️ Sí, Eliminar Cliente"}
               </button>
             </div>
           </div>
