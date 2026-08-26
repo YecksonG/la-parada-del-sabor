@@ -35,25 +35,19 @@ export default function CajaClient({
   // Función para refrescar datos desde Supabase
   const refrescarVentas = useCallback(async () => {
     const supabase = createClient();
-    let query = supabase
+    const { data } = await supabase
       .from("ventas")
       .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
       .neq("estado", "cancelada")
-      .order("creado_el", { ascending: false });
+      .order("creado_el", { ascending: false })
+      .limit(100);
 
-    if (sesionActiva) {
-      query = query.gte("creado_el", sesionActiva.fecha_apertura);
-    } else {
-      query = query.limit(50);
-    }
-
-    const { data } = await query;
     if (data) {
       setVentas(data as Venta[]);
     }
-  }, [sesionActiva]);
+  }, []);
 
-  // Suscripción Realtime a ventas y sesiones de caja
+  // Suscripción Realtime y Polling de Respaldo a ventas y sesiones de caja
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
@@ -74,8 +68,14 @@ export default function CajaClient({
       )
       .subscribe();
 
+    // Polling de respaldo cada 3.5 segundos para garantizar actualización en caliente
+    const interval = setInterval(() => {
+      refrescarVentas();
+    }, 3500);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [refrescarVentas, router]);
 
@@ -563,14 +563,38 @@ export default function CajaClient({
             <form onSubmit={handleCerrarCaja} className="recipe-form">
               <div className="calc-breakdown-box">
                 <div className="breakdown-row">
-                  <span>Efectivo Teórico en Gaveta (USD):</span>
-                  <strong>${resumenTurno.teoricoEfectivoUsd.toFixed(2)} USD</strong>
+                  <span>Fondo Inicial de Apertura:</span>
+                  <strong>${Number(sesionActiva?.monto_inicial_usd || 0).toFixed(2)} USD</strong>
                 </div>
                 <div className="breakdown-row">
-                  <span>Pago Móvil Recaudado:</span>
-                  <strong>{resumenTurno.pagoMovilBs.toLocaleString()} Bs</strong>
+                  <span>Ventas en Efectivo USD:</span>
+                  <strong>+${resumenTurno.efectivoUsd.toFixed(2)} USD</strong>
+                </div>
+                <div className="breakdown-row" style={{ borderTop: "1px dashed var(--border)", paddingTop: 6, fontWeight: 800 }}>
+                  <span>Efectivo Teórico en Gaveta:</span>
+                  <strong className="text-primary">${resumenTurno.teoricoEfectivoUsd.toFixed(2)} USD</strong>
                 </div>
                 <div className="breakdown-row">
+                  <span>Pago Móvil:</span>
+                  <strong className="text-green">{resumenTurno.pagoMovilBs.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs</strong>
+                </div>
+                <div className="breakdown-row">
+                  <span>Transferencia BFC:</span>
+                  <strong className="text-green">{resumenTurno.transferenciaBs.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs</strong>
+                </div>
+                <div className="breakdown-row">
+                  <span>Binance Pay:</span>
+                  <strong style={{ color: "#d97706" }}>${resumenTurno.binanceUsd.toFixed(2)} USDT</strong>
+                </div>
+                <div className="breakdown-row">
+                  <span>Zelle:</span>
+                  <strong style={{ color: "#7414CA" }}>${resumenTurno.zelleUsd.toFixed(2)} USD</strong>
+                </div>
+                <div className="breakdown-row">
+                  <span>Punto de Venta:</span>
+                  <strong>{resumenTurno.puntoBs.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs</strong>
+                </div>
+                <div className="breakdown-row" style={{ borderTop: "2px solid var(--border)", paddingTop: 8, fontSize: 15, fontWeight: 900 }}>
                   <span>Gran Total del Turno:</span>
                   <strong className="text-primary">${resumenTurno.totalUsd.toFixed(2)} USD</strong>
                 </div>
