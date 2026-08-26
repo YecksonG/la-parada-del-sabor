@@ -48,14 +48,14 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
 
   const supabase = await createClient();
 
-  // G1 Fix: Inserción atómica autoritativa mediante RPC con SECURITY DEFINER
+  // Inserción atómica autoritativa mediante RPC con SECURITY DEFINER
   const { data: rpcRes, error: rpcError } = await supabase.rpc("fn_crear_pedido_web", {
     p_payload: payload,
   });
 
   if (rpcError) {
     console.error("Error RPC creando pedido web:", rpcError);
-    return { ok: false, error: "No se pudo registrar el pedido. Intenta nuevamente." };
+    return { ok: false, error: "No se pudo registrar el pedido. Por favor verifica los datos e intenta nuevamente." };
   }
 
   if (!rpcRes?.ok) {
