@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import ThemeToggle from "@/components/theme-toggle";
+import { createClient } from "@/lib/supabase/client";
+import { obtenerEstadoRecibo } from "./actions";
+import { sounds } from "@/lib/sound-effects";
 
 type ReciboItemExtra = {
   id: string;
@@ -110,9 +113,143 @@ const ESTADOS_CONFIG: Record<
   },
 };
 
-export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
+export default function ReciboClienteView({ venta: ventaInicial }: { venta: ReciboVenta }) {
+  const [ventaActual, setVentaActual] = useState<ReciboVenta>(ventaInicial);
+  const [actualizadoEnVivo, setActualizadoEnVivo] = useState(false);
+  const [refrescandoManual, setRefrescandoManual] = useState(false);
   const [copiadoLabel, setCopiadoLabel] = useState<string | null>(null);
-  const [reciboUrl, setReciboUrl] = useState<string>(`https://la-parada-del-sabor.vercel.app/recibo/${venta.id}`);
+  const [reciboUrl, setReciboUrl] = useState<string>(`https://la-parada-del-sabor.vercel.app/recibo/${ventaInicial.id}`);
+
+  const ultimoEstadoRef = useRef(ventaInicial.estado);
+  const lastSoundTimeRef = useRef<number>(0);
+  const badgeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mountedRef = useRef(true);
+
+  // Sincronizar si cambia la prop inicial
+  useEffect(() => {
+    setVentaActual(ventaInicial);
+    ultimoEstadoRef.current = ventaInicial.estado;
+  }, [ventaInicial]);
+
+  // Manejo de montaje / desmontaje
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (badgeTimeoutRef.current) {
+        clearTimeout(badgeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // SUSCRIPCIÓN EN TIEMPO REAL ROBUSTA (Supabase Realtime + Polling Inteligente)
+  useEffect(() => {
+    const notificarCambioEstado = (nuevoEstado: string) => {
+      if (!mountedRef.current) return;
+      if (nuevoEstado && nuevoEstado !== ultimoEstadoRef.current) {
+        ultimoEstadoRef.current = nuevoEstado;
+
+        // Throttling de sonido y vibración (mínimo 2 segundos entre alertas)
+        const now = Date.now();
+        if (now - lastSoundTimeRef.current > 2000) {
+          lastSoundTimeRef.current = now;
+          sounds.playSuccess();
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            try {
+              navigator.vibrate([200, 100, 200]);
+            } catch {}
+          }
+        }
+
+        if (badgeTimeoutRef.current) {
+          clearTimeout(badgeTimeoutRef.current);
+        }
+        setActualizadoEnVivo(true);
+        badgeTimeoutRef.current = setTimeout(() => {
+          if (mountedRef.current) {
+            setActualizadoEnVivo(false);
+          }
+        }, 5000);
+      }
+    };
+
+    // 1. Canal Supabase Realtime (WebSocket Instantáneo)
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`recibo-live-${ventaInicial.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "ventas",
+          filter: `id=eq.${ventaInicial.id}`,
+        },
+        async (payload: any) => {
+          if (!mountedRef.current) return;
+          if (payload.new?.estado) {
+            notificarCambioEstado(payload.new.estado);
+            setVentaActual((prev) => ({
+              ...prev,
+              estado: payload.new.estado,
+              total_usd: Number(payload.new.total_usd ?? prev.total_usd),
+              total_bs: Number(payload.new.total_bs ?? prev.total_bs),
+              metodo_pago: payload.new.metodo_pago ?? prev.metodo_pago,
+              tipo_entrega: payload.new.tipo_entrega ?? prev.tipo_entrega,
+            }));
+          }
+          // Sincronizar todos los datos completos de forma segura
+          const res = await obtenerEstadoRecibo(ventaInicial.id);
+          if (mountedRef.current && res.ok && res.venta) {
+            setVentaActual(res.venta);
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Polling activo de respaldo cada 3.5 segundos (se pausa si la orden ya finalizó)
+    const interval = setInterval(async () => {
+      if (!mountedRef.current) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      if (ultimoEstadoRef.current === "completada" || ultimoEstadoRef.current === "cancelada") {
+        return; // Detener polling innecesario en estados terminales
+      }
+
+      const res = await obtenerEstadoRecibo(ventaInicial.id);
+      if (mountedRef.current && res.ok && res.venta) {
+        if (res.venta.estado !== ultimoEstadoRef.current) {
+          notificarCambioEstado(res.venta.estado);
+        }
+        setVentaActual(res.venta);
+      }
+    }, 3500);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+      if (badgeTimeoutRef.current) {
+        clearTimeout(badgeTimeoutRef.current);
+      }
+    };
+  }, [ventaInicial.id]);
+
+  const refrescarManual = async () => {
+    sounds.playPop();
+    setRefrescandoManual(true);
+    const res = await obtenerEstadoRecibo(ventaInicial.id);
+    if (mountedRef.current && res.ok && res.venta) {
+      if (res.venta.estado !== ultimoEstadoRef.current) {
+        ultimoEstadoRef.current = res.venta.estado;
+        sounds.playSuccess();
+      }
+      setVentaActual(res.venta);
+    }
+    setTimeout(() => {
+      if (mountedRef.current) setRefrescandoManual(false);
+    }, 600);
+  };
+
+  const venta = ventaActual;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -202,7 +339,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
     { key: "completada", label: esDelivery ? "Entregado" : "Retirado", icon: "✅" },
   ], [esDelivery]);
 
-  const pasoIndexActual = (() => {
+  const pasoIndexActual = useMemo(() => {
     switch (venta.estado) {
       case "pendiente": return 0;
       case "preparando": return 1;
@@ -210,7 +347,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
       case "completada": return 3;
       default: return 0;
     }
-  })();
+  }, [venta.estado]);
 
   return (
     <div className="recibo-page-wrapper">
@@ -240,11 +377,12 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
           </Link>
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={refrescarManual}
+            disabled={refrescandoManual}
             className="recibo-btn-pill"
             title="Actualizar estado del pedido"
           >
-            🔄 <span>Actualizar</span>
+            🔄 <span>{refrescandoManual ? "Actualizando..." : "Actualizar"}</span>
           </button>
           <button
             type="button"
@@ -438,8 +576,43 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
             style={{
               backgroundColor: estadoInfo.bg,
               borderColor: estadoInfo.color,
+              position: "relative",
+              overflow: "hidden",
             }}
           >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    backgroundColor: "#22c55e",
+                    boxShadow: "0 0 8px #22c55e",
+                    animation: "pulse 2s infinite",
+                  }}
+                />
+                <span>En Vivo • Auto-actualizable</span>
+              </div>
+
+              {actualizadoEnVivo && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#ffffff",
+                    background: "#22c55e",
+                    padding: "2px 6px",
+                    borderRadius: 6,
+                    animation: "bounce 0.4s ease",
+                  }}
+                >
+                  🔔 ¡Estado Actualizado!
+                </span>
+              )}
+            </div>
+
             <div className="recibo-status-head">
               <span className="recibo-status-icon">{estadoInfo.icon}</span>
               <div>
