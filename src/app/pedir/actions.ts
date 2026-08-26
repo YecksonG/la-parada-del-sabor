@@ -37,6 +37,7 @@ export type PayloadPedidoWeb = {
   nombre_cliente: string;
   telefono: string;
   tipo_entrega: "pickup" | "delivery" | "puerta_cerrada";
+  delivery_zona_id?: string;
   direccion_delivery?: string;
   metodo_pago: string;
   notas_pedido?: string;

@@ -43,6 +43,9 @@ export type ReciboVenta = {
   tasa_bcv: number;
   metodo_pago: string;
   tipo_entrega: string;
+  delivery_zona_nombre?: string | null;
+  delivery_monto_usd?: number | null;
+  delivery_monto_bs?: number | null;
   estado: string;
   notas_comanda?: string | null;
   cliente?: {
@@ -708,6 +711,15 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               <span>Tasa de Cambio Aplicada:</span>
               <strong>{Number(venta.tasa_bcv).toFixed(2)} Bs / USD</strong>
             </div>
+
+            {Number(venta.delivery_monto_usd || 0) > 0 && (
+              <div className="recibo-total-line" style={{ color: "var(--primary)" }}>
+                <span>🛵 Delivery ({venta.delivery_zona_nombre || "Sector"}):</span>
+                <strong>
+                  +${Number(venta.delivery_monto_usd).toFixed(2)} USD • Bs. {Number(venta.delivery_monto_bs || (Number(venta.delivery_monto_usd) * Number(venta.tasa_bcv))).toFixed(2)}
+                </strong>
+              </div>
+            )}
 
             <div className="recibo-divider-dashed"></div>
 

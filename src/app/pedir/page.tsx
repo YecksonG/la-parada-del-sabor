@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default async function PedirPage() {
   const supabase = await createClient();
 
-  const [catRes, prodRes, extRes, tasaRes] = await Promise.all([
+  const [catRes, prodRes, extRes, tasaRes, zonasRes] = await Promise.all([
     supabase.from("categorias").select("*").order("orden", { ascending: true }),
     supabase
       .from("productos")
@@ -28,18 +28,32 @@ export default async function PedirPage() {
       .order("fecha", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("zonas_delivery")
+      .select("*")
+      .eq("activo", true)
+      .order("orden", { ascending: true }),
   ]);
 
   const categorias = catRes.data || [];
   const productos = prodRes.data || [];
   const extras = extRes.data || [];
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 0;
+  
+  // Zonas de fallback por si la tabla aún no se ha creado en DB
+  const zonasDelivery = zonasRes.data && zonasRes.data.length > 0 ? zonasRes.data : [
+    { id: "zona-1", nombre: "Zona 1 - Casco Central / Centro", precio_usd: 1.50, tiempo_estimado_min: 20, orden: 1, activo: true },
+    { id: "zona-2", nombre: "Zona 2 - San Antonio / Las Mercedes", precio_usd: 2.00, tiempo_estimado_min: 25, orden: 2, activo: true },
+    { id: "zona-3", nombre: "Zona 3 - Zona Norte / El Bosque", precio_usd: 2.50, tiempo_estimado_min: 35, orden: 3, activo: true },
+    { id: "zona-4", nombre: "Zona 4 - Periferia / Foráneo (Hasta 10km)", precio_usd: 3.50, tiempo_estimado_min: 45, orden: 4, activo: true },
+  ];
 
   return (
     <MenuClienteView
       categorias={categorias}
       productos={productos}
       extras={extras}
+      zonasDelivery={zonasDelivery}
       tasaBcv={tasaBcv}
     />
   );

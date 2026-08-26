@@ -5459,6 +5459,114 @@ a {
   border-color: rgba(245, 158, 11, 0.5);
 }
 
+/* Grilla de Zonas de Delivery */
+.pedir-zonas-delivery-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .pedir-zonas-delivery-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pedir-zona-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.pedir-zona-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.pedir-zona-card:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.pedir-zona-card.active {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(220, 38, 38, 0.05) 100%);
+  box-shadow: 0 3px 12px rgba(245, 158, 11, 0.2);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .pedir-zona-card.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(220, 38, 38, 0.1) 100%);
+  border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.28);
+}
+
+.pedir-zona-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.pedir-zona-card-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.pedir-zona-card.active .pedir-zona-card-name {
+  color: var(--primary);
+}
+
+.pedir-zona-card-price {
+  font-size: 11.5px;
+  font-weight: 900;
+  color: var(--primary);
+  background: rgba(245, 158, 11, 0.15);
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.pedir-zona-card-desc {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.pedir-zona-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 10px;
+}
+
+.pedir-zona-card-time {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.pedir-zona-card-status {
+  font-weight: 800;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.pedir-zona-card.active .pedir-zona-card-status {
+  color: var(--primary);
+  font-weight: 900;
+}
+
 .pedir-btn-gps-hero {
   width: 100%;
   display: flex;

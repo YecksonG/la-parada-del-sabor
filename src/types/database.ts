@@ -113,6 +113,17 @@ export type MetodoPago = "efectivo_usd" | "efectivo_bs" | "pago_movil" | "pago_m
 export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
 export type OrigenPedido = "instagram" | "whatsapp" | "tiktok" | "facebook" | "qr" | "directo" | "web" | "pos" | string;
 
+export type ZonaDelivery = {
+  id: string;
+  nombre: string;
+  descripcion?: string | null;
+  precio_usd: number;
+  tiempo_estimado_min?: number | null;
+  orden: number;
+  activo: boolean;
+  creado_el: string;
+};
+
 export type Venta = {
   id: string;
   numero_comanda: number;
@@ -123,6 +134,10 @@ export type Venta = {
   tasa_bcv: number;
   metodo_pago: MetodoPago;
   tipo_entrega: TipoEntrega;
+  delivery_zona_id?: string | null;
+  delivery_zona_nombre?: string | null;
+  delivery_monto_usd?: number | null;
+  delivery_monto_bs?: number | null;
   direccion_delivery?: string | null;
   estado: EstadoVenta;
   notas_comanda: string | null;

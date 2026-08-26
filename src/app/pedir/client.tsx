@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
-import { Categoria, Producto, ExtraModificador } from "@/types/database";
+import { Categoria, Producto, ExtraModificador, ZonaDelivery } from "@/types/database";
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
 
 interface MenuClienteViewProps {
   categorias: Categoria[];
   productos: Producto[];
   extras: ExtraModificador[];
+  zonasDelivery?: ZonaDelivery[];
   tasaBcv: number;
 }
 
@@ -27,6 +28,7 @@ export default function MenuClienteView({
   categorias,
   productos,
   extras,
+  zonasDelivery = [],
   tasaBcv,
 }: MenuClienteViewProps) {
   const router = useRouter();
@@ -51,6 +53,7 @@ export default function MenuClienteView({
   const [nombreCliente, setNombreCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
   const [tipoEntrega, setTipoEntrega] = useState<"pickup" | "delivery">("pickup");
+  const [zonaDeliveryId, setZonaDeliveryId] = useState<string>(zonasDelivery[0]?.id || "");
   const [direccionDelivery, setDireccionDelivery] = useState("");
   const [metodoPago, setMetodoPago] = useState("pago_movil");
   const [notasGenerales, setNotasGenerales] = useState("");
@@ -243,7 +246,7 @@ export default function MenuClienteView({
     });
   }, [productos, catSeleccionada, busqueda]);
 
-  const totalCarritoUsd = useMemo(() => {
+  const subtotalComidaUsd = useMemo(() => {
     return carrito.reduce((acc, item) => {
       const base = Number(item.producto.precio_usd || 0) * item.cantidad;
       const extrasTotal = item.extras.reduce(
@@ -254,6 +257,13 @@ export default function MenuClienteView({
     }, 0);
   }, [carrito]);
 
+  const zonaDeliverySeleccionada = useMemo(() => {
+    if (!zonasDelivery || zonasDelivery.length === 0) return null;
+    return zonasDelivery.find((z) => z.id === zonaDeliveryId) || zonasDelivery[0];
+  }, [zonasDelivery, zonaDeliveryId]);
+
+  const costoDeliveryUsd = tipoEntrega === "delivery" ? Number(zonaDeliverySeleccionada?.precio_usd || 0) : 0;
+  const totalCarritoUsd = subtotalComidaUsd + costoDeliveryUsd;
   const totalCarritoBs = Number((totalCarritoUsd * tasaBcv).toFixed(2));
   const totalItemsCount = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
@@ -352,6 +362,7 @@ export default function MenuClienteView({
       nombre_cliente: nombreCliente,
       telefono: telefonoCliente,
       tipo_entrega: tipoEntrega,
+      delivery_zona_id: tipoEntrega === "delivery" ? (zonaDeliverySeleccionada?.id || zonaDeliveryId) : undefined,
       direccion_delivery: direccionDelivery,
       metodo_pago: metodoPago,
       notas_pedido: notasGenerales,
@@ -631,7 +642,7 @@ export default function MenuClienteView({
               </div>
 
               {/* Formulario de Datos del Cliente */}
-              <form onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
+              <form id="pedir-checkout-form-id" onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
                 <div className="pedir-form-group">
                   <label htmlFor="nombreClienteInput">Tu Nombre y Apellido *</label>
                   <input
@@ -706,6 +717,52 @@ export default function MenuClienteView({
 
                 {tipoEntrega === "delivery" && (
                   <div className="pedir-form-group pedir-delivery-container-highlight">
+                    {/* Selector de Zona de Delivery Tarifada */}
+                    {zonasDelivery.length > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        <label className="pedir-form-label-destacado" id="labelZonaDelivery" style={{ marginBottom: 8 }}>
+                          📍 Selecciona tu Zona / Sector *
+                        </label>
+                        <div
+                          className="pedir-zonas-delivery-grid"
+                          role="radiogroup"
+                          aria-labelledby="labelZonaDelivery"
+                        >
+                          {zonasDelivery.map((z) => {
+                            const isSel = (zonaDeliverySeleccionada?.id === z.id);
+                            return (
+                              <button
+                                key={z.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={isSel}
+                                className={`pedir-zona-card ${isSel ? "active" : ""}`}
+                                onClick={() => setZonaDeliveryId(z.id)}
+                              >
+                                <div className="pedir-zona-card-header">
+                                  <span className="pedir-zona-card-name">{z.nombre}</span>
+                                  <span className="pedir-zona-card-price">
+                                    +${Number(z.precio_usd).toFixed(2)} USD
+                                  </span>
+                                </div>
+                                {z.descripcion && (
+                                  <span className="pedir-zona-card-desc">{z.descripcion}</span>
+                                )}
+                                <div className="pedir-zona-card-footer">
+                                  {z.tiempo_estimado_min ? (
+                                    <span className="pedir-zona-card-time">⏱️ ~{z.tiempo_estimado_min} min</span>
+                                  ) : <span />}
+                                  <span className="pedir-zona-card-status">
+                                    {isSel ? "✓ Seleccionada" : "Seleccionar"}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Botón GPS Super Destacado */}
                     <button
                       type="button"
@@ -1123,6 +1180,18 @@ export default function MenuClienteView({
             {/* Pie Fijo con Resumen y Botón de Enviar Pedido */}
             <div className="pedir-drawer-sticky-footer">
               <div className="pedir-checkout-totals">
+                {tipoEntrega === "delivery" && costoDeliveryUsd > 0 && (
+                  <>
+                    <div className="pedir-checkout-line">
+                      <span>Subtotal Comida:</span>
+                      <span>${subtotalComidaUsd.toFixed(2)} USD</span>
+                    </div>
+                    <div className="pedir-checkout-line" style={{ color: "var(--primary)" }}>
+                      <span>🛵 Tarifa Delivery:</span>
+                      <strong>+${costoDeliveryUsd.toFixed(2)} USD</strong>
+                    </div>
+                  </>
+                )}
                 <div className="pedir-checkout-line">
                   <span>Total en Dólares:</span>
                   <strong className="pedir-val-usd">${totalCarritoUsd.toFixed(2)} USD</strong>
