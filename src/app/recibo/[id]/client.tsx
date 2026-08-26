@@ -190,7 +190,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
       `📱 *Experiencia del Menú Web:* ${experienciaWeb}\n` +
       (comentarioFeedback.trim() ? `💬 *Comentario / Sugerencia:* "${comentarioFeedback.trim()}"\n` : "") +
       `🔗 *Recibo Digital:* ${reciboUrl}`;
-    window.open(`https://wa.me/584248408990?text=${encodeURIComponent(texto)}`, "_blank");
+    window.open(`https://wa.me/584122595386?text=${encodeURIComponent(texto)}`, "_blank");
     setEnviadoFeedback(true);
   };
 
