@@ -35,19 +35,28 @@ export default function CajaClient({
   // Función para refrescar datos desde Supabase
   const refrescarVentas = useCallback(async () => {
     const supabase = createClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("ventas")
       .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
-      .neq("estado", "cancelada")
-      .order("fecha", { ascending: false })
-      .limit(100);
+      .in("estado", ["preparando", "lista", "completada"])
+      .order("fecha", { ascending: false });
+
+    if (sesionActiva) {
+      query = query.gte("fecha", sesionActiva.fecha_apertura);
+    } else {
+      const hoyInicio = new Date();
+      hoyInicio.setHours(0, 0, 0, 0);
+      query = query.gte("fecha", hoyInicio.toISOString());
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error cargando ventas en caja:", error);
     } else if (data) {
       setVentas(data as Venta[]);
     }
-  }, []);
+  }, [sesionActiva]);
 
   // Suscripción Realtime y Polling de Respaldo a ventas y sesiones de caja
   useEffect(() => {
