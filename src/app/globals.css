@@ -3804,8 +3804,8 @@ a {
    ========================================================================== */
 .recibo-page-wrapper {
   min-height: 100vh;
-  background: radial-gradient(circle at 50% 0%, #2a1f18 0%, #140f0b 100%);
-  color: #fdfbf7;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3835,7 +3835,7 @@ a {
 .recibo-brand-title {
   font-size: 15px;
   font-weight: 900;
-  color: #ffffff;
+  color: var(--text);
   white-space: nowrap;
 }
 
@@ -3853,9 +3853,9 @@ a {
 .recibo-btn-pill {
   padding: 5px 11px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fdfbf7;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -3863,7 +3863,7 @@ a {
 }
 
 .recibo-btn-pill:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--bg-subtle);
 }
 
 .recibo-container {
@@ -3877,13 +3877,13 @@ a {
 
 .recibo-ticket-card {
   position: relative;
-  background: #fffdf9;
-  color: #241e17;
+  background: var(--bg-card);
+  color: var(--text);
   border-radius: 24px;
   padding: 32px 24px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   overflow: hidden;
-  border: 1px solid #ebdccb;
+  border: 1px solid var(--border);
 }
 
 /* Mancha de Salsa Gourmet */
@@ -3940,14 +3940,14 @@ a {
   font-size: 20px;
   font-weight: 900;
   letter-spacing: -0.5px;
-  color: #1a140f;
+  color: var(--text);
   margin: 0;
 }
 
 .recibo-subtitle {
   font-size: 12px;
   font-weight: 600;
-  color: #786c5e;
+  color: var(--text-muted);
   margin: 2px 0 12px 0;
 }
 
@@ -3955,8 +3955,8 @@ a {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  background: #fbf0e4;
-  border: 1px solid #ebd2b8;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
   padding: 4px 16px;
   border-radius: 12px;
   margin-bottom: 8px;
@@ -3965,20 +3965,20 @@ a {
 .recibo-badge-comanda span {
   font-size: 9px;
   font-weight: 800;
-  color: #a04e06;
+  color: var(--primary-dark);
   letter-spacing: 0.5px;
 }
 
 .recibo-badge-comanda strong {
   font-size: 18px;
   font-weight: 900;
-  color: #c44500;
+  color: var(--primary);
   font-family: monospace;
 }
 
 .recibo-fecha {
   font-size: 11px;
-  color: #8c7e6f;
+  color: var(--text-muted);
   text-transform: capitalize;
   margin: 0;
 }
@@ -4011,7 +4011,7 @@ a {
 
 .recibo-status-desc {
   font-size: 12px;
-  color: #4a3e31;
+  color: var(--text);
   margin: 2px 0 0 0;
   line-height: 1.3;
 }
@@ -4021,8 +4021,8 @@ a {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  background: #f8f4ee;
-  border: 1px solid #e8dfd3;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
   padding: 12px;
   border-radius: 14px;
   margin-bottom: 18px;
@@ -4036,19 +4036,19 @@ a {
 .recibo-info-lbl {
   font-size: 10px;
   font-weight: 800;
-  color: #8c7e6f;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .recibo-info-val {
   font-size: 13px;
   font-weight: 800;
-  color: #1a140f;
+  color: var(--text);
 }
 
 .recibo-info-sub {
   font-size: 11px;
-  color: #635546;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -4060,7 +4060,7 @@ a {
 .recibo-section-title {
   font-size: 11px;
   font-weight: 800;
-  color: #8c7e6f;
+  color: var(--text-muted);
   letter-spacing: 0.5px;
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -4073,7 +4073,7 @@ a {
 }
 
 .recibo-item-row {
-  border-bottom: 1px dashed #e6dbcb;
+  border-bottom: 1px dashed var(--border-subtle);
   padding-bottom: 8px;
 }
 
@@ -4098,8 +4098,8 @@ a {
 .recibo-item-qty {
   font-size: 12px;
   font-weight: 800;
-  background: #faeade;
-  color: #b84300;
+  background: var(--primary-light);
+  color: var(--primary-dark);
   padding: 2px 6px;
   border-radius: 6px;
 }
@@ -4107,7 +4107,7 @@ a {
 .recibo-item-name {
   font-size: 13px;
   font-weight: 700;
-  color: #1a140f;
+  color: var(--text);
 }
 
 .recibo-item-prices {
@@ -4119,12 +4119,12 @@ a {
 .recibo-item-total-usd {
   font-size: 13px;
   font-weight: 800;
-  color: #1a140f;
+  color: var(--text);
 }
 
 .recibo-item-total-bs {
   font-size: 11px;
-  color: #786c5e;
+  color: var(--text-muted);
 }
 
 .recibo-item-extras {
@@ -4137,8 +4137,9 @@ a {
 
 .recibo-extra-pill {
   font-size: 11px;
-  color: #635546;
-  background: #f1e9dd;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
   padding: 2px 6px;
   border-radius: 6px;
   display: inline-flex;
@@ -4147,13 +4148,13 @@ a {
 
 .recibo-item-note {
   font-size: 11px;
-  color: #8c7e6f;
+  color: var(--text-muted);
   margin: 4px 0 0 28px;
   font-style: italic;
 }
 
 .recibo-order-note {
-  background: #fdf5ea;
+  background: var(--bg-subtle);
   border-left: 3px solid var(--primary);
   padding: 8px 12px;
   border-radius: 8px;
@@ -4163,21 +4164,21 @@ a {
 .recibo-order-note-title {
   font-size: 10px;
   font-weight: 800;
-  color: #a04e06;
+  color: var(--primary);
   text-transform: uppercase;
   display: block;
 }
 
 .recibo-order-note p {
   font-size: 12px;
-  color: #4a3e31;
+  color: var(--text);
   margin: 2px 0 0 0;
 }
 
 /* Totals Box */
 .recibo-totals-box {
-  background: #fbf7f0;
-  border: 1px solid #ebdccb;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: 16px;
   padding: 14px;
   display: flex;
@@ -4190,16 +4191,16 @@ a {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: #635546;
+  color: var(--text-muted);
 }
 
 .recibo-total-line strong {
-  color: #1a140f;
+  color: var(--text);
 }
 
 .recibo-divider-dashed {
   height: 1px;
-  border-top: 1px dashed #d9cbba;
+  border-top: 1px dashed var(--border-subtle);
   margin: 6px 0;
 }
 
@@ -4218,13 +4219,13 @@ a {
 .recibo-total-title {
   font-size: 14px;
   font-weight: 900;
-  color: #1a140f;
+  color: var(--text);
   letter-spacing: 0.5px;
 }
 
 .recibo-total-subtitle {
   font-size: 10px;
-  color: #8c7e6f;
+  color: var(--text-muted);
 }
 
 .recibo-total-values {
@@ -4236,14 +4237,14 @@ a {
 .recibo-price-usd {
   font-size: 22px;
   font-weight: 900;
-  color: #b84300;
+  color: var(--primary);
   line-height: 1.1;
 }
 
 .recibo-price-bs {
   font-size: 13px;
   font-weight: 800;
-  color: #635546;
+  color: var(--text-muted);
 }
 
 /* Footer */
@@ -4254,7 +4255,7 @@ a {
 }
 
 .recibo-cut-line {
-  color: #d9cbba;
+  color: var(--border);
   font-size: 10px;
   letter-spacing: 2px;
   margin-bottom: 12px;
@@ -4263,13 +4264,13 @@ a {
 .recibo-footer-message {
   font-size: 13px;
   font-weight: 800;
-  color: #241e17;
+  color: var(--text);
   margin: 0;
 }
 
 .recibo-footer-sub {
   font-size: 11px;
-  color: #8c7e6f;
+  color: var(--text-muted);
   margin: 4px 0 0 0;
 }
 

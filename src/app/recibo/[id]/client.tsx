@@ -76,8 +76,8 @@ const ESTADOS_CONFIG: Record<
   pendiente: {
     label: "Por Confirmar",
     icon: "🟡",
-    bg: "rgba(234, 179, 8, 0.15)",
-    color: "#eab308",
+    bg: "rgba(245, 158, 11, 0.12)",
+    color: "#b45309",
     desc: "Tu pedido fue recibido y está en cola para ser verificado en caja.",
   },
   preparando: {
@@ -244,6 +244,73 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
 
       {/* Contenedor Principal del Ticket */}
       <main className="recibo-container">
+        {/* Callout Indispensable: Enviar Comprobante a Cocina (Solo para métodos digitales con comprobante) */}
+        {["pago_movil", "transferencia", "binance", "zelle"].includes(venta.metodo_pago) && (
+          <div
+            className="no-print"
+            style={{
+              background: "linear-gradient(135deg, #128C7E, #075E54)",
+              borderRadius: 18,
+              padding: "20px 18px",
+              color: "#ffffff",
+              boxShadow: "0 10px 25px rgba(18, 140, 126, 0.35)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                background: "rgba(255, 255, 255, 0.2)",
+                borderRadius: 9999,
+                padding: "4px 14px",
+                width: "fit-content",
+                margin: "0 auto",
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: 0.5,
+              }}
+            >
+              ⚡ PASO INDISPENSABLE
+            </div>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#ffffff" }}>
+              📲 Envía tu comprobante a nuestro WhatsApp
+            </h3>
+            <p style={{ margin: 0, fontSize: 13, opacity: 0.95, lineHeight: 1.4 }}>
+              Para que cocina confirme tu pago y comience a preparar tus arepas calientitas sin demora, envíanos el comprobante por WhatsApp:
+            </p>
+            <a
+              href={`https://wa.me/584122595386?text=${encodeURIComponent(
+                `¡Hola La Parada del Sabor! 👋 Adjunto mi comprobante para la comanda #${venta.numero_comanda.toString().padStart(4, "0")}.\n\n🧾 Factura digital & estado en vivo:\n${reciboUrl}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: "#25D366",
+                color: "#ffffff",
+                padding: "14px 20px",
+                borderRadius: 14,
+                fontWeight: 900,
+                fontSize: 15,
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.25)",
+                marginTop: 4,
+              }}
+            >
+              <span>💬 Enviar Comprobante al WhatsApp (+58 412-2595386)</span>
+            </a>
+          </div>
+        )}
+
         <div className="recibo-ticket-card">
           {/* Mancha de Salsa Gourmet Artística Decorativa (SVG) */}
           <div className="salsa-stain-decor" aria-hidden="true">
@@ -520,16 +587,6 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               <div><span>Teléfono:</span> <strong>0424-4325183</strong></div>
               <div><span>Monto a Transferir:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
             </div>
-            <a
-              href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi Pago Móvil para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)} ($${Number(venta.total_usd).toFixed(2)} USD).\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-pm-whatsapp"
-            >
-              <span>📲 Enviar Comprobante por WhatsApp</span>
-            </a>
           </div>
         )}
 
@@ -563,16 +620,6 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               <div><span>N° Cuenta:</span> <strong style={{ fontSize: 11 }}>01510035451002204840</strong></div>
               <div><span>Monto:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
             </div>
-            <a
-              href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi Transferencia Bancaria para la comanda #${venta.numero_comanda} por Bs. ${Number(venta.total_bs).toFixed(2)}.\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-pm-whatsapp"
-            >
-              <span>📲 Enviar Comprobante por WhatsApp</span>
-            </a>
           </div>
         )}
 
@@ -604,16 +651,6 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               <div><span>Correo:</span> <strong style={{ fontSize: 11 }}>yecksongonza2002@gmail.com</strong></div>
               <div><span>Monto:</span> <strong style={{ color: "#d97706" }}>${Number(venta.total_usd).toFixed(2)} USDT</strong></div>
             </div>
-            <a
-              href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Binance Pay para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USDT.\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-pm-whatsapp"
-            >
-              <span>📲 Enviar Comprobante por WhatsApp</span>
-            </a>
           </div>
         )}
 
@@ -644,85 +681,8 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
               <div><span>Correo Zelle:</span> <strong>yasbetnoguer@hotmail.com</strong></div>
               <div><span>Monto a Enviar:</span> <strong style={{ color: "#7414CA" }}>${Number(venta.total_usd).toFixed(2)} USD</strong></div>
             </div>
-            <a
-              href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola! 👋 Te adjunto el comprobante de mi pago por Zelle para la comanda #${venta.numero_comanda} por $${Number(venta.total_usd).toFixed(2)} USD.\n\n🧾 Ver mi factura digital & estado en vivo:\n${reciboUrl}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-pm-whatsapp"
-              style={{ background: "#7414CA" }}
-            >
-              <span>📲 Enviar Comprobante por WhatsApp</span>
-            </a>
           </div>
         )}
-
-        {/* Callout Indispensable: Enviar Comprobante a Cocina */}
-        <div
-          className="no-print"
-          style={{
-            background: "linear-gradient(135deg, #128C7E, #075E54)",
-            borderRadius: 16,
-            padding: "18px",
-            margin: "18px 0 12px",
-            color: "#ffffff",
-            boxShadow: "0 8px 24px rgba(18, 140, 126, 0.35)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              background: "rgba(255, 255, 255, 0.2)",
-              borderRadius: 9999,
-              padding: "4px 12px",
-              width: "fit-content",
-              margin: "0 auto",
-              fontSize: 11,
-              fontWeight: 900,
-              letterSpacing: 0.5,
-            }}
-          >
-            ⚡ PASO INDISPENSABLE
-          </div>
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: "#ffffff" }}>
-            📲 Envía tu comprobante a nuestro WhatsApp
-          </h3>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.95, lineHeight: 1.4 }}>
-            Para que cocina confirme tu pago y comience a preparar tus arepas calientitas sin demora, envíanos el comprobante por WhatsApp:
-          </p>
-          <a
-            href={`https://wa.me/584122595386?text=${encodeURIComponent(
-              `¡Hola La Parada del Sabor! 👋 Adjunto mi comprobante para la comanda #${venta.numero_comanda.toString().padStart(4, "0")}.\n\n🧾 Factura digital & estado en vivo:\n${reciboUrl}`
-            )}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              background: "#25D366",
-              color: "#ffffff",
-              padding: "13px 18px",
-              borderRadius: 12,
-              fontWeight: 900,
-              fontSize: 14,
-              textDecoration: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-              marginTop: 4,
-            }}
-          >
-            <span>💬 Enviar Comprobante al WhatsApp (+58 412-2595386)</span>
-          </a>
-        </div>
 
         {/* Botones de Acción al Pie (No se imprimen) */}
         <div className="recibo-share-actions no-print">
