@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { SesionCaja, Venta } from "@/types/database";
 import { abrirSesionCaja, cerrarSesionCaja } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import { createClient } from "@/lib/supabase/client";
 
 interface CajaClientProps {
   sesionActiva: SesionCaja | null;
@@ -15,12 +17,69 @@ interface CajaClientProps {
 export default function CajaClient({
   sesionActiva,
   historialCajas,
-  ventasTurno,
+  ventasTurno: initialVentasTurno,
   tasaBcv,
 }: CajaClientProps) {
+  const router = useRouter();
+  const [ventas, setVentas] = useState<Venta[]>(initialVentasTurno);
   const [modalAbrir, setModalAbrir] = useState(false);
   const [modalCerrar, setModalCerrar] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [refrescando, setRefrescando] = useState(false);
+
+  // Sincronizar estado inicial cuando cambian las props
+  useEffect(() => {
+    setVentas(initialVentasTurno);
+  }, [initialVentasTurno]);
+
+  // Función para refrescar datos desde Supabase
+  const refrescarVentas = useCallback(async () => {
+    const supabase = createClient();
+    let query = supabase
+      .from("ventas")
+      .select("*")
+      .neq("estado", "cancelada")
+      .order("creado_el", { ascending: false });
+
+    if (sesionActiva) {
+      query = query.gte("creado_el", sesionActiva.fecha_apertura);
+    } else {
+      const inicioHoy = new Date();
+      inicioHoy.setHours(0, 0, 0, 0);
+      query = query.gte("creado_el", inicioHoy.toISOString());
+    }
+
+    const { data } = await query;
+    if (data) {
+      setVentas(data as Venta[]);
+    }
+  }, [sesionActiva]);
+
+  // Suscripción Realtime a ventas y sesiones de caja
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel("caja-realtime-listener")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "ventas" },
+        () => {
+          refrescarVentas();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "sesiones_caja" },
+        () => {
+          router.refresh();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [refrescarVentas, router]);
 
   // Form de apertura
   const [fondoInicialUsd, setFondoInicialUsd] = useState<number>(20.0);
@@ -37,29 +96,50 @@ export default function CajaClient({
     let pagoMovilBs = 0;
     let transferenciaBs = 0;
     let binanceUsd = 0;
+    let zelleUsd = 0;
     let puntoBs = 0;
     let totalUsd = 0;
 
-    ventasTurno.forEach((v) => {
+    ventas.forEach((v) => {
       const vUsd = Number(v.total_usd) || 0;
       const vBs = Number(v.total_bs) || 0;
       totalUsd += vUsd;
 
-      switch (v.metodo_pago) {
+      switch (v.metodo_pago as string) {
         case "efectivo_usd":
+        case "efectivo":
           efectivoUsd += vUsd;
           break;
-        case "pago_movil_bs":
+        case "efectivo_bs":
+          // Efectivo en bolívares en gaveta
           pagoMovilBs += vBs;
           break;
+        case "pago_movil_bs":
+        case "pago_movil":
+          pagoMovilBs += vBs;
+          break;
+        case "transferencia_bs":
+        case "transferencia":
+          transferenciaBs += vBs;
+          break;
         case "punto_bs":
+        case "punto":
+        case "pos":
           puntoBs += vBs;
           break;
         case "binance":
+        case "binance_usdt":
           binanceUsd += vUsd;
           break;
+        case "zelle":
+          zelleUsd += vUsd;
+          break;
         default:
-          pagoMovilBs += vBs;
+          if (vUsd > 0 && vBs === 0) {
+            efectivoUsd += vUsd;
+          } else {
+            pagoMovilBs += vBs;
+          }
       }
     });
 
@@ -71,12 +151,13 @@ export default function CajaClient({
       pagoMovilBs,
       transferenciaBs,
       binanceUsd,
+      zelleUsd,
       puntoBs,
       totalUsd,
       teoricoEfectivoUsd,
       teoricoEfectivoBs,
     };
-  }, [ventasTurno, sesionActiva]);
+  }, [ventas, sesionActiva]);
 
   // Diferencia de Arqueo
   const diferenciaUsd = arqueoUsd - resumenTurno.teoricoEfectivoUsd;
@@ -96,6 +177,7 @@ export default function CajaClient({
     if (res.ok) {
       sounds.playKitchenBell();
       setModalAbrir(false);
+      router.refresh();
     } else {
       alert(res.error || "Error al abrir la caja.");
     }
@@ -124,6 +206,7 @@ export default function CajaClient({
     if (res.ok) {
       sounds.playCashRegister();
       setModalCerrar(false);
+      router.refresh();
       alert("✅ Turno de caja cerrado exitosamente (Corte Z).");
     } else {
       alert(res.error || "Error al cerrar la caja.");
@@ -141,115 +224,142 @@ export default function CajaClient({
           </p>
         </div>
 
-        {sesionActiva ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
-            onClick={() => {
-              setArqueoUsd(resumenTurno.teoricoEfectivoUsd);
-              setArqueoBs(resumenTurno.teoricoEfectivoBs);
-              setModalCerrar(true);
+            onClick={async () => {
+              setRefrescando(true);
+              await refrescarVentas();
+              router.refresh();
+              setTimeout(() => setRefrescando(false), 400);
             }}
-            className="btn-primary-action"
-            style={{ background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)" }}
+            className="btn-secondary"
+            title="Actualizar datos de caja"
+            disabled={refrescando}
           >
-            🔒 Realizar Cierre de Turno (Corte Z)
+            {refrescando ? "⏳ Actualizando..." : "🔄 Actualizar"}
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setModalAbrir(true)}
-            className="btn-primary-action"
-          >
-            🔓 Abrir Nuevo Turno de Caja
-          </button>
-        )}
+
+          {sesionActiva ? (
+            <button
+              type="button"
+              onClick={() => {
+                setArqueoUsd(resumenTurno.teoricoEfectivoUsd);
+                setArqueoBs(resumenTurno.teoricoEfectivoBs);
+                setModalCerrar(true);
+              }}
+              className="btn-primary-action"
+              style={{ background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)" }}
+            >
+              🔒 Realizar Cierre de Turno (Corte Z)
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setModalAbrir(true)}
+              className="btn-primary-action"
+            >
+              🔓 Abrir Nuevo Turno de Caja
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Estado Actual de la Caja */}
-      {sesionActiva ? (
-        <div className="caja-live-dashboard">
-          <div className="caja-banner-activa">
-            <div className="caja-banner-status">
-              <span className="bcv-dot" />
-              <strong>Turno de Caja en Operación (Abierto)</strong>
-            </div>
-            <span className="caja-time-stamp">
-              Apertura: {new Date(sesionActiva.fecha_apertura).toLocaleTimeString()} (
-              {new Date(sesionActiva.fecha_apertura).toLocaleDateString()})
+      <div className="caja-live-dashboard">
+        <div className="caja-banner-activa">
+          <div className="caja-banner-status">
+            <span className={sesionActiva ? "bcv-dot" : "stock-badge-bajo"} style={{ width: 10, height: 10, borderRadius: "50%" }} />
+            <strong>
+              {sesionActiva
+                ? "Turno de Caja en Operación (Abierto)"
+                : "Ventas de la Jornada de Hoy (Sin turno de gaveta abierto)"}
+            </strong>
+          </div>
+          <span className="caja-time-stamp">
+            {sesionActiva
+              ? `Apertura: ${new Date(sesionActiva.fecha_apertura).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} (${new Date(sesionActiva.fecha_apertura).toLocaleDateString()})`
+              : "Mostrando todas las ventas de hoy"}
+          </span>
+        </div>
+
+        {/* Tarjetas de Métodos de Pago del Turno (Corte X) */}
+        <div className="caja-summary-grid">
+          <div className="caja-stat-card">
+            <span className="stat-label">💵 Efectivo USD en Gaveta</span>
+            <strong className="stat-value text-primary">
+              ${resumenTurno.teoricoEfectivoUsd.toFixed(2)}
+            </strong>
+            <span className="stat-hint">
+              {sesionActiva
+                ? `Fondo: $${Number(sesionActiva.monto_inicial_usd).toFixed(2)} + Ventas: $${resumenTurno.efectivoUsd.toFixed(2)}`
+                : `Ventas en efectivo hoy: $${resumenTurno.efectivoUsd.toFixed(2)}`}
             </span>
           </div>
 
-          {/* Tarjetas de Métodos de Pago del Turno (Corte X) */}
-          <div className="caja-summary-grid">
-            <div className="caja-stat-card">
-              <span className="stat-label">💵 Efectivo USD en Gaveta</span>
-              <strong className="stat-value text-primary">
-                ${resumenTurno.teoricoEfectivoUsd.toFixed(2)}
-              </strong>
-              <span className="stat-hint">
-                Fondo: ${Number(sesionActiva.monto_inicial_usd).toFixed(2)} + Ventas: ${resumenTurno.efectivoUsd.toFixed(2)}
-              </span>
-            </div>
-
-            <div className="caja-stat-card">
-              <span className="stat-label">📱 Pago Móvil (Bs)</span>
-              <strong className="stat-value text-green">
-                {resumenTurno.pagoMovilBs.toLocaleString()} Bs
-              </strong>
-              <span className="stat-hint">
-                ≈ ${(resumenTurno.pagoMovilBs / tasaBcv).toFixed(2)} USD (Tasa {tasaBcv})
-              </span>
-            </div>
-
-            <div className="caja-stat-card">
-              <span className="stat-label">🟡 Binance (USDT)</span>
-              <strong className="stat-value">
-                ${resumenTurno.binanceUsd.toFixed(2)} USDT
-              </strong>
-              <span className="stat-hint">Cripto directo</span>
-            </div>
-
-            <div className="caja-stat-card">
-              <span className="stat-label">💳 Punto de Venta (Bs)</span>
-              <strong className="stat-value">
-                {resumenTurno.puntoBs.toLocaleString()} Bs
-              </strong>
-              <span className="stat-hint">Tarjetas débito</span>
-            </div>
+          <div className="caja-stat-card">
+            <span className="stat-label">📱 Pago Móvil (Bs)</span>
+            <strong className="stat-value text-green">
+              {resumenTurno.pagoMovilBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+            </strong>
+            <span className="stat-hint">
+              ≈ ${(tasaBcv > 0 ? resumenTurno.pagoMovilBs / tasaBcv : 0).toFixed(2)} USD (Tasa {tasaBcv.toFixed(2)})
+            </span>
           </div>
 
-          {/* Gran Total Facturado del Turno */}
-          <div className="caja-totals-hero">
-            <div>
-              <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 700 }}>
-                Total Ventas del Turno ({ventasTurno.length} Comandas)
-              </span>
-              <h2 style={{ fontSize: 32, fontWeight: 900, color: "var(--text)" }}>
-                ${resumenTurno.totalUsd.toFixed(2)} USD
-              </h2>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>En Bolívares (BCV):</span>
-              <h3 style={{ fontSize: 22, fontWeight: 800, color: "var(--primary-dark)" }}>
-                {(resumenTurno.totalUsd * tasaBcv).toLocaleString()} Bs
-              </h3>
-            </div>
+          <div className="caja-stat-card">
+            <span className="stat-label">🏦 Transferencia BFC (Bs)</span>
+            <strong className="stat-value text-green">
+              {resumenTurno.transferenciaBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+            </strong>
+            <span className="stat-hint">
+              ≈ ${(tasaBcv > 0 ? resumenTurno.transferenciaBs / tasaBcv : 0).toFixed(2)} USD
+            </span>
+          </div>
+
+          <div className="caja-stat-card">
+            <span className="stat-label">🟡 Binance Pay (USDT)</span>
+            <strong className="stat-value" style={{ color: "#d97706" }}>
+              ${resumenTurno.binanceUsd.toFixed(2)} USDT
+            </strong>
+            <span className="stat-hint">Cripto directo</span>
+          </div>
+
+          <div className="caja-stat-card">
+            <span className="stat-label">🟣 Zelle (USD)</span>
+            <strong className="stat-value" style={{ color: "#7414CA" }}>
+              ${resumenTurno.zelleUsd.toFixed(2)} USD
+            </strong>
+            <span className="stat-hint">Dólares digitales</span>
+          </div>
+
+          <div className="caja-stat-card">
+            <span className="stat-label">💳 Punto de Venta (Bs)</span>
+            <strong className="stat-value">
+              {resumenTurno.puntoBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+            </strong>
+            <span className="stat-hint">Tarjetas en salón</span>
           </div>
         </div>
-      ) : (
-        <div className="recetas-empty-box">
-          <span style={{ fontSize: 52 }}>🔒</span>
-          <h2>No hay turno de caja abierto</h2>
-          <p>Abre la caja con el fondo inicial en sencillo para comenzar la jornada de ventas.</p>
-          <button
-            type="button"
-            onClick={() => setModalAbrir(true)}
-            className="btn-primary-action"
-          >
-            🔓 Abrir Caja Ahora
-          </button>
+
+        {/* Gran Total Facturado del Turno */}
+        <div className="caja-totals-hero">
+          <div>
+            <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 700 }}>
+              Total Ventas Registradas ({ventas.length} Comandas)
+            </span>
+            <h2 style={{ fontSize: 32, fontWeight: 900, color: "var(--text)" }}>
+              ${resumenTurno.totalUsd.toFixed(2)} USD
+            </h2>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>En Bolívares (BCV):</span>
+            <h3 style={{ fontSize: 22, fontWeight: 800, color: "var(--primary-dark)" }}>
+              {(resumenTurno.totalUsd * tasaBcv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+            </h3>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Historial de Cierres de Caja Anteriores */}
       <div className="recetas-header" style={{ marginTop: 16 }}>

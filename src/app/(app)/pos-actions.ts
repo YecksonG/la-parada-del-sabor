@@ -96,6 +96,8 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 
   revalidatePath("/");
   revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/dashboard");
   revalidatePath("/insumos");
 
   return {
@@ -119,6 +121,8 @@ export async function aceptarPedidoWeb(ventaId: string) {
 
   revalidatePath("/");
   revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/dashboard");
   revalidatePath("/insumos");
 
   return { ok: true };
@@ -136,6 +140,9 @@ export async function rechazarPedidoWeb(ventaId: string) {
 
   revalidatePath("/");
   revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/dashboard");
+  revalidatePath("/insumos");
 
   return { ok: true };
 }

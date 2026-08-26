@@ -45,6 +45,8 @@ export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: EstadoVe
   if (errorUpdate) return { ok: false, error: errorUpdate.message };
 
   revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/dashboard");
   revalidatePath("/insumos");
   revalidatePath("/");
 

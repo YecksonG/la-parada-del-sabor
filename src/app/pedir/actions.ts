@@ -63,6 +63,8 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   }
 
   revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/dashboard");
   revalidatePath("/");
 
   return {
