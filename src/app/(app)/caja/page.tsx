@@ -27,7 +27,7 @@ export default async function CajaPage() {
     .from("ventas")
     .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
     .neq("estado", "cancelada")
-    .order("creado_el", { ascending: false })
+    .order("fecha", { ascending: false })
     .limit(100);
 
   ventasTurno = (ventas as Venta[]) || [];

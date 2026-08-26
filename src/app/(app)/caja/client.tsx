@@ -35,14 +35,16 @@ export default function CajaClient({
   // Función para refrescar datos desde Supabase
   const refrescarVentas = useCallback(async () => {
     const supabase = createClient();
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("ventas")
       .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
       .neq("estado", "cancelada")
-      .order("creado_el", { ascending: false })
+      .order("fecha", { ascending: false })
       .limit(100);
 
-    if (data) {
+    if (error) {
+      console.error("Error cargando ventas en caja:", error);
+    } else if (data) {
       setVentas(data as Venta[]);
     }
   }, []);
@@ -88,14 +90,18 @@ export default function CajaClient({
   const [arqueoBs, setArqueoBs] = useState<number>(0.0);
   const [notasCierre, setNotasCierre] = useState("");
 
-  // Cálculos en vivo de las ventas del turno
+  // Cálculos en vivo de las ventas del turno estructurados por tipo de fondo
   const resumenTurno = useMemo(() => {
-    let efectivoUsd = 0;
+    let efectivoFisicoUsd = 0;
+    let efectivoFisicoBs = 0;
+
     let pagoMovilBs = 0;
     let transferenciaBs = 0;
+    let puntoBs = 0;
+
     let binanceUsd = 0;
     let zelleUsd = 0;
-    let puntoBs = 0;
+
     let totalUsd = 0;
 
     ventas.forEach((v) => {
@@ -116,11 +122,10 @@ export default function CajaClient({
       switch (v.metodo_pago as string) {
         case "efectivo_usd":
         case "efectivo":
-          efectivoUsd += vUsd;
+          efectivoFisicoUsd += vUsd;
           break;
         case "efectivo_bs":
-          // Efectivo en bolívares en gaveta
-          pagoMovilBs += vBs;
+          efectivoFisicoBs += vBs;
           break;
         case "pago_movil_bs":
         case "pago_movil":
@@ -144,28 +149,37 @@ export default function CajaClient({
           break;
         default:
           if (vUsd > 0 && vBs === 0) {
-            efectivoUsd += vUsd;
+            efectivoFisicoUsd += vUsd;
           } else {
             pagoMovilBs += vBs;
           }
       }
     });
 
-    const teoricoEfectivoUsd = (Number(sesionActiva?.monto_inicial_usd) || 0) + efectivoUsd;
-    const teoricoEfectivoBs = (Number(sesionActiva?.monto_inicial_bs) || 0);
+    const totalBsDigitales = pagoMovilBs + transferenciaBs + puntoBs;
+    const totalBsDigitalesEquivUsd = tasaBcv > 0 ? totalBsDigitales / tasaBcv : 0;
+
+    const totalDolaresDigitalesUsd = binanceUsd + zelleUsd;
+
+    const teoricoEfectivoUsd = (Number(sesionActiva?.monto_inicial_usd) || 0) + efectivoFisicoUsd;
+    const teoricoEfectivoBs = (Number(sesionActiva?.monto_inicial_bs) || 0) + efectivoFisicoBs;
 
     return {
-      efectivoUsd,
+      efectivoFisicoUsd,
+      efectivoFisicoBs,
       pagoMovilBs,
       transferenciaBs,
+      puntoBs,
+      totalBsDigitales,
+      totalBsDigitalesEquivUsd,
       binanceUsd,
       zelleUsd,
-      puntoBs,
+      totalDolaresDigitalesUsd,
       totalUsd,
       teoricoEfectivoUsd,
       teoricoEfectivoBs,
     };
-  }, [ventas, sesionActiva]);
+  }, [ventas, sesionActiva, tasaBcv]);
 
   // Diferencia de Arqueo
   const diferenciaUsd = arqueoUsd - resumenTurno.teoricoEfectivoUsd;
@@ -198,7 +212,7 @@ export default function CajaClient({
     setGuardando(true);
     const res = await cerrarSesionCaja({
       sesion_id: sesionActiva.id,
-      total_ventas_efectivo_usd: resumenTurno.efectivoUsd,
+      total_ventas_efectivo_usd: resumenTurno.efectivoFisicoUsd,
       total_ventas_pago_movil_bs: resumenTurno.pagoMovilBs,
       total_ventas_transferencia_bs: resumenTurno.transferenciaBs,
       total_ventas_binance_usd: resumenTurno.binanceUsd,
@@ -287,24 +301,55 @@ export default function CajaClient({
           <span className="caja-time-stamp">
             {sesionActiva
               ? `Apertura: ${new Date(sesionActiva.fecha_apertura).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} (${new Date(sesionActiva.fecha_apertura).toLocaleDateString()})`
-              : "Mostrando todas las ventas de hoy"}
+              : "Mostrando todas las ventas de la jornada"}
           </span>
         </div>
 
-        {/* Tarjetas de Métodos de Pago del Turno (Corte X) */}
+        {/* 1. SECCIÓN: EFECTIVO FÍSICO EN GAVETA */}
+        <div style={{ marginTop: 12, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 900, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            💵 1. Efectivo Físico en Gaveta (Arqueo Físico)
+          </h3>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "var(--primary-dark)" }}>
+            Teórico: ${resumenTurno.teoricoEfectivoUsd.toFixed(2)} USD
+          </span>
+        </div>
+
         <div className="caja-summary-grid">
-          <div className="caja-stat-card">
+          <div className="caja-stat-card" style={{ borderColor: "var(--primary)" }}>
             <span className="stat-label">💵 Efectivo USD en Gaveta</span>
             <strong className="stat-value text-primary">
               ${resumenTurno.teoricoEfectivoUsd.toFixed(2)}
             </strong>
             <span className="stat-hint">
               {sesionActiva
-                ? `Fondo: $${Number(sesionActiva.monto_inicial_usd).toFixed(2)} + Ventas: $${resumenTurno.efectivoUsd.toFixed(2)}`
-                : `Ventas en efectivo hoy: $${resumenTurno.efectivoUsd.toFixed(2)}`}
+                ? `Fondo: $${Number(sesionActiva.monto_inicial_usd).toFixed(2)} + Ventas Efectivo: $${resumenTurno.efectivoFisicoUsd.toFixed(2)}`
+                : `Ventas en efectivo: $${resumenTurno.efectivoFisicoUsd.toFixed(2)}`}
             </span>
           </div>
 
+          <div className="caja-stat-card">
+            <span className="stat-label">💵 Efectivo Bs Físico en Gaveta</span>
+            <strong className="stat-value">
+              {resumenTurno.teoricoEfectivoBs.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs
+            </strong>
+            <span className="stat-hint">
+              {sesionActiva ? `Fondo Bs: ${Number(sesionActiva.monto_inicial_bs).toFixed(2)} Bs` : "Billetes Bs contados"}
+            </span>
+          </div>
+        </div>
+
+        {/* 2. SECCIÓN: BOLÍVARES DIGITALES (BANCOS) */}
+        <div style={{ marginTop: 20, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 900, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            📱 2. Bolívares Digitales (Bancos Venezuela)
+          </h3>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "var(--green)" }}>
+            Subtotal: {resumenTurno.totalBsDigitales.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs (≈ ${resumenTurno.totalBsDigitalesEquivUsd.toFixed(2)} USD)
+          </span>
+        </div>
+
+        <div className="caja-summary-grid">
           <div className="caja-stat-card">
             <span className="stat-label">📱 Pago Móvil (Bs)</span>
             <strong className="stat-value text-green">
@@ -316,7 +361,7 @@ export default function CajaClient({
           </div>
 
           <div className="caja-stat-card">
-            <span className="stat-label">🏦 Transferencia BFC (Bs)</span>
+            <span className="stat-label">🏦 Transferencia Bancaria BFC (Bs)</span>
             <strong className="stat-value text-green">
               {resumenTurno.transferenciaBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
             </strong>
@@ -325,6 +370,28 @@ export default function CajaClient({
             </span>
           </div>
 
+          <div className="caja-stat-card">
+            <span className="stat-label">💳 Punto de Venta POS (Bs)</span>
+            <strong className="stat-value text-green">
+              {resumenTurno.puntoBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+            </strong>
+            <span className="stat-hint">
+              ≈ ${(tasaBcv > 0 ? resumenTurno.puntoBs / tasaBcv : 0).toFixed(2)} USD
+            </span>
+          </div>
+        </div>
+
+        {/* 3. SECCIÓN: DÓLARES DIGITALES & CRIPTO */}
+        <div style={{ marginTop: 20, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 900, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            🌐 3. Dólares Digitales & Cripto
+          </h3>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "#d97706" }}>
+            Subtotal: ${resumenTurno.totalDolaresDigitalesUsd.toFixed(2)} USD
+          </span>
+        </div>
+
+        <div className="caja-summary-grid">
           <div className="caja-stat-card">
             <span className="stat-label">🟡 Binance Pay (USDT)</span>
             <strong className="stat-value" style={{ color: "#d97706" }}>
@@ -339,14 +406,6 @@ export default function CajaClient({
               ${resumenTurno.zelleUsd.toFixed(2)} USD
             </strong>
             <span className="stat-hint">Dólares digitales</span>
-          </div>
-
-          <div className="caja-stat-card">
-            <span className="stat-label">💳 Punto de Venta (Bs)</span>
-            <strong className="stat-value">
-              {resumenTurno.puntoBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
-            </strong>
-            <span className="stat-hint">Tarjetas en salón</span>
           </div>
         </div>
 
@@ -568,26 +627,30 @@ export default function CajaClient({
                 </div>
                 <div className="breakdown-row">
                   <span>Ventas en Efectivo USD:</span>
-                  <strong>+${resumenTurno.efectivoUsd.toFixed(2)} USD</strong>
+                  <strong>+${resumenTurno.efectivoFisicoUsd.toFixed(2)} USD</strong>
                 </div>
                 <div className="breakdown-row" style={{ borderTop: "1px dashed var(--border)", paddingTop: 6, fontWeight: 800 }}>
                   <span>Efectivo Teórico en Gaveta:</span>
                   <strong className="text-primary">${resumenTurno.teoricoEfectivoUsd.toFixed(2)} USD</strong>
                 </div>
                 <div className="breakdown-row">
-                  <span>Pago Móvil:</span>
+                  <span>Pago Móvil (Bs):</span>
                   <strong className="text-green">{resumenTurno.pagoMovilBs.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs</strong>
                 </div>
                 <div className="breakdown-row">
-                  <span>Transferencia BFC:</span>
+                  <span>Transferencia Bancaria BFC (Bs):</span>
                   <strong className="text-green">{resumenTurno.transferenciaBs.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs</strong>
                 </div>
                 <div className="breakdown-row">
-                  <span>Binance Pay:</span>
+                  <span>Punto de Venta POS (Bs):</span>
+                  <strong className="text-green">{resumenTurno.puntoBs.toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs</strong>
+                </div>
+                <div className="breakdown-row">
+                  <span>Binance Pay (USDT):</span>
                   <strong style={{ color: "#d97706" }}>${resumenTurno.binanceUsd.toFixed(2)} USDT</strong>
                 </div>
                 <div className="breakdown-row">
-                  <span>Zelle:</span>
+                  <span>Zelle (USD):</span>
                   <strong style={{ color: "#7414CA" }}>${resumenTurno.zelleUsd.toFixed(2)} USD</strong>
                 </div>
                 <div className="breakdown-row">
