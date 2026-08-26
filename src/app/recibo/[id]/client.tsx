@@ -489,8 +489,8 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               <Image
                 src="/images/logo-badge.png"
                 alt="Logo La Parada del Sabor"
-                width={70}
-                height={70}
+                width={76}
+                height={76}
                 className="recibo-hero-logo"
                 priority
               />
