@@ -671,7 +671,6 @@ export default function PosClient({
             >
               <option value="efectivo_usd">💵 Efectivo USD</option>
               <option value="pago_movil_bs">📱 Pago Móvil (Bs)</option>
-              <option value="punto_bs">💳 Punto de Venta (Bs)</option>
               <option value="binance">🟡 Binance Pay (USDT)</option>
               <option value="pesos_cop">🇨🇴 Pesos Colombianos (COP)</option>
             </select>

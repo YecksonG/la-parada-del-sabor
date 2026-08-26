@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TasaCambio, TasaActivaTipo } from "@/types/database";
 import { autoSincronizarTasas, fijarTasaActivaFacturacion } from "./actions";
 import { sounds } from "@/lib/sound-effects";
@@ -140,6 +140,42 @@ export default function TasasClient({ tasas }: TasasClientProps) {
       setCalcDisplay(calcDisplay + key);
     }
   };
+
+  // Habilitar Teclado Numérico Físico (Numpad + Teclado Principal)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Si el foco está en un input o textarea editable, no interferir
+      const activeTag = (document.activeElement?.tagName || "").toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea") {
+        return;
+      }
+
+      const key = e.key;
+
+      if (key >= "0" && key <= "9") {
+        e.preventDefault();
+        handleKeyClick(key);
+      } else if (key === "." || key === ",") {
+        e.preventDefault();
+        handleKeyClick(".");
+      } else if (key === "+" || key === "-" || key === "*" || key === "/") {
+        e.preventDefault();
+        handleKeyClick(key);
+      } else if (key === "Enter" || key === "=") {
+        e.preventDefault();
+        handleKeyClick("=");
+      } else if (key === "Backspace") {
+        e.preventDefault();
+        handleKeyClick("←");
+      } else if (key === "Escape" || key.toLowerCase() === "c") {
+        e.preventDefault();
+        handleKeyClick("C");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [calcDisplay, calcMemory, calcOp, calcResetOnNext]);
 
   const valorCalculado = parseFloat(calcDisplay) || 0;
 
@@ -386,7 +422,9 @@ export default function TasasClient({ tasas }: TasasClientProps) {
               <span style={{ fontSize: 24 }}>🧮</span>
               <div>
                 <h3>Calculadora de Mostrador</h3>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Conversión táctil multimoneda</span>
+                <span style={{ fontSize: 11, color: "var(--primary-dark)", fontWeight: 700 }}>
+                  ⌨️ Teclado Numérico Habilitado
+                </span>
               </div>
             </div>
 
