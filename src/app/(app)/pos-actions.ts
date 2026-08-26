@@ -125,6 +125,8 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   // 2. Insertar Items de Venta (Disparará la deducción atómica de gramos de insumos de recetas)
   for (const item of payload.items) {
     const subtotalItem = Number((item.precio_unitario_usd * item.cantidad).toFixed(2));
+    const precioUnitarioBs = Number((item.precio_unitario_usd * tasaBCV).toFixed(2));
+    const subtotalBs = Number((subtotalItem * tasaBCV).toFixed(2));
 
     const { data: ventaItem, error: itemError } = await supabase
       .from("ventas_items")
@@ -133,7 +135,9 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
         producto_id: item.producto_id,
         cantidad: item.cantidad,
         precio_unitario_usd: item.precio_unitario_usd,
+        precio_unitario_bs: precioUnitarioBs,
         subtotal_usd: subtotalItem,
+        subtotal_bs: subtotalBs,
         notas_item: item.notas_item || null,
       })
       .select("id")
@@ -146,13 +150,20 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 
     // 3. Insertar Extras si tiene (Disparará la deducción de gramos de extras)
     if (item.extras && item.extras.length > 0) {
-      const extrasInsert = item.extras.map((ext) => ({
-        venta_item_id: ventaItem.id,
-        extra_id: ext.extra_id,
-        cantidad: ext.cantidad,
-        precio_unitario_usd: ext.precio_unitario_usd,
-        subtotal_usd: Number((ext.precio_unitario_usd * ext.cantidad).toFixed(2)),
-      }));
+      const extrasInsert = item.extras.map((ext) => {
+        const subtotalExtraUsd = Number((ext.precio_unitario_usd * ext.cantidad).toFixed(2));
+        return {
+          venta_item_id: ventaItem.id,
+          extra_id: ext.extra_id,
+          cantidad: ext.cantidad,
+          precio_extra_usd: ext.precio_unitario_usd,
+          precio_extra_bs: Number((ext.precio_unitario_usd * tasaBCV).toFixed(2)),
+          precio_unitario_usd: ext.precio_unitario_usd,
+          precio_unitario_bs: Number((ext.precio_unitario_usd * tasaBCV).toFixed(2)),
+          subtotal_usd: subtotalExtraUsd,
+          subtotal_bs: Number((subtotalExtraUsd * tasaBCV).toFixed(2)),
+        };
+      });
 
       await supabase.from("ventas_items_extras").insert(extrasInsert);
     }
