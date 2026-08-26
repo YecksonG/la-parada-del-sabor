@@ -465,25 +465,16 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
         )}
 
         <div className="recibo-ticket-card">
-          {/* Mancha de Salsa Gourmet Artística Decorativa (SVG) */}
+          {/* Mancha de Salsa Gourmet Realista */}
           <div className="salsa-stain-decor" aria-hidden="true">
-            <svg viewBox="0 0 160 160" width="160" height="160" fill="none">
-              <path
-                d="M45 20C75 10 115 35 130 65C145 95 125 135 90 145C55 155 20 130 15 95C10 60 15 30 45 20Z"
-                fill="url(#salsaGrad)"
-                opacity="0.75"
-              />
-              <circle cx="135" cy="45" r="7" fill="#e65c00" opacity="0.6" />
-              <circle cx="145" cy="85" r="4" fill="#e65c00" opacity="0.4" />
-              <circle cx="30" cy="130" r="5" fill="#e65c00" opacity="0.5" />
-              <defs>
-                <radialGradient id="salsaGrad" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#ff7b00" stopOpacity="0.8" />
-                  <stop offset="60%" stopColor="#e65c00" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#9a3412" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-            </svg>
+            <Image
+              src="/images/mancha-salsa.webp"
+              alt="Mancha de salsa gourmet"
+              width={140}
+              height={152}
+              className="salsa-stain-img"
+              unoptimized
+            />
           </div>
 
           {/* Sello Gourmet Oficial */}
