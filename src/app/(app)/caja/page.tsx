@@ -21,27 +21,25 @@ export default async function CajaPage() {
     .order("fecha_apertura", { ascending: false })
     .limit(20);
 
-  // 3. Obtener ventas del turno o de la jornada de hoy
+  // 3. Obtener ventas del turno o ventas recientes
   let ventasTurno: Venta[] = [];
   if (sesionActiva) {
     const { data: ventas } = await supabase
       .from("ventas")
-      .select("*")
+      .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
       .gte("creado_el", sesionActiva.fecha_apertura)
       .neq("estado", "cancelada")
       .order("creado_el", { ascending: false });
 
     ventasTurno = (ventas as Venta[]) || [];
   } else {
-    // Si no hay turno abierto, obtener todas las ventas de la jornada de hoy
-    const inicioHoy = new Date();
-    inicioHoy.setHours(0, 0, 0, 0);
+    // Si no hay turno abierto, obtener todas las ventas de la jornada
     const { data: ventas } = await supabase
       .from("ventas")
-      .select("*")
-      .gte("creado_el", inicioHoy.toISOString())
+      .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
       .neq("estado", "cancelada")
-      .order("creado_el", { ascending: false });
+      .order("creado_el", { ascending: false })
+      .limit(50);
 
     ventasTurno = (ventas as Venta[]) || [];
   }

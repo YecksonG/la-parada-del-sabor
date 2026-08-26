@@ -37,16 +37,14 @@ export default function CajaClient({
     const supabase = createClient();
     let query = supabase
       .from("ventas")
-      .select("*")
+      .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
       .neq("estado", "cancelada")
       .order("creado_el", { ascending: false });
 
     if (sesionActiva) {
       query = query.gte("creado_el", sesionActiva.fecha_apertura);
     } else {
-      const inicioHoy = new Date();
-      inicioHoy.setHours(0, 0, 0, 0);
-      query = query.gte("creado_el", inicioHoy.toISOString());
+      query = query.limit(50);
     }
 
     const { data } = await query;
@@ -358,6 +356,82 @@ export default function CajaClient({
               {(resumenTurno.totalUsd * tasaBcv).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
             </h3>
           </div>
+        </div>
+
+        {/* Detalle de Comandas del Turno */}
+        <div style={{ marginTop: 16, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>🧾 Comandas del Turno ({ventas.length})</h3>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Sincronización en vivo</span>
+          </div>
+
+          {ventas.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: "16px 0" }}>
+              No hay comandas registradas en este período.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
+              {ventas.map((v) => (
+                <div
+                  key={v.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    background: "var(--bg-subtle)",
+                    border: "1px solid var(--border-subtle)",
+                    fontSize: 13,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontWeight: 900, color: "var(--primary-dark)" }}>
+                      #{v.numero_comanda.toString().padStart(4, "0")}
+                    </span>
+                    <span>{v.cliente?.nombre || "Cliente Mostrador"}</span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        background:
+                          v.estado === "pendiente"
+                            ? "rgba(245, 158, 11, 0.15)"
+                            : v.estado === "preparando"
+                            ? "rgba(249, 115, 22, 0.15)"
+                            : "rgba(34, 197, 94, 0.15)",
+                        color:
+                          v.estado === "pendiente"
+                            ? "#b45309"
+                            : v.estado === "preparando"
+                            ? "#ea580c"
+                            : "#16a34a",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {v.estado}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "capitalize" }}>
+                      {v.metodo_pago.replace("_", " ")}
+                    </span>
+                    <div style={{ textAlign: "right" }}>
+                      <strong style={{ display: "block", color: "var(--text)" }}>
+                        ${Number(v.total_usd).toFixed(2)}
+                      </strong>
+                      <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                        Bs. {Number(v.total_bs).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
