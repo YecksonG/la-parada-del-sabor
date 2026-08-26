@@ -96,7 +96,17 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   }
 
   if (!rpcRes?.ok) {
-    return { ok: false, error: rpcRes?.error || "Error al procesar el pedido." };
+    const errorText = rpcRes?.error || "Error al procesar el pedido.";
+    const isLimitPending =
+      rpcRes?.code === "LIMIT_PENDING_ORDERS" ||
+      errorText.toLowerCase().includes("2 pedidos") ||
+      errorText.toLowerCase().includes("pedidos en espera");
+
+    return {
+      ok: false,
+      code: isLimitPending ? "LIMIT_PENDING_ORDERS" : rpcRes?.code,
+      error: errorText,
+    };
   }
 
   revalidatePath("/ventas");

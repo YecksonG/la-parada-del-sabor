@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import { Categoria, Producto, ExtraModificador } from "@/types/database";
@@ -57,9 +57,55 @@ export default function MenuClienteView({
   const [origenPedido, setOrigenPedido] = useState<string>("directo");
   const [enviando, setEnviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [modalLimitePedidos, setModalLimitePedidos] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [cargandoGps, setCargandoGps] = useState(false);
   const [gpsOk, setGpsOk] = useState(false);
+
+  // Modal límite: Escape key + focus trap
+  const modalLimiteRef = useRef<HTMLDivElement>(null);
+
+  const handleModalLimiteKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModalLimitePedidos(false);
+        return;
+      }
+      if (e.key === "Tab" && modalLimiteRef.current) {
+        const focusable = modalLimiteRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (modalLimitePedidos) {
+      const timer = setTimeout(() => {
+        const el = modalLimiteRef.current;
+        if (el) {
+          const btn = el.querySelector<HTMLElement>("button");
+          btn?.focus();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [modalLimitePedidos]);
 
   // RASTREO MULTI-CANAL ROBUSTO DE ORIGEN (WhatsApp / Instagram / TikTok / QR / Directo)
   useEffect(() => {
@@ -318,6 +364,13 @@ export default function MenuClienteView({
     if (res.ok && res.venta_id) {
       // Redirigir de inmediato a la Factura Digital Gourmet
       router.push(`/recibo/${res.venta_id}`);
+    } else if (
+      res.code === "LIMIT_PENDING_ORDERS" ||
+      res.error?.toLowerCase().includes("2 pedidos") ||
+      res.error?.toLowerCase().includes("pedidos en espera")
+    ) {
+      setModalLimitePedidos(true);
+      setErrorMsg("");
     } else {
       setErrorMsg(res.error || "Ocurrió un error al procesar tu pedido.");
     }
@@ -1040,6 +1093,64 @@ export default function MenuClienteView({
               >
                 {enviando ? "Enviando Pedido..." : "🚀 Enviar Pedido a Cocina"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Blindaje #2: Límite de Pedidos Pendientes Simultáneos */}
+      {modalLimitePedidos && (
+        <div
+          className="modal-overlay"
+          onClick={() => setModalLimitePedidos(false)}
+          style={{ zIndex: 1050 }}
+        >
+          <div
+            ref={modalLimiteRef}
+            className="pedir-modal-limite-card"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={handleModalLimiteKeyDown}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-limite-title"
+            aria-describedby="modal-limite-desc"
+          >
+            <div className="pedir-modal-limite-header">
+              <div className="pedir-modal-limite-icon" aria-hidden="true">👨‍🍳</div>
+              <h3 id="modal-limite-title" className="pedir-modal-limite-title">
+                ¡Estamos procesando tus pedidos!
+              </h3>
+            </div>
+
+            <div className="pedir-modal-limite-body">
+              <p id="modal-limite-desc" className="pedir-modal-limite-desc">
+                Actualmente ya tienes <strong>2 pedidos en cola de confirmación</strong> asociados a tu número de teléfono.
+              </p>
+
+              <div className="pedir-modal-limite-info-box">
+                <span className="pedir-modal-limite-info-badge">⏳ En cola hacia cocina</span>
+                <p>
+                  Para garantizar la máxima frescura y calidad de servicio, en cuanto nuestro equipo de cocina <strong>comience a preparar uno de tus pedidos anteriores</strong>, podrás registrar el siguiente de inmediato.
+                </p>
+              </div>
+
+              <div className="pedir-modal-limite-actions">
+                <button
+                  type="button"
+                  onClick={() => setModalLimitePedidos(false)}
+                  className="btn btn-primary pedir-limite-btn-primary"
+                >
+                  ✅ Entendido, esperaré un momento
+                </button>
+                <a
+                  href="https://wa.me/584122595386?text=¡Hola!%20Quisiera%20consultar%20el%20estado%20de%20mis%20pedidos%20en%20La%20Parada%20del%20Sabor"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline pedir-limite-btn-outline"
+                >
+                  💬 Consultar por WhatsApp (+58 412-2595386)
+                </a>
+              </div>
             </div>
           </div>
         </div>

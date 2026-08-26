@@ -5126,6 +5126,15 @@ a {
     animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) both !important;
   }
 
+  .pedir-modal-limite-card {
+    border-radius: 28px 28px 0 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 80vh !important;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 12px)) !important;
+    animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  }
+
   .pedir-products-container {
     padding-bottom: 110px !important;
   }
@@ -5138,6 +5147,17 @@ a {
   }
   to {
     transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleUpModal {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
     opacity: 1;
   }
 }
@@ -5717,4 +5737,121 @@ a {
   background: var(--primary);
   color: #ffffff;
   border-color: var(--primary);
+}
+
+/* Modal Blindaje #2: Límite de Pedidos Pendientes */
+@keyframes scaleUpModal {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.pedir-modal-limite-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  max-width: 440px;
+  width: 92%;
+  padding: 24px;
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.35);
+  animation: scaleUpModal 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+  position: relative;
+}
+
+.pedir-modal-limite-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.pedir-modal-limite-icon {
+  font-size: 44px;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 4px 10px rgba(245, 158, 11, 0.3));
+}
+
+.pedir-modal-limite-title {
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.pedir-modal-limite-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pedir-modal-limite-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pedir-modal-limite-info-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.pedir-modal-limite-info-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primary-dark);
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.pedir-modal-limite-info-box p {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.pedir-modal-limite-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pedir-limite-btn-primary {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  border-radius: 14px;
+}
+
+.pedir-limite-btn-outline {
+  width: 100%;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 14px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
 }
