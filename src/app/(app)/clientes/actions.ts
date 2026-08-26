@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type GuardarClientePayload = {
   id?: string;
@@ -13,6 +14,8 @@ export type GuardarClientePayload = {
 
 export async function guardarCliente(payload: GuardarClientePayload) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   if (payload.id) {
     const { error } = await supabase
@@ -53,6 +56,8 @@ export async function eliminarCliente(id: string) {
   }
 
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   // 1. Desvincular ventas históricas de forma segura con verificación de error
   const { error: errorDesvincular } = await supabase

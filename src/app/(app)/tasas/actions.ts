@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { obtenerTasasDelDia } from "@/lib/tasas-api";
 import { TasaActivaTipo } from "@/types/database";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type GuardarTasasPayload = {
   bcv_usd_bs: number;
@@ -14,6 +15,9 @@ export type GuardarTasasPayload = {
 
 export async function guardarTasasCompletas(payload: GuardarTasasPayload) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
   const hoy = new Date().toISOString().split("T")[0];
 
   // Consultar si ya existe registro de hoy para mantener la preferencia de tasa activa
@@ -84,6 +88,8 @@ export async function fijarTasaActivaFacturacion(payload: {
   tasa_personalizada_bs?: number;
 }) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   // Obtener tasas del día más reciente
   const { data: tasaActual } = await supabase

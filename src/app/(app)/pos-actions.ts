@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type CartItemExtra = {
   extra_id: string;
@@ -38,6 +39,9 @@ export async function crearClienteRapido(payload: {
   }
 
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
   const { data, error } = await supabase
     .from("clientes")
     .insert({
@@ -76,8 +80,10 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const nombreOperador = user?.email?.split("@")[0] ?? "cajero";
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const nombreOperador = auth.user?.email?.split("@")[0] ?? "cajero";
   // 0. Calcular totales directamente en el servidor
   let totalUsdCalculado = 0;
   for (const item of payload.items) {
@@ -167,6 +173,8 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 
 export async function aceptarPedidoWeb(ventaId: string) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   // Al pasar a 'preparando', el trigger PostgreSQL `trg_confirmar_pedido_web`
   // descontará automáticamente los insumos en gramos de la despensa
@@ -188,6 +196,8 @@ export async function aceptarPedidoWeb(ventaId: string) {
 
 export async function rechazarPedidoWeb(ventaId: string) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase
     .from("ventas")

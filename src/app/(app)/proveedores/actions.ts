@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { serializeProveedorInsumos } from "@/lib/proveedor-insumos-helper";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type GuardarProveedorPayload = {
   id?: string;
@@ -17,6 +18,8 @@ export type GuardarProveedorPayload = {
 
 export async function guardarProveedor(payload: GuardarProveedorPayload) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   const notasSerializadas = serializeProveedorInsumos(
     payload.insumos_ids || [],

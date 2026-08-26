@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth-guard";
 import {
   parseProveedorInsumos,
   serializeProveedorInsumos,
@@ -19,7 +20,31 @@ export type GuardarInsumoPayload = {
 };
 
 export async function guardarInsumo(payload: GuardarInsumoPayload) {
+  if (!payload.nombre?.trim()) {
+    return { ok: false, error: "El nombre del insumo es obligatorio." };
+  }
+  if (!["g", "ml", "und"].includes(payload.unidad_medida)) {
+    return { ok: false, error: "Unidad de medida no válida. Debe ser 'g', 'ml' o 'und'." };
+  }
+  if (
+    typeof payload.stock_actual !== "number" ||
+    payload.stock_actual < 0 ||
+    !Number.isFinite(payload.stock_actual)
+  ) {
+    return { ok: false, error: "El stock actual debe ser un número no negativo." };
+  }
+  if (
+    typeof payload.costo_unitario_usd !== "number" ||
+    payload.costo_unitario_usd < 0 ||
+    !Number.isFinite(payload.costo_unitario_usd)
+  ) {
+    return { ok: false, error: "El costo unitario debe ser un número no negativo." };
+  }
+
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
   let insumoId = payload.id;
 
   if (payload.id) {
@@ -117,7 +142,17 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
 }
 
 export async function ajustarStockInsumo(id: string, nuevoStock: number) {
+  if (!id || typeof id !== "string") {
+    return { ok: false, error: "ID de insumo no proporcionado." };
+  }
+  if (typeof nuevoStock !== "number" || nuevoStock < 0 || !Number.isFinite(nuevoStock)) {
+    return { ok: false, error: "El stock debe ser un número no negativo." };
+  }
+
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
   const { error } = await supabase
     .from("insumos")
     .update({

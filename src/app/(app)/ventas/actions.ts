@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
 
@@ -14,7 +15,14 @@ const TRANSICIONES_VALIDAS: Record<EstadoVenta, EstadoVenta[]> = {
 };
 
 export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: EstadoVenta) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!venta_id || !UUID_REGEX.test(venta_id)) {
+    return { ok: false, error: "Identificador de venta no válido." };
+  }
+
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   // 1. Obtener estado actual y verificar existencia
   const { data: ventaActual, error: errorFetch } = await supabase

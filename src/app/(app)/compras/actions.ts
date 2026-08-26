@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type RegistrarCompraPayload = {
   proveedor_id?: string | null;
@@ -17,7 +18,31 @@ export type RegistrarCompraPayload = {
 };
 
 export async function registrarCompraInsumo(payload: RegistrarCompraPayload) {
+  if (
+    typeof payload.cantidad_comprada !== "number" ||
+    payload.cantidad_comprada <= 0 ||
+    !Number.isFinite(payload.cantidad_comprada)
+  ) {
+    return { ok: false, error: "La cantidad comprada debe ser un número positivo." };
+  }
+  if (
+    typeof payload.factor_conversion !== "number" ||
+    payload.factor_conversion <= 0 ||
+    !Number.isFinite(payload.factor_conversion)
+  ) {
+    return { ok: false, error: "El factor de conversión debe ser un número positivo." };
+  }
+  if (
+    typeof payload.total_usd !== "number" ||
+    payload.total_usd <= 0 ||
+    !Number.isFinite(payload.total_usd)
+  ) {
+    return { ok: false, error: "El total en USD debe ser un número positivo." };
+  }
+
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   // 1. Insertar Cabecera de Compra
   const { data: compra, error: compraError } = await supabase

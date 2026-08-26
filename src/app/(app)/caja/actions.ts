@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type AbrirCajaPayload = {
   monto_inicial_usd: number;
@@ -10,7 +11,24 @@ export type AbrirCajaPayload = {
 };
 
 export async function abrirSesionCaja(payload: AbrirCajaPayload) {
+  if (
+    typeof payload.monto_inicial_usd !== "number" ||
+    payload.monto_inicial_usd < 0 ||
+    !Number.isFinite(payload.monto_inicial_usd)
+  ) {
+    return { ok: false, error: "El monto inicial USD debe ser un número no negativo." };
+  }
+  if (
+    typeof payload.monto_inicial_bs !== "number" ||
+    payload.monto_inicial_bs < 0 ||
+    !Number.isFinite(payload.monto_inicial_bs)
+  ) {
+    return { ok: false, error: "El monto inicial BS debe ser un número no negativo." };
+  }
+
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   // Verificar que no haya otra caja abierta
   const { data: abierta } = await supabase
@@ -26,7 +44,7 @@ export async function abrirSesionCaja(payload: AbrirCajaPayload) {
   const { error } = await supabase.from("sesiones_caja").insert({
     monto_inicial_usd: payload.monto_inicial_usd,
     monto_inicial_bs: payload.monto_inicial_bs,
-    usuario_apertura: payload.usuario || "Operador",
+    usuario_apertura: payload.usuario || auth.user?.email?.split("@")[0] || "Operador",
     estado: "abierta",
   });
 
@@ -54,6 +72,8 @@ export type CerrarCajaPayload = {
 
 export async function cerrarSesionCaja(payload: CerrarCajaPayload) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase
     .from("sesiones_caja")
@@ -70,7 +90,7 @@ export async function cerrarSesionCaja(payload: CerrarCajaPayload) {
       diferencia_usd: payload.diferencia_usd,
       diferencia_bs: payload.diferencia_bs,
       notas_cierre: payload.notas_cierre || null,
-      usuario_cierre: payload.usuario_cierre || "Operador",
+      usuario_cierre: payload.usuario_cierre || auth.user?.email?.split("@")[0] || "Operador",
     })
     .eq("id", payload.sesion_id);
 

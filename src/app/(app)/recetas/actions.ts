@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type GuardarRecetaPayload = {
   producto_id?: string;
@@ -19,7 +20,20 @@ export type GuardarRecetaPayload = {
 };
 
 export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
+  if (!payload.nombre?.trim()) {
+    return { ok: false, error: "El nombre del plato es obligatorio." };
+  }
+  if (
+    typeof payload.precio_usd !== "number" ||
+    payload.precio_usd <= 0 ||
+    !Number.isFinite(payload.precio_usd)
+  ) {
+    return { ok: false, error: "El precio debe ser un número mayor a 0." };
+  }
+
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
 
   let prodId = payload.producto_id;
 
@@ -60,6 +74,12 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
   await supabase.from("recetas_ingredientes").delete().eq("producto_id", prodId);
 
   if (payload.ingredientes && payload.ingredientes.length > 0) {
+    for (const ing of payload.ingredientes) {
+      const cant = Number(ing.cantidad);
+      if (!Number.isFinite(cant) || cant <= 0) {
+        return { ok: false, error: `La cantidad del insumo '${ing.insumo_id}' debe ser un número positivo.` };
+      }
+    }
     const ingInsert = payload.ingredientes.map((ing) => ({
       producto_id: prodId,
       insumo_id: ing.insumo_id,
@@ -79,6 +99,9 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
 
 export async function eliminarPlato(producto_id: string) {
   const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
   const { error } = await supabase.from("productos").delete().eq("id", producto_id);
   if (error) return { ok: false, error: error.message };
 
