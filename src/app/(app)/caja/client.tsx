@@ -608,22 +608,31 @@ export default function CajaClient({
                 </div>
                 <div className="metric-box">
                   <span className="metric-label">Efectivo USD:</span>
-                  <strong className="text-primary">${Number(c.total_ventas_efectivo_usd || 0).toFixed(2)}</strong>
+                  <strong className="text-primary">
+                    ${Number(c.estado === "abierta" ? resumenTurno.efectivoFisicoUsd : c.total_ventas_efectivo_usd || 0).toFixed(2)}
+                  </strong>
                 </div>
                 <div className="metric-box">
                   <span className="metric-label">Pago Móvil:</span>
-                  <strong className="text-green">{Number(c.total_ventas_pago_movil_bs || 0).toLocaleString()} Bs</strong>
+                  <strong className="text-green">
+                    {Number(c.estado === "abierta" ? resumenTurno.pagoMovilBs : c.total_ventas_pago_movil_bs || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })} Bs
+                  </strong>
                 </div>
               </div>
 
-              {c.estado === "cerrada" && c.diferencia_usd !== null && (
+              {c.estado === "abierta" ? (
+                <div style={{ fontSize: 12, display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border-subtle)", paddingTop: 8, color: "var(--primary)" }}>
+                  <span>Estado del Turno:</span>
+                  <strong>🔴 En operación (Calculando en vivo)</strong>
+                </div>
+              ) : c.diferencia_usd !== null ? (
                 <div style={{ fontSize: 12, display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border-subtle)", paddingTop: 8 }}>
                   <span>Diferencia Arqueo:</span>
                   <strong style={{ color: c.diferencia_usd >= 0 ? "var(--green)" : "var(--accent)" }}>
                     {c.diferencia_usd >= 0 ? `+${c.diferencia_usd}` : c.diferencia_usd} USD
                   </strong>
                 </div>
-              )}
+              ) : null}
             </div>
           ))
         )}
