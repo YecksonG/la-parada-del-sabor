@@ -27,36 +27,30 @@ export default function CajaClient({
   const [guardando, setGuardando] = useState(false);
   const [refrescando, setRefrescando] = useState(false);
 
+  const [filtroPeriodo, setFiltroPeriodo] = useState<"turno" | "hoy" | "todo">(
+    sesionActiva ? "turno" : "hoy"
+  );
+
   // Sincronizar estado inicial cuando cambian las props
   useEffect(() => {
     setVentas(initialVentasTurno);
   }, [initialVentasTurno]);
 
-  // Función para refrescar datos desde Supabase
+  // Función para refrescar datos desde Supabase (Exactamente igual que Dashboard)
   const refrescarVentas = useCallback(async () => {
     const supabase = createClient();
-    let query = supabase
+    const { data, error } = await supabase
       .from("ventas")
-      .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
-      .in("estado", ["preparando", "lista", "completada"])
+      .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
+      .neq("estado", "cancelada")
       .order("fecha", { ascending: false });
-
-    if (sesionActiva) {
-      query = query.gte("fecha", sesionActiva.fecha_apertura);
-    } else {
-      const hoyInicio = new Date();
-      hoyInicio.setHours(0, 0, 0, 0);
-      query = query.gte("fecha", hoyInicio.toISOString());
-    }
-
-    const { data, error } = await query;
 
     if (error) {
       console.error("Error cargando ventas en caja:", error);
     } else if (data) {
       setVentas(data as Venta[]);
     }
-  }, [sesionActiva]);
+  }, []);
 
   // Suscripción Realtime y Polling de Respaldo a ventas y sesiones de caja
   useEffect(() => {
@@ -99,6 +93,22 @@ export default function CajaClient({
   const [arqueoBs, setArqueoBs] = useState<number>(0.0);
   const [notasCierre, setNotasCierre] = useState("");
 
+  // Filtrar ventas por período seleccionado (Turno Activo / Hoy / Todo)
+  const ventasFiltradas = useMemo(() => {
+    const ahora = new Date();
+    return ventas.filter((v) => {
+      if (v.estado === "cancelada") return false;
+      const fechaVenta = new Date(v.fecha);
+      if (filtroPeriodo === "turno" && sesionActiva) {
+        return fechaVenta >= new Date(sesionActiva.fecha_apertura);
+      }
+      if (filtroPeriodo === "hoy" || (filtroPeriodo === "turno" && !sesionActiva)) {
+        return fechaVenta.toDateString() === ahora.toDateString();
+      }
+      return true;
+    });
+  }, [ventas, filtroPeriodo, sesionActiva]);
+
   // Cálculos en vivo de las ventas del turno estructurados por tipo de fondo
   const resumenTurno = useMemo(() => {
     let efectivoFisicoUsd = 0;
@@ -113,7 +123,7 @@ export default function CajaClient({
 
     let totalUsd = 0;
 
-    ventas.forEach((v) => {
+    ventasFiltradas.forEach((v) => {
       // Fallback si total_usd no fue recalculado por triggers o viene en 0
       const subtotalItems = (v.items || []).reduce((acc, it) => {
         const precio = Number(it.precio_unitario_usd) || 0;
@@ -188,7 +198,7 @@ export default function CajaClient({
       teoricoEfectivoUsd,
       teoricoEfectivoBs,
     };
-  }, [ventas, sesionActiva, tasaBcv]);
+  }, [ventasFiltradas, sesionActiva, tasaBcv]);
 
   // Diferencia de Arqueo
   const diferenciaUsd = arqueoUsd - resumenTurno.teoricoEfectivoUsd;
@@ -256,6 +266,58 @@ export default function CajaClient({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {/* Selector de Período */}
+          <div style={{ display: "flex", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, padding: 3, gap: 2 }}>
+            <button
+              type="button"
+              onClick={() => setFiltroPeriodo("turno")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: "none",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                background: filtroPeriodo === "turno" ? "var(--primary)" : "transparent",
+                color: filtroPeriodo === "turno" ? "#fff" : "var(--text-muted)",
+              }}
+            >
+              {sesionActiva ? "🟢 Turno Actual" : "🟢 Jornada"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroPeriodo("hoy")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: "none",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                background: filtroPeriodo === "hoy" ? "var(--primary)" : "transparent",
+                color: filtroPeriodo === "hoy" ? "#fff" : "var(--text-muted)",
+              }}
+            >
+              📅 Todo Hoy
+            </button>
+            <button
+              type="button"
+              onClick={() => setFiltroPeriodo("todo")}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 8,
+                border: "none",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                background: filtroPeriodo === "todo" ? "var(--primary)" : "transparent",
+                color: filtroPeriodo === "todo" ? "#fff" : "var(--text-muted)",
+              }}
+            >
+              📋 Histórico
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={async () => {
@@ -422,7 +484,7 @@ export default function CajaClient({
         <div className="caja-totals-hero">
           <div>
             <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 700 }}>
-              Total Ventas Registradas ({ventas.length} Comandas)
+              Total Facturado ({ventasFiltradas.length} Comandas)
             </span>
             <h2 style={{ fontSize: 32, fontWeight: 900, color: "var(--text)" }}>
               ${resumenTurno.totalUsd.toFixed(2)} USD
@@ -439,17 +501,17 @@ export default function CajaClient({
         {/* Detalle de Comandas del Turno */}
         <div style={{ marginTop: 16, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 16, padding: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>🧾 Comandas del Turno ({ventas.length})</h3>
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>🧾 Comandas del Período ({ventasFiltradas.length})</h3>
             <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Sincronización en vivo</span>
           </div>
 
-          {ventas.length === 0 ? (
+          {ventasFiltradas.length === 0 ? (
             <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)", textAlign: "center", padding: "16px 0" }}>
               No hay comandas registradas en este período.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 320, overflowY: "auto" }}>
-              {ventas.map((v) => (
+              {ventasFiltradas.map((v) => (
                 <div
                   key={v.id}
                   style={{

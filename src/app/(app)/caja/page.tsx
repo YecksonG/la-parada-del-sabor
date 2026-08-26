@@ -21,22 +21,13 @@ export default async function CajaPage() {
     .order("fecha_apertura", { ascending: false })
     .limit(20);
 
-  // 3. Obtener ventas confirmadas del turno o jornada
-  let query = supabase
+  // 3. Obtener ventas con la misma estructura autoritativa del Dashboard
+  const { data: ventas } = await supabase
     .from("ventas")
-    .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*))")
-    .in("estado", ["preparando", "lista", "completada"])
+    .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
+    .neq("estado", "cancelada")
     .order("fecha", { ascending: false });
 
-  if (sesionActiva) {
-    query = query.gte("fecha", sesionActiva.fecha_apertura);
-  } else {
-    const hoyInicio = new Date();
-    hoyInicio.setHours(0, 0, 0, 0);
-    query = query.gte("fecha", hoyInicio.toISOString());
-  }
-
-  const { data: ventas } = await query;
   const ventasTurno: Venta[] = (ventas as Venta[]) || [];
 
   const { data: tasaReciente } = await supabase
