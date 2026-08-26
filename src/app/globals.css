@@ -1676,6 +1676,50 @@ a {
   transform: translateY(-2px);
 }
 
+.btn-refresh-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--shadow-sm);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+}
+
+.btn-refresh-action:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px var(--shadow-md);
+}
+
+.btn-refresh-action:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-refresh-action:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-refresh-icon-spin {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .recetas-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

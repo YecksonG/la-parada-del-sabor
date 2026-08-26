@@ -324,13 +324,14 @@ export default function CajaClient({
               setRefrescando(true);
               await refrescarVentas();
               router.refresh();
-              setTimeout(() => setRefrescando(false), 400);
+              setTimeout(() => setRefrescando(false), 500);
             }}
-            className="btn-secondary"
-            title="Actualizar datos de caja"
+            className="btn-refresh-action"
+            title="Actualizar datos de caja en vivo"
             disabled={refrescando}
           >
-            {refrescando ? "⏳ Actualizando..." : "🔄 Actualizar"}
+            <span className={refrescando ? "btn-refresh-icon-spin" : ""}>🔄</span>
+            <span>{refrescando ? "Sincronizando..." : "Actualizar"}</span>
           </button>
 
           {sesionActiva ? (

@@ -55,7 +55,7 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
 
   if (rpcError) {
     console.error("Error RPC creando pedido web:", rpcError);
-    return { ok: false, error: "No se pudo registrar el pedido. Por favor verifica los datos e intenta nuevamente." };
+    return { ok: false, error: rpcError.message || "No se pudo registrar el pedido. Por favor intenta nuevamente." };
   }
 
   if (!rpcRes?.ok) {

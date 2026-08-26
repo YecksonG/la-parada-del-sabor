@@ -203,21 +203,21 @@ BEGIN
     LIMIT 1;
 
     IF v_cliente_id IS NOT NULL THEN
-        -- Anti-Doble Clic / Spam rápido (10 segundos)
+        -- Anti-Doble Clic / Spam accidental (5 segundos de gracia)
         IF EXISTS (
             SELECT 1 FROM public.ventas 
             WHERE cliente_id = v_cliente_id 
               AND estado = 'pendiente' 
-              AND creado_el > NOW() - INTERVAL '10 seconds'
+              AND fecha > NOW() - INTERVAL '5 seconds'
         ) THEN
-            RETURN jsonb_build_object('ok', false, 'error', 'Ya recibimos un pedido tuyo hace unos instantes. Espera unos momentos.');
+            RETURN jsonb_build_object('ok', false, 'error', 'Ya recibimos tu comanda hace unos segundos. Por favor espera un momento.');
         END IF;
 
         UPDATE public.clientes
         SET nombre = v_nombre_cliente,
             telefono = coalesce(nullif(v_telefono, ''), telefono),
             direccion_delivery = coalesce(nullif(v_direccion_delivery, ''), direccion_delivery),
-            total_pedidos = total_pedidos + 1,
+            total_pedidos = coalesce(total_pedidos, 0) + 1,
             actualizado_el = NOW()
         WHERE id = v_cliente_id;
     ELSE
