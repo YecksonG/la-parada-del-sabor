@@ -57,7 +57,7 @@ export default function DashboardClient({
     productos.forEach((prod) => {
       const costoReceta = (prod.ingredientes || []).reduce((acc: number, ing: any) => {
         const costoUnidad = insumosCostosMap.get(ing.insumo_id) || 0;
-        return acc + Number(ing.cantidad_necesaria) * costoUnidad;
+        return acc + Number(ing.cantidad) * costoUnidad;
       }, 0);
       recetasCostosMap.set(prod.id, costoReceta);
     });
@@ -621,28 +621,54 @@ export default function DashboardClient({
                 );
               }
 
+              const totalVentasPeriodo = dataPoints.reduce((a, b) => a + b.ventasUsd, 0);
+              const totalCostosPeriodo = dataPoints.reduce((a, b) => a + b.costosUsd, 0);
+              const totalGananciaPeriodo = totalVentasPeriodo - totalCostosPeriodo;
+              const margenPeriodo = totalVentasPeriodo > 0 ? (totalGananciaPeriodo / totalVentasPeriodo) * 100 : 0;
               const maxVenta = Math.max(...dataPoints.map((d) => d.ventasUsd), 10);
 
               return (
-                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Resumen Superior Rápido del Período Seleccionado */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+                    <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Total Facturado</span>
+                      <strong style={{ fontSize: 16, color: "var(--primary-dark)" }}>${totalVentasPeriodo.toFixed(2)} USD</strong>
+                    </div>
+                    <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Costo de Insumos</span>
+                      <strong style={{ fontSize: 16, color: "#ef4444" }}>${totalCostosPeriodo.toFixed(2)} USD</strong>
+                    </div>
+                    <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Ganancia Neta</span>
+                      <strong style={{ fontSize: 16, color: totalGananciaPeriodo >= 0 ? "#16a34a" : "#dc2626" }}>
+                        +${totalGananciaPeriodo.toFixed(2)} USD
+                      </strong>
+                    </div>
+                    <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Margen Promedio</span>
+                      <strong style={{ fontSize: 16, color: "#d97706" }}>{margenPeriodo.toFixed(1)}%</strong>
+                    </div>
+                  </div>
+
                   {/* Gráfica Visual de Barras Comparativas */}
                   <div
                     style={{
                       background: "var(--bg-subtle)",
                       border: "1px solid var(--border)",
                       borderRadius: 16,
-                      padding: "20px 16px",
+                      padding: "24px 16px 16px",
                       display: "flex",
                       alignItems: "flex-end",
                       justifyContent: "space-around",
-                      minHeight: 240,
-                      gap: 12,
+                      minHeight: 250,
+                      gap: 14,
                       overflowX: "auto",
                     }}
                   >
                     {dataPoints.map((dp, idx) => {
-                      const alturaVentasPct = Math.max(8, (dp.ventasUsd / maxVenta) * 100);
-                      const alturaCostosPct = Math.max(4, (dp.costosUsd / maxVenta) * 100);
+                      const alturaVentasPct = Math.max(10, (dp.ventasUsd / maxVenta) * 100);
+                      const alturaCostosPct = Math.max(5, (dp.costosUsd / maxVenta) * 100);
                       const ganancia = dp.ventasUsd - dp.costosUsd;
                       const margen = dp.ventasUsd > 0 ? (ganancia / dp.ventasUsd) * 100 : 0;
 
@@ -654,11 +680,15 @@ export default function DashboardClient({
                             flexDirection: "column",
                             alignItems: "center",
                             gap: 6,
-                            minWidth: 64,
+                            minWidth: 72,
                             flex: 1,
+                            background: "var(--surface)",
+                            padding: "8px 4px",
+                            borderRadius: 12,
+                            border: "1px solid var(--border)",
                           }}
                         >
-                          <span style={{ fontSize: 11, fontWeight: 800, color: ganancia >= 0 ? "#22c55e" : "#ef4444" }}>
+                          <span style={{ fontSize: 11, fontWeight: 900, color: ganancia >= 0 ? "#16a34a" : "#dc2626" }}>
                             +${ganancia.toFixed(0)}
                           </span>
 
@@ -666,8 +696,8 @@ export default function DashboardClient({
                             style={{
                               display: "flex",
                               alignItems: "flex-end",
-                              gap: 4,
-                              height: 150,
+                              gap: 6,
+                              height: 130,
                               width: "100%",
                               justifyContent: "center",
                             }}
@@ -677,9 +707,12 @@ export default function DashboardClient({
                               title={`Ventas: $${dp.ventasUsd.toFixed(2)} USD (${dp.comandas} comandas)`}
                               style={{
                                 height: `${alturaVentasPct}%`,
-                                width: 18,
+                                width: 22,
                                 background: "linear-gradient(180deg, var(--primary) 0%, var(--accent) 100%)",
-                                borderRadius: "4px 4px 0 0",
+                                borderRadius: "6px 6px 0 0",
+                                display: "flex",
+                                alignItems: "flex-start",
+                                justifyContent: "center",
                                 transition: "height 0.3s ease",
                               }}
                             />
@@ -688,23 +721,25 @@ export default function DashboardClient({
                               title={`Costo Insumos: $${dp.costosUsd.toFixed(2)} USD`}
                               style={{
                                 height: `${alturaCostosPct}%`,
-                                width: 18,
+                                width: 22,
                                 background: "linear-gradient(180deg, #f87171 0%, #ef4444 100%)",
-                                borderRadius: "4px 4px 0 0",
+                                borderRadius: "6px 6px 0 0",
                                 transition: "height 0.3s ease",
                               }}
                             />
                           </div>
 
-                          <strong style={{ fontSize: 11, color: "var(--text)" }}>{dp.label}</strong>
-                          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{margen.toFixed(0)}% mg</span>
+                          <div style={{ textAlign: "center", width: "100%" }}>
+                            <strong style={{ fontSize: 11, color: "var(--text)", display: "block" }}>{dp.label}</strong>
+                            <span style={{ fontSize: 10, color: "var(--primary-dark)", fontWeight: 700 }}>{margen.toFixed(0)}% mg</span>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
 
                   {/* Tabla de Detalle Cronológico */}
-                  <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
+                  <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                       <thead>
                         <tr style={{ background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>

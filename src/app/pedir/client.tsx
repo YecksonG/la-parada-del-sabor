@@ -61,84 +61,78 @@ export default function MenuClienteView({
   const [cargandoGps, setCargandoGps] = useState(false);
   const [gpsOk, setGpsOk] = useState(false);
 
-  // RASTREO INTELIGENTE DE CANAL DE ORIGEN (Instagram / WhatsApp / TikTok / QR / Directo)
+  // RASTREO MULTI-CANAL ROBUSTO DE ORIGEN (WhatsApp / Instagram / TikTok / QR / Directo)
   useEffect(() => {
     try {
       if (typeof window === "undefined") return;
       const params = new URLSearchParams(window.location.search);
-      const refParam = (params.get("ref") || params.get("src") || params.get("utm_source") || "").toLowerCase().trim();
+      const rawParam = (
+        params.get("ref") ||
+        params.get("origen") ||
+        params.get("source") ||
+        params.get("src") ||
+        params.get("canal") ||
+        params.get("utm_source") ||
+        params.get("utm_medium") ||
+        (params.has("wa") ? "whatsapp" : "") ||
+        (params.has("whatsapp") ? "whatsapp" : "") ||
+        (params.has("ig") ? "instagram" : "") ||
+        (params.has("instagram") ? "instagram" : "") ||
+        ""
+      ).toLowerCase().trim();
+
+      const ua = (navigator.userAgent || "").toLowerCase();
+      const refUrl = (document.referrer || "").toLowerCase();
 
       let detectado = "directo";
-      if (refParam.includes("instagram") || refParam === "ig") {
-        detectado = "instagram";
-      } else if (refParam.includes("whatsapp") || refParam === "ws" || refParam === "wa") {
+
+      // 1. Detección por Parámetros de URL
+      if (rawParam.includes("whatsapp") || rawParam === "wa" || rawParam === "ws") {
         detectado = "whatsapp";
-      } else if (refParam.includes("tiktok") || refParam === "tt") {
+      } else if (rawParam.includes("instagram") || rawParam === "ig") {
+        detectado = "instagram";
+      } else if (rawParam.includes("tiktok") || rawParam === "tt") {
         detectado = "tiktok";
-      } else if (refParam.includes("qr")) {
+      } else if (rawParam.includes("qr")) {
         detectado = "qr";
-      } else if (refParam) {
-        detectado = refParam;
-      } else {
-        // Detección automática por document.referrer si no viene parámetro explícito
-        const refUrl = (document.referrer || "").toLowerCase();
-        if (refUrl.includes("instagram.com")) {
-          detectado = "instagram";
-        } else if (refUrl.includes("whatsapp.com") || refUrl.includes("wa.me")) {
-          detectado = "whatsapp";
-        } else if (refUrl.includes("tiktok.com")) {
-          detectado = "tiktok";
-        } else if (refUrl.includes("facebook.com")) {
-          detectado = "facebook";
-        }
+      } else if (rawParam) {
+        detectado = rawParam;
+      }
+      // 2. Detección por In-App Browser (User Agent de WhatsApp / Instagram)
+      else if (ua.includes("whatsapp")) {
+        detectado = "whatsapp";
+      } else if (ua.includes("instagram")) {
+        detectado = "instagram";
+      } else if (ua.includes("musical_ly") || ua.includes("bytedance") || ua.includes("tiktok")) {
+        detectado = "tiktok";
+      } else if (ua.includes("fban") || ua.includes("fbav")) {
+        detectado = "facebook";
+      }
+      // 3. Detección por Referrer
+      else if (refUrl.includes("whatsapp.com") || refUrl.includes("wa.me")) {
+        detectado = "whatsapp";
+      } else if (refUrl.includes("instagram.com")) {
+        detectado = "instagram";
+      } else if (refUrl.includes("tiktok.com")) {
+        detectado = "tiktok";
+      } else if (refUrl.includes("facebook.com")) {
+        detectado = "facebook";
       }
 
-      // Persistencia en sessionStorage para todo el flujo de compra
-      const storedRef = sessionStorage.getItem("laparada_ref_origen");
-      if (refParam) {
+      // Persistencia en sesión y storage
+      const storedRef = sessionStorage.getItem("laparada_ref_origen") || localStorage.getItem("laparada_ref_origen");
+      if (detectado !== "directo") {
         sessionStorage.setItem("laparada_ref_origen", detectado);
+        localStorage.setItem("laparada_ref_origen", detectado);
         setOrigenPedido(detectado);
       } else if (storedRef) {
         setOrigenPedido(storedRef);
       } else {
-        sessionStorage.setItem("laparada_ref_origen", detectado);
-        setOrigenPedido(detectado);
+        sessionStorage.setItem("laparada_ref_origen", "directo");
+        setOrigenPedido("directo");
       }
     } catch {}
   }, []);
-
-  // Temporizador y persistencia de último pedido en curso (10 minutos)
-  const [ultimoPedido, setUltimoPedido] = useState<{ id: string; numero: number; time: number } | null>(null);
-  const [tiempoRestanteSeg, setTiempoRestanteSeg] = useState<number>(0);
-  const [permitirOtroPedido, setPermitirOtroPedido] = useState(false);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("laparada_ultimo_pedido");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const diffSeg = Math.floor((10 * 60 * 1000 - (Date.now() - parsed.time)) / 1000);
-        if (diffSeg > 0) {
-          setUltimoPedido(parsed);
-          setTiempoRestanteSeg(diffSeg);
-        }
-      }
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (tiempoRestanteSeg <= 0) return;
-    const timer = setInterval(() => {
-      setTiempoRestanteSeg((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [tiempoRestanteSeg]);
 
   const handleCopiarTexto = (texto: string, label: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -205,7 +199,7 @@ export default function MenuClienteView({
 
   const totalCarritoUsd = useMemo(() => {
     return carrito.reduce((acc, item) => {
-      const base = Number(item.producto.precio_usd || (item.producto as any).pvp_usd || 0) * item.cantidad;
+      const base = Number(item.producto.precio_usd || 0) * item.cantidad;
       const extrasTotal = item.extras.reduce(
         (eAcc, ext) => eAcc + Number(ext.precio_extra_usd || 0) * item.cantidad,
         0
@@ -322,16 +316,6 @@ export default function MenuClienteView({
     setEnviando(false);
 
     if (res.ok && res.venta_id) {
-      try {
-        localStorage.setItem(
-          "laparada_ultimo_pedido",
-          JSON.stringify({
-            id: res.venta_id,
-            numero: res.numero_comanda,
-            time: Date.now(),
-          })
-        );
-      } catch {}
       // Redirigir de inmediato a la Factura Digital Gourmet
       router.push(`/recibo/${res.venta_id}`);
     } else {
@@ -341,51 +325,6 @@ export default function MenuClienteView({
 
   return (
     <div className="pedir-page-layout">
-      {/* Banner de Pedido en Curso / Cooldown de 10 minutos */}
-      {tiempoRestanteSeg > 0 && ultimoPedido && (
-        <div
-          style={{
-            background: "linear-gradient(135deg, #1e293b, #0f172a)",
-            color: "#ffffff",
-            padding: "10px 16px",
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            fontSize: 13,
-            borderBottom: "2px solid var(--primary)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 18 }}>🕒</span>
-            <span>
-              Tienes un pedido en curso <strong>(Comanda #{ultimoPedido.numero.toString().padStart(4, "0")})</strong>.
-            </span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 11, background: "rgba(255,255,255,0.15)", padding: "3px 8px", borderRadius: 6 }}>
-              ⏱️ Próximo pedido en: <strong>{Math.floor(tiempoRestanteSeg / 60)}:{(tiempoRestanteSeg % 60).toString().padStart(2, "0")}</strong>
-            </span>
-            <Link
-              href={`/recibo/${ultimoPedido.id}`}
-              style={{
-                color: "#ffffff",
-                background: "var(--primary)",
-                padding: "4px 10px",
-                borderRadius: 6,
-                fontWeight: 700,
-                textDecoration: "none",
-                fontSize: 12,
-              }}
-            >
-              👉 Ver Mi Pedido
-            </Link>
-          </div>
-        </div>
-      )}
-
       {/* Header Público de La Parada del Sabor */}
       <header className="pedir-hero-header">
         <div className="pedir-header-top">
@@ -478,7 +417,7 @@ export default function MenuClienteView({
         ) : (
           <div className="pedir-products-grid">
             {productosFiltrados.map((prod) => {
-              const precioUsd = Number(prod.precio_usd || (prod as any).pvp_usd || 0);
+              const precioUsd = Number(prod.precio_usd || 0);
               const precioBs = precioUsd * tasaBcv;
               const itemEnCarrito = carrito.find((item) => item.producto.id === prod.id);
               const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
@@ -585,7 +524,7 @@ export default function MenuClienteView({
               <div className="pedir-cart-items-list">
                 {carrito.map((item) => {
                   const precioTotal =
-                    (Number(item.producto.precio_usd || (item.producto as any).pvp_usd || 0) +
+                    (Number(item.producto.precio_usd || 0) +
                       item.extras.reduce((acc, e) => acc + Number(e.precio_extra_usd || 0), 0)) *
                     item.cantidad;
 
@@ -1093,43 +1032,14 @@ export default function MenuClienteView({
                 </div>
               </div>
 
-              {tiempoRestanteSeg > 0 && !permitirOtroPedido ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <button
-                    type="button"
-                    disabled
-                    className="pedir-btn-submit-order"
-                    style={{ opacity: 0.6, cursor: "not-allowed", background: "#64748b" }}
-                  >
-                    ⏱️ Espera {Math.floor(tiempoRestanteSeg / 60)}:{(tiempoRestanteSeg % 60).toString().padStart(2, "0")} para nuevo pedido
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPermitirOtroPedido(true)}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "var(--primary-dark)",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                      padding: "4px 0",
-                    }}
-                  >
-                    ¿Necesitas hacer otro pedido ya? Haz clic aquí para desbloquear
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="submit"
-                  form="pedir-checkout-form-id"
-                  disabled={enviando}
-                  className="pedir-btn-submit-order"
-                >
-                  {enviando ? "Enviando Pedido..." : "🚀 Enviar Pedido a Cocina"}
-                </button>
-              )}
+              <button
+                type="submit"
+                form="pedir-checkout-form-id"
+                disabled={enviando}
+                className="pedir-btn-submit-order"
+              >
+                {enviando ? "Enviando Pedido..." : "🚀 Enviar Pedido a Cocina"}
+              </button>
             </div>
           </div>
         </div>

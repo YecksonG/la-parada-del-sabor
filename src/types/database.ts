@@ -108,8 +108,9 @@ export type TasaCambio = {
 };
 
 export type TipoEntrega = "puerta_cerrada" | "mesa" | "pickup" | "delivery";
-export type MetodoPago = "efectivo_usd" | "pago_movil_bs" | "pago_movil" | "transferencia" | "punto_bs" | "punto" | "binance" | "zelle" | "pesos_cop" | "efectivo_bs";
+export type MetodoPago = "efectivo_usd" | "efectivo_bs" | "pago_movil" | "pago_movil_bs" | "transferencia" | "punto" | "punto_bs" | "binance" | "zelle" | "pesos_cop";
 export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
+export type OrigenPedido = "instagram" | "whatsapp" | "tiktok" | "facebook" | "qr" | "directo" | "web" | "pos" | string;
 
 export type Venta = {
   id: string;
@@ -124,7 +125,7 @@ export type Venta = {
   estado: EstadoVenta;
   notas_comanda: string | null;
   creado_por?: string | null;
-  origen_pedido?: "instagram" | "whatsapp" | "tiktok" | "qr" | "directo" | "pos" | string | null;
+  origen_pedido?: OrigenPedido | null;
   creado_el: string;
   cliente?: Cliente;
   items?: VentaItem[];
@@ -150,6 +151,30 @@ export type VentaItemExtra = {
   precio_unitario_usd: number;
   subtotal_usd: number;
   extra?: ExtraModificador;
+};
+
+export type PedidoPendienteItem = {
+  id: string;
+  producto_id: string;
+  cantidad: number;
+  precio_unitario_usd: number;
+  subtotal_usd: number;
+  notas_item?: string | null;
+  producto?: Producto;
+  extras?: VentaItemExtra[];
+};
+
+export type PedidoPendiente = {
+  id: string;
+  numero_comanda: number;
+  fecha: string;
+  total_usd: number;
+  total_bs: number;
+  tipo_entrega: TipoEntrega;
+  notas_comanda?: string | null;
+  estado: EstadoVenta;
+  cliente?: Cliente | null;
+  items?: PedidoPendienteItem[];
 };
 
 export type SesionCaja = {

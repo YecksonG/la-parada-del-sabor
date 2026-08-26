@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Producto, Categoria, ExtraModificador, Cliente } from "@/types/database";
+import { Producto, Categoria, ExtraModificador, Cliente, PedidoPendiente } from "@/types/database";
 import {
   registrarVentaPos,
   aceptarPedidoWeb,
@@ -18,7 +18,7 @@ interface PosClientProps {
   productos: Producto[];
   extras: ExtraModificador[];
   tasaBcv: number;
-  pedidosPendientes?: any[];
+  pedidosPendientes?: PedidoPendiente[];
   clientesIniciales?: Cliente[];
 }
 
@@ -40,11 +40,30 @@ export default function PosClient({
   // Gestión de Clientes en POS
   const [listaClientes, setListaClientes] = useState<Cliente[]>(clientesIniciales);
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string | null>(null);
+  const [modalSeleccionarCliente, setModalSeleccionarCliente] = useState(false);
+  const [busquedaClienteModal, setBusquedaClienteModal] = useState("");
   const [modalNuevoCliente, setModalNuevoCliente] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoTelefono, setNuevoTelefono] = useState("");
   const [nuevaDireccion, setNuevaDireccion] = useState("");
   const [guardandoCliente, setGuardandoCliente] = useState(false);
+
+  // Cliente actualmente seleccionado
+  const clienteActual = useMemo(() => {
+    return listaClientes.find((c) => c.id === clienteSeleccionadoId) || null;
+  }, [listaClientes, clienteSeleccionadoId]);
+
+  // Clientes filtrados dentro del modal flotante de selección
+  const clientesFiltradosModal = useMemo(() => {
+    if (!busquedaClienteModal.trim()) return listaClientes;
+    const q = busquedaClienteModal.toLowerCase().trim();
+    return listaClientes.filter(
+      (c) =>
+        c.nombre.toLowerCase().includes(q) ||
+        c.telefono?.includes(q) ||
+        c.direccion_delivery?.toLowerCase().includes(q)
+    );
+  }, [listaClientes, busquedaClienteModal]);
 
   // Sincronizar clientes cuando cambian las props
   useEffect(() => {
@@ -101,7 +120,7 @@ export default function PosClient({
       const index = prev.findIndex((item) => item.producto_id === producto.id && (!item.extras || item.extras.length === 0));
       if (index >= 0) {
         const nuevo = [...prev];
-        nuevo[index].cantidad = Math.min(50, nuevo[index].cantidad + 1);
+        nuevo[index] = { ...nuevo[index], cantidad: Math.min(50, nuevo[index].cantidad + 1) };
         return nuevo;
       }
       return [
@@ -444,9 +463,9 @@ export default function PosClient({
           </div>
 
           {/* Selector de Cliente en POS */}
-          <div style={{ background: "var(--bg-subtle)", borderRadius: 10, padding: "8px 10px", marginBottom: 10, border: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>
+          <div style={{ background: "var(--surface)", borderRadius: 12, padding: "10px 12px", marginBottom: 12, border: "1px solid var(--border)", boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>
                 👤 Cliente Asignado:
               </span>
               <button
@@ -456,28 +475,59 @@ export default function PosClient({
                   fontSize: 11,
                   fontWeight: 800,
                   color: "var(--primary)",
-                  background: "transparent",
-                  border: "none",
+                  background: "rgba(249, 115, 22, 0.1)",
+                  border: "1px solid rgba(249, 115, 22, 0.2)",
                   cursor: "pointer",
-                  padding: "0 4px",
+                  padding: "2px 8px",
+                  borderRadius: 6,
                 }}
               >
                 ➕ Nuevo
               </button>
             </div>
-            <select
-              value={clienteSeleccionadoId || ""}
-              onChange={(e) => setClienteSeleccionadoId(e.target.value || null)}
-              className="payment-select"
-              style={{ fontSize: 12, padding: "6px 8px", width: "100%", borderRadius: 8 }}
+
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setBusquedaClienteModal("");
+                setModalSeleccionarCliente(true);
+              }}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "8px 10px",
+                background: clienteActual ? "rgba(249, 115, 22, 0.08)" : "var(--bg-subtle)",
+                border: clienteActual ? "1px solid var(--primary)" : "1px solid var(--border)",
+                borderRadius: 8,
+                cursor: "pointer",
+                textAlign: "left",
+                transition: "all 0.2s ease",
+              }}
             >
-              <option value="">👤 Mostrador / Casual (Sin registrar)</option>
-              {listaClientes.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre} {c.telefono ? `(${c.telefono})` : ""}
-                </option>
-              ))}
-            </select>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                <span style={{ fontSize: 18 }}>{clienteActual ? "👑" : "👤"}</span>
+                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <strong style={{ fontSize: 13, color: "var(--text)", display: "block" }}>
+                    {clienteActual ? clienteActual.nombre : "Mostrador / Casual"}
+                  </strong>
+                  {clienteActual?.telefono ? (
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      📞 {clienteActual.telefono}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                      {clienteActual ? "Sin teléfono registrado" : "Cliente sin registrar"}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, flexShrink: 0 }}>
+                {clienteActual ? "Cambiar ⇄" : "Buscar 🔍"}
+              </span>
+            </button>
           </div>
 
           {/* Selector de Entrega */}
@@ -776,12 +826,171 @@ export default function PosClient({
         </div>
       )}
 
+      {/* Modal Flotante de Selección de Clientes (Estilo Gourmet) */}
+      {modalSeleccionarCliente && (
+        <div className="modal-overlay" onClick={() => setModalSeleccionarCliente(false)}>
+          <div
+            className="modal-recipe-card"
+            style={{ maxWidth: 480, maxHeight: "88vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-recipe-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 24 }}>👥</span>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 18 }}>Seleccionar Cliente</h2>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
+                    Asigna un cliente a la orden para registrar historial y enviar factura
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalSeleccionarCliente(false)}
+                className="btn-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Barra de Búsqueda y Botón Nuevo */}
+            <div style={{ display: "flex", gap: 8, margin: "14px 0 10px" }}>
+              <div className="search-input-wrapper" style={{ flex: 1 }}>
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o teléfono..."
+                  value={busquedaClienteModal}
+                  onChange={(e) => setBusquedaClienteModal(e.target.value)}
+                  className="pos-search-input"
+                  style={{ fontSize: 13 }}
+                  autoFocus
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalSeleccionarCliente(false);
+                  setModalNuevoCliente(true);
+                }}
+                className="btn-primary-action"
+                style={{ padding: "0 14px", fontSize: 12, flexShrink: 0 }}
+              >
+                ➕ Nuevo
+              </button>
+            </div>
+
+            {/* Opción Cliente Casual / Mostrador */}
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setClienteSeleccionadoId(null);
+                setModalSeleccionarCliente(false);
+              }}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: !clienteSeleccionadoId ? "2px solid var(--primary)" : "1px solid var(--border)",
+                background: !clienteSeleccionadoId ? "rgba(249, 115, 22, 0.1)" : "var(--bg-subtle)",
+                color: "var(--text)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                cursor: "pointer",
+                marginBottom: 10,
+                textAlign: "left",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>👤</span>
+                <div>
+                  <strong style={{ display: "block", fontSize: 13 }}>Cliente Mostrador / Casual</strong>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Venta rápida sin registrar cliente</span>
+                </div>
+              </div>
+              {!clienteSeleccionadoId && (
+                <span style={{ color: "var(--primary)", fontWeight: 900, fontSize: 14 }}>✓ Activo</span>
+              )}
+            </button>
+
+            {/* Lista de Clientes Registrados */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto", paddingRight: 2 }}>
+              {clientesFiltradosModal.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)", fontSize: 13 }}>
+                  No se encontraron clientes con "{busquedaClienteModal}".
+                </div>
+              ) : (
+                clientesFiltradosModal.map((c) => {
+                  const isSelected = clienteSeleccionadoId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        sounds.playPop();
+                        setClienteSeleccionadoId(c.id);
+                        setModalSeleccionarCliente(false);
+                      }}
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border)",
+                        background: isSelected ? "rgba(249, 115, 22, 0.1)" : "var(--surface)",
+                        color: "var(--text)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ fontSize: 20 }}>👑</span>
+                        <div>
+                          <strong style={{ fontSize: 13, color: "var(--text)", display: "block" }}>{c.nombre}</strong>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+                            {c.telefono && (
+                              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                📞 {c.telefono}
+                              </span>
+                            )}
+                            <span className="badge-ticket" style={{ fontSize: 10, padding: "1px 6px" }}>
+                              {c.total_pedidos} Pedidos
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {isSelected ? (
+                        <span style={{ color: "var(--primary)", fontWeight: 900, fontSize: 14 }}>✓</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Seleccionar →</span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Rápido: Registrar Nuevo Cliente desde POS */}
       {modalNuevoCliente && (
-        <div className="modal-overlay">
-          <div className="modal-recipe-card" style={{ maxWidth: 440 }}>
+        <div className="modal-overlay" onClick={() => setModalNuevoCliente(false)}>
+          <div className="modal-recipe-card" style={{ maxWidth: 450 }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-recipe-header">
-              <h2>👤 Registrar Nuevo Cliente</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 24 }}>✨</span>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 18 }}>Registrar Nuevo Cliente</h2>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
+                    Guarda sus datos para agilizar futuros pedidos y enviar tickets por WhatsApp
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setModalNuevoCliente(false)}
@@ -791,9 +1000,9 @@ export default function PosClient({
               </button>
             </div>
 
-            <form onSubmit={handleGuardarClienteRapido} className="recipe-form">
+            <form onSubmit={handleGuardarClienteRapido} className="recipe-form" style={{ marginTop: 12 }}>
               <div className="form-field">
-                <label>Nombre y Apellido *</label>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>👤 Nombre y Apellido *</label>
                 <input
                   type="text"
                   placeholder="Ej: Carlos Mendoza"
@@ -801,30 +1010,57 @@ export default function PosClient({
                   onChange={(e) => setNuevoNombre(e.target.value)}
                   required
                   autoFocus
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-subtle)",
+                    color: "var(--text)",
+                    fontSize: 13,
+                  }}
                 />
               </div>
 
               <div className="form-field">
-                <label>Teléfono / WhatsApp (Opcional)</label>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>📱 Teléfono / WhatsApp (Recomendado)</label>
                 <input
                   type="tel"
                   placeholder="Ej: 04141234567"
                   value={nuevoTelefono}
                   onChange={(e) => setNuevoTelefono(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-subtle)",
+                    color: "var(--text)",
+                    fontSize: 13,
+                  }}
                 />
               </div>
 
               <div className="form-field">
-                <label>Dirección Delivery / Referencia (Opcional)</label>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>🛵 Dirección de Delivery / Referencia (Opcional)</label>
                 <input
                   type="text"
-                  placeholder="Ej: Calle 4, Casa #12"
+                  placeholder="Ej: Calle 4 con Carrera 2, Casa #12"
                   value={nuevaDireccion}
                   onChange={(e) => setNuevaDireccion(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-subtle)",
+                    color: "var(--text)",
+                    fontSize: 13,
+                  }}
                 />
               </div>
 
-              <div className="form-actions">
+              <div className="form-actions" style={{ marginTop: 16 }}>
                 <button
                   type="button"
                   onClick={() => setModalNuevoCliente(false)}
@@ -836,8 +1072,9 @@ export default function PosClient({
                   type="submit"
                   disabled={guardandoCliente || !nuevoNombre.trim()}
                   className="btn-submit-recipe"
+                  style={{ fontWeight: 800 }}
                 >
-                  {guardandoCliente ? "Guardando..." : "✅ Guardar & Asignar"}
+                  {guardandoCliente ? "Guardando..." : "✅ Guardar & Asignar a Comanda"}
                 </button>
               </div>
             </form>

@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import PosClient from "./client-pos";
-import { Producto, Categoria, ExtraModificador, Insumo } from "@/types/database";
+import { Producto, Categoria, ExtraModificador, PedidoPendiente } from "@/types/database";
 
 export default async function PosPage() {
   const supabase = await createClient();
@@ -58,7 +58,7 @@ export default async function PosPage() {
       productos={(productos as Producto[]) || []}
       extras={(extras as ExtraModificador[]) || []}
       tasaBcv={bcvTasa}
-      pedidosPendientes={pedidosPendientes || []}
+      pedidosPendientes={((pedidosPendientes as PedidoPendiente[]) || [])}
       clientesIniciales={(clientes as any[]) || []}
     />
   );

@@ -164,6 +164,9 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
 
   const [modalFeedback, setModalFeedback] = useState(false);
   const [calificacion, setCalificacion] = useState<number>(5);
+  const [saborComida, setSaborComida] = useState("🔥 ¡Exquisito!");
+  const [rapidezServicio, setRapidezServicio] = useState("⚡ Súper rápido");
+  const [experienciaWeb, setExperienciaWeb] = useState("📱 Muy fácil y cómodo");
   const [comentarioFeedback, setComentarioFeedback] = useState("");
   const [enviadoFeedback, setEnviadoFeedback] = useState(false);
 
@@ -178,12 +181,15 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
 
   const handleEnviarFeedbackWhatsApp = () => {
     const stars = "⭐".repeat(calificacion);
-    const texto = `⭐ *Calificación de Cliente - La Parada del Sabor*\n` +
+    const texto = `🌟 *Encuesta de Calidad - La Parada del Sabor*\n` +
       `📌 *Comanda:* #${venta.numero_comanda.toString().padStart(4, "0")}\n` +
       `👤 *Cliente:* ${venta.cliente?.nombre || "Cliente"}\n` +
-      `🌟 *Puntuación:* ${calificacion}/5 (${stars})\n` +
-      (comentarioFeedback.trim() ? `💬 *Comentario:* ${comentarioFeedback.trim()}\n` : "") +
-      `🔗 *Recibo:* ${reciboUrl}`;
+      `⭐ *Puntuación Global:* ${calificacion}/5 (${stars})\n` +
+      `🫓 *Sabor & Calidad:* ${saborComida}\n` +
+      `⏱️ *Rapidez de Atención:* ${rapidezServicio}\n` +
+      `📱 *Experiencia del Menú Web:* ${experienciaWeb}\n` +
+      (comentarioFeedback.trim() ? `💬 *Comentario / Sugerencia:* "${comentarioFeedback.trim()}"\n` : "") +
+      `🔗 *Recibo Digital:* ${reciboUrl}`;
     window.open(`https://wa.me/584248408990?text=${encodeURIComponent(texto)}`, "_blank");
     setEnviadoFeedback(true);
   };
@@ -210,7 +216,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
     <div className="recibo-page-wrapper">
       {/* Barra de Navegación Simple para Clientes */}
       <header className="recibo-top-banner no-print">
-        <Link href="/" className="recibo-brand-link">
+        <Link href="/pedir" className="recibo-brand-link" title="Ir al Menú de Pedidos">
           <Image
             src="/images/logo-badge.png"
             alt="La Parada del Sabor"
@@ -768,7 +774,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
                 </p>
 
                 {/* Selector de Estrellas */}
-                <div style={{ display: "flex", justifyContent: "center", gap: 10, padding: "8px 0" }}>
+                <div style={{ display: "flex", justifyContent: "center", gap: 10, padding: "4px 0" }}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
@@ -777,7 +783,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
                       style={{
                         background: "transparent",
                         border: "none",
-                        fontSize: 34,
+                        fontSize: 32,
                         cursor: "pointer",
                         filter: star <= calificacion ? "grayscale(0%)" : "grayscale(100%) opacity(30%)",
                         transition: "transform 0.15s ease",
@@ -798,22 +804,106 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
                   {calificacion === 1 && "❌ Tuve inconvenientes"}
                 </div>
 
+                {/* Pregunta 1: Sabor & Calidad */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>
+                    🫓 1. ¿Cómo estuvo el sabor y la comida?
+                  </label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {["🔥 ¡Exquisito!", "👌 Muy bueno", "🙂 Normal", "⚠️ Mejorable"].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setSaborComida(opt)}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          border: saborComida === opt ? "1px solid var(--primary)" : "1px solid var(--border)",
+                          background: saborComida === opt ? "rgba(249, 115, 22, 0.12)" : "var(--bg-subtle)",
+                          color: saborComida === opt ? "var(--primary-dark)" : "var(--text-muted)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pregunta 2: Rapidez del Servicio */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>
+                    ⚡ 2. ¿Qué tal el tiempo de preparación / entrega?
+                  </label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {["⚡ Súper rápido", "⏱️ A tiempo", "⏳ Tardó un poco", "🐢 Muy demorado"].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setRapidezServicio(opt)}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          border: rapidezServicio === opt ? "1px solid var(--primary)" : "1px solid var(--border)",
+                          background: rapidezServicio === opt ? "rgba(249, 115, 22, 0.12)" : "var(--bg-subtle)",
+                          color: rapidezServicio === opt ? "var(--primary-dark)" : "var(--text-muted)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Pregunta 3: Experiencia Web */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>
+                    📱 3. ¿Fue fácil hacer el pedido por la web?
+                  </label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {["📱 Muy fácil y cómodo", "👍 Bien", "🤔 Difícil de usar"].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setExperienciaWeb(opt)}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "5px 10px",
+                          borderRadius: 8,
+                          border: experienciaWeb === opt ? "1px solid var(--primary)" : "1px solid var(--border)",
+                          background: experienciaWeb === opt ? "rgba(249, 115, 22, 0.12)" : "var(--bg-subtle)",
+                          color: experienciaWeb === opt ? "var(--primary-dark)" : "var(--text-muted)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Comentario Opcional */}
                 <div className="form-field">
-                  <label style={{ fontSize: 12, fontWeight: 700 }}>Comentario o Sugerencia (Opcional):</label>
+                  <label style={{ fontSize: 12, fontWeight: 800 }}>💬 Comentario o Sugerencia (Opcional):</label>
                   <textarea
-                    rows={3}
-                    placeholder="Escribe aquí cualquier detalle sobre tu pedido o servicio..."
+                    rows={2}
+                    placeholder="¿Algún plato o ingrediente que te gustaría ver en el menú? ¿Algo que podamos mejorar?"
                     value={comentarioFeedback}
                     onChange={(e) => setComentarioFeedback(e.target.value)}
                     style={{
                       width: "100%",
                       borderRadius: 10,
-                      padding: "10px",
+                      padding: "8px 10px",
                       border: "1px solid var(--border)",
                       background: "var(--bg-subtle)",
                       color: "var(--text)",
-                      fontSize: 13,
+                      fontSize: 12,
                       resize: "none",
                     }}
                   />
@@ -835,7 +925,7 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
                       fontWeight: 800,
                     }}
                   >
-                    💬 Enviar Calificación a Gerencia (WhatsApp)
+                    💬 Enviar Encuesta a Gerencia (WhatsApp)
                   </button>
 
                   <button
