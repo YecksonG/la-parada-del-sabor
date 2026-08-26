@@ -558,7 +558,13 @@ export default function MenuClienteView({
       {/* Drawer Checkout Final del Cliente (Mobile First Bottom Sheet) */}
       {drawerCheckout && (
         <div className="modal-overlay" onClick={() => setDrawerCheckout(false)}>
-          <div className="pedir-drawer-checkout" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="pedir-drawer-checkout"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Resumen y confirmación de tu pedido"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="pedir-sheet-drag-handle" aria-hidden="true" />
             <div className="pedir-drawer-header">
               <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>🛒 Tu Pedido ({totalItemsCount})</h2>
@@ -566,6 +572,7 @@ export default function MenuClienteView({
                 type="button"
                 onClick={() => setDrawerCheckout(false)}
                 className="pedir-btn-close-modal"
+                aria-label="Cerrar resumen de pedido"
               >
                 ✕
               </button>
@@ -583,38 +590,37 @@ export default function MenuClienteView({
 
                   return (
                     <div key={item.tempId} className="pedir-cart-item-row">
-                      <div style={{ flex: 1 }}>
-                        <strong style={{ fontSize: 13, display: "block" }}>
-                          {item.producto.icono} {item.producto.nombre}
-                        </strong>
+                      <div className="pedir-cart-item-info">
+                        <span className="pedir-cart-item-name">{item.producto.nombre}</span>
                         {item.extras.length > 0 && (
-                          <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
-                            Extras: {item.extras.map((e) => e.nombre).join(", ")}
+                          <span className="pedir-cart-item-extras">
+                            + {item.extras.map((e) => e.nombre).join(", ")}
                           </span>
                         )}
                         {item.notas_item && (
-                          <span style={{ fontSize: 11, color: "var(--primary)", fontStyle: "italic", display: "block" }}>
-                            Nota: {item.notas_item}
-                          </span>
+                          <span className="pedir-cart-item-notes">Nota: {item.notas_item}</span>
                         )}
-                        <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>
+                        <span className="pedir-cart-item-price">
                           ${precioTotal.toFixed(2)} USD • Bs. {(precioTotal * tasaBcv).toFixed(2)}
                         </span>
                       </div>
 
-                      <div className="pedir-qty-controls">
+                      {/* Controles de Cantidad en Carrito */}
+                      <div className="pedir-qty-box">
                         <button
                           type="button"
                           onClick={() => handleModificarCantidad(item.tempId, -1)}
                           className="pedir-qty-btn"
+                          aria-label={`Restar una unidad de ${item.producto.nombre}`}
                         >
                           -
                         </button>
-                        <span className="pedir-qty-num">{item.cantidad}</span>
+                        <span className="pedir-qty-val">{item.cantidad}</span>
                         <button
                           type="button"
                           onClick={() => handleModificarCantidad(item.tempId, 1)}
                           className="pedir-qty-btn"
+                          aria-label={`Sumar una unidad de ${item.producto.nombre}`}
                         >
                           +
                         </button>
@@ -624,16 +630,15 @@ export default function MenuClienteView({
                 })}
               </div>
 
-              {/* Formulario de Envío & Datos del Cliente */}
-              <form id="pedir-checkout-form-id" onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
-                {errorMsg && <div className="pedir-error-alert">{errorMsg}</div>}
-
+              {/* Formulario de Datos del Cliente */}
+              <form onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
                 <div className="pedir-form-group">
-                  <label>Tu Nombre y Apellido *</label>
+                  <label htmlFor="nombreClienteInput">Tu Nombre y Apellido *</label>
                   <input
+                    id="nombreClienteInput"
                     type="text"
                     required
-                    placeholder="Ej: Carlos Mendoza"
+                    placeholder="Ej: María Pérez"
                     value={nombreCliente}
                     onChange={(e) => setNombreCliente(e.target.value)}
                     className="pedir-form-input"
@@ -641,8 +646,9 @@ export default function MenuClienteView({
                 </div>
 
                 <div className="pedir-form-group">
-                  <label>Teléfono / WhatsApp *</label>
+                  <label htmlFor="telefonoClienteInput">Teléfono / WhatsApp *</label>
                   <input
+                    id="telefonoClienteInput"
                     type="tel"
                     required
                     placeholder="Ej: 0412 1234567"
@@ -654,50 +660,98 @@ export default function MenuClienteView({
 
                 {/* Modalidad de Entrega */}
                 <div className="pedir-form-group">
-                  <label>Modalidad de Entrega</label>
-                  <div className="pedir-delivery-switch">
+                  <label className="pedir-form-label-destacado" id="labelModalidadEntrega">
+                    Modalidad de Entrega *
+                  </label>
+                  <div
+                    className="pedir-delivery-switch-cards"
+                    role="radiogroup"
+                    aria-labelledby="labelModalidadEntrega"
+                  >
                     <button
                       type="button"
-                      className={`pedir-switch-opt ${tipoEntrega === "pickup" ? "active" : ""}`}
+                      role="radio"
+                      aria-checked={tipoEntrega === "pickup"}
+                      className={`pedir-switch-card ${tipoEntrega === "pickup" ? "active" : ""}`}
                       onClick={() => setTipoEntrega("pickup")}
                     >
-                      🛍️ Para Llevar / Retiro
+                      <div className="pedir-switch-card-icon">🛍️</div>
+                      <div className="pedir-switch-card-body">
+                        <span className="pedir-switch-card-title">Para Llevar / Retiro</span>
+                        <span className="pedir-switch-card-sub">Retiras directo en local</span>
+                      </div>
+                      <div className="pedir-switch-card-check">
+                        {tipoEntrega === "pickup" ? "✓" : ""}
+                      </div>
                     </button>
+
                     <button
                       type="button"
-                      className={`pedir-switch-opt ${tipoEntrega === "delivery" ? "active" : ""}`}
+                      role="radio"
+                      aria-checked={tipoEntrega === "delivery"}
+                      className={`pedir-switch-card ${tipoEntrega === "delivery" ? "active" : ""}`}
                       onClick={() => setTipoEntrega("delivery")}
                     >
-                      🛵 Delivery a Domicilio
+                      <div className="pedir-switch-card-icon">🛵</div>
+                      <div className="pedir-switch-card-body">
+                        <span className="pedir-switch-card-title">Delivery a Domicilio</span>
+                        <span className="pedir-switch-card-sub">Te lo llevamos a tu puerta</span>
+                      </div>
+                      <div className="pedir-switch-card-check">
+                        {tipoEntrega === "delivery" ? "✓" : ""}
+                      </div>
                     </button>
                   </div>
                 </div>
 
                 {tipoEntrega === "delivery" && (
-                  <div className="pedir-form-group">
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                      <label style={{ margin: 0 }}>Dirección Exacta de Entrega *</label>
-                      <button
-                        type="button"
-                        onClick={handleObtenerUbicacionGps}
-                        disabled={cargandoGps}
-                        className="pedir-btn-gps"
-                        title="Detectar ubicación GPS automáticamente"
-                      >
-                        {cargandoGps ? "⏳ Buscando satélites..." : gpsOk ? "📍 GPS Detectado ✓" : "📍 Usar mi GPS Actual"}
-                      </button>
-                    </div>
+                  <div className="pedir-form-group pedir-delivery-container-highlight">
+                    {/* Botón GPS Super Destacado */}
+                    <button
+                      type="button"
+                      onClick={handleObtenerUbicacionGps}
+                      disabled={cargandoGps}
+                      className={`pedir-btn-gps-hero ${gpsOk ? "gps-active" : ""}`}
+                      title="Detectar ubicación GPS automáticamente"
+                      aria-label="Detectar ubicación GPS automáticamente"
+                    >
+                      <div className="pedir-btn-gps-hero-icon" aria-hidden="true">
+                        {cargandoGps ? "⏳" : gpsOk ? "✅" : "📍"}
+                      </div>
+                      <div className="pedir-btn-gps-hero-content">
+                        <span className="pedir-btn-gps-hero-title" aria-live="polite">
+                          {cargandoGps
+                            ? "Conectando con Satélites GPS..."
+                            : gpsOk
+                            ? "¡Ubicación GPS Detectada!"
+                            : "Usar mi GPS Actual"}
+                        </span>
+                        <span className="pedir-btn-gps-hero-sub">
+                          {gpsOk
+                            ? "Google Maps vinculado para el repartidor ✓"
+                            : "1 toque: detecta tu ubicación sin escribir"}
+                        </span>
+                      </div>
+                      <div className="pedir-btn-gps-hero-badge" aria-hidden="true">
+                        {cargandoGps ? "Buscando..." : gpsOk ? "ACTIVO" : "RECOMENDADO"}
+                      </div>
+                    </button>
+
+                    <label htmlFor="direccionDeliveryInput" style={{ marginTop: 12, marginBottom: 6, display: "block" }}>
+                      Dirección Exacta / Referencias de Entrega *
+                    </label>
                     <textarea
+                      id="direccionDeliveryInput"
                       required
                       rows={2}
-                      placeholder="Calle, número de casa, punto de referencia o enlace GPS..."
+                      placeholder="Calle, número de casa, edificio o punto de referencia..."
                       value={direccionDelivery}
                       onChange={(e) => setDireccionDelivery(e.target.value)}
                       className="pedir-form-input"
                     />
                     {gpsOk && (
-                      <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 700, marginTop: 4, display: "block" }}>
-                        ✨ Tu enlace de Google Maps se adjuntará automáticamente a la comanda para el repartidor.
+                      <span className="pedir-gps-ok-hint">
+                        ✨ ¡Listo! Tu enlace de Google Maps se adjuntará automáticamente a la comanda para el repartidor.
                       </span>
                     )}
                   </div>
