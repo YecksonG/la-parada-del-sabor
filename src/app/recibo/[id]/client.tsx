@@ -162,13 +162,10 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
   };
   const metodoPago = METODOS_PAGO_LABEL[venta.metodo_pago] || venta.metodo_pago;
 
-  const handleCopiarEnlace = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(reciboUrl);
-      setCopiadoLabel("enlace");
-      setTimeout(() => setCopiadoLabel(null), 2500);
-    }
-  };
+  const [modalFeedback, setModalFeedback] = useState(false);
+  const [calificacion, setCalificacion] = useState<number>(5);
+  const [comentarioFeedback, setComentarioFeedback] = useState("");
+  const [enviadoFeedback, setEnviadoFeedback] = useState(false);
 
   const handleCompartirWhatsApp = () => {
     const texto = `🧾 *Recibo de Compra - La Parada del Sabor*\n` +
@@ -177,6 +174,18 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
       `💰 *Total:* $${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}\n` +
       `🔗 *Ver Detalle & Estado en vivo:* ${reciboUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
+  };
+
+  const handleEnviarFeedbackWhatsApp = () => {
+    const stars = "⭐".repeat(calificacion);
+    const texto = `⭐ *Calificación de Cliente - La Parada del Sabor*\n` +
+      `📌 *Comanda:* #${venta.numero_comanda.toString().padStart(4, "0")}\n` +
+      `👤 *Cliente:* ${venta.cliente?.nombre || "Cliente"}\n` +
+      `🌟 *Puntuación:* ${calificacion}/5 (${stars})\n` +
+      (comentarioFeedback.trim() ? `💬 *Comentario:* ${comentarioFeedback.trim()}\n` : "") +
+      `🔗 *Recibo:* ${reciboUrl}`;
+    window.open(`https://wa.me/584248408990?text=${encodeURIComponent(texto)}`, "_blank");
+    setEnviadoFeedback(true);
   };
 
   // Stepper dinámico según tipo de entrega
@@ -696,10 +705,16 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
 
           <button
             type="button"
-            onClick={handleCopiarEnlace}
+            onClick={() => setModalFeedback(true)}
             className="recibo-btn-secondary"
+            style={{
+              background: "linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(234, 88, 12, 0.12))",
+              borderColor: "#f59e0b",
+              color: "var(--text)",
+              fontWeight: 800,
+            }}
           >
-            <span>{copiadoLabel === "enlace" ? "✅ ¡Enlace Copiado!" : "🔗 Copiar Enlace"}</span>
+            <span>⭐ Dejar Opinión / Feedback</span>
           </button>
 
           <button
@@ -711,6 +726,132 @@ export default function ReciboClienteView({ venta }: { venta: ReciboVenta }) {
           </button>
         </div>
       </main>
+
+      {/* Modal Interactivo de Feedback / Calificación del Cliente */}
+      {modalFeedback && (
+        <div className="modal-overlay" onClick={() => setModalFeedback(false)}>
+          <div className="modal-recipe-card" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-recipe-header">
+              <h2>⭐ Tu Opinión nos Importa</h2>
+              <button
+                type="button"
+                onClick={() => setModalFeedback(false)}
+                className="btn-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {enviadoFeedback ? (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <span style={{ fontSize: 48 }}>🎉</span>
+                <h3 style={{ margin: "10px 0 6px", fontSize: 18, fontWeight: 800 }}>¡Muchas Gracias por tu Feedback!</h3>
+                <p style={{ color: "var(--text-muted)", fontSize: 13 }}>
+                  Tus comentarios nos ayudan a seguir preparando las mejores arepas gourmet de la ciudad.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalFeedback(false);
+                    setEnviadoFeedback(false);
+                  }}
+                  className="btn-primary-action"
+                  style={{ marginTop: 14 }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+                  ¿Cómo estuvo tu experiencia y el sabor de tu comida en la comanda #{venta.numero_comanda.toString().padStart(4, "0")}?
+                </p>
+
+                {/* Selector de Estrellas */}
+                <div style={{ display: "flex", justifyContent: "center", gap: 10, padding: "8px 0" }}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setCalificacion(star)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        fontSize: 34,
+                        cursor: "pointer",
+                        filter: star <= calificacion ? "grayscale(0%)" : "grayscale(100%) opacity(30%)",
+                        transition: "transform 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.2)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                    >
+                      ⭐
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: "#d97706" }}>
+                  {calificacion === 5 && "🌟 ¡Excelente sabor y atención!"}
+                  {calificacion === 4 && "👍 Muy bueno todo"}
+                  {calificacion === 3 && "👌 Sabor aceptable / Regular"}
+                  {calificacion === 2 && "⚠️ Por mejorar"}
+                  {calificacion === 1 && "❌ Tuve inconvenientes"}
+                </div>
+
+                {/* Comentario Opcional */}
+                <div className="form-field">
+                  <label style={{ fontSize: 12, fontWeight: 700 }}>Comentario o Sugerencia (Opcional):</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Escribe aquí cualquier detalle sobre tu pedido o servicio..."
+                    value={comentarioFeedback}
+                    onChange={(e) => setComentarioFeedback(e.target.value)}
+                    style={{
+                      width: "100%",
+                      borderRadius: 10,
+                      padding: "10px",
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-subtle)",
+                      color: "var(--text)",
+                      fontSize: 13,
+                      resize: "none",
+                    }}
+                  />
+                </div>
+
+                <div className="form-actions" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleEnviarFeedbackWhatsApp}
+                    className="btn-primary-action"
+                    style={{
+                      background: "#25D366",
+                      color: "#ffffff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      fontSize: 14,
+                      fontWeight: 800,
+                    }}
+                  >
+                    💬 Enviar Calificación a Gerencia (WhatsApp)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalFeedback(false)}
+                    className="btn-cancel"
+                    style={{ textAlign: "center" }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

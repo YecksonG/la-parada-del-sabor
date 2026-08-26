@@ -46,6 +46,12 @@ export default async function PosPage() {
     .eq("estado", "pendiente")
     .order("fecha", { ascending: false });
 
+  // 6. Obtener clientes para selección rápida en POS
+  const { data: clientes } = await supabase
+    .from("clientes")
+    .select("*")
+    .order("nombre", { ascending: true });
+
   return (
     <PosClient
       categorias={(categorias as Categoria[]) || []}
@@ -53,6 +59,7 @@ export default async function PosPage() {
       extras={(extras as ExtraModificador[]) || []}
       tasaBcv={bcvTasa}
       pedidosPendientes={pedidosPendientes || []}
+      clientesIniciales={(clientes as any[]) || []}
     />
   );
 }

@@ -217,15 +217,19 @@ export default function MenuClienteView({
   const totalCarritoBs = Number((totalCarritoUsd * tasaBcv).toFixed(2));
   const totalItemsCount = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
-  // Agregar al carrito directamente
+  // Agregar al carrito directamente (Límite máximo 25 por producto)
   const handleAgregarProductoDirecto = (prod: Producto) => {
     setCarrito((prev) => {
       const existingIdx = prev.findIndex((item) => item.producto.id === prod.id);
       if (existingIdx >= 0) {
+        if (prev[existingIdx].cantidad >= 25) {
+          setErrorMsg("Límite alcanzado: máximo 25 unidades de este producto por pedido.");
+          return prev;
+        }
         const next = [...prev];
         next[existingIdx] = {
           ...next[existingIdx],
-          cantidad: next[existingIdx].cantidad + 1,
+          cantidad: Math.min(25, next[existingIdx].cantidad + 1),
         };
         return next;
       }
@@ -246,7 +250,7 @@ export default function MenuClienteView({
       prev
         .map((item) => {
           if (item.producto.id === productoId) {
-            const nuevaCantidad = item.cantidad + delta;
+            const nuevaCantidad = Math.min(25, item.cantidad + delta);
             return nuevaCantidad > 0 ? { ...item, cantidad: nuevaCantidad } : null;
           }
           return item;
@@ -260,7 +264,7 @@ export default function MenuClienteView({
       prev
         .map((item) => {
           if (item.tempId === tempId) {
-            const nuevaCantidad = item.cantidad + delta;
+            const nuevaCantidad = Math.min(25, item.cantidad + delta);
             return nuevaCantidad > 0 ? { ...item, cantidad: nuevaCantidad } : null;
           }
           return item;

@@ -71,15 +71,15 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
     return { ok: false, error: "Por favor ingresa la dirección exacta para el delivery." };
   }
 
-  // G2 Fix: Validación estricta de cantidades en el servidor (rango 1..50, enteros)
+  // Validación estricta de cantidades en el servidor (rango 1..25, enteros)
   for (const item of payload.items) {
     if (
       typeof item.cantidad !== "number" ||
       !Number.isInteger(item.cantidad) ||
       item.cantidad < 1 ||
-      item.cantidad > 50
+      item.cantidad > 25
     ) {
-      return { ok: false, error: "Cantidad no válida para uno de los productos seleccionados." };
+      return { ok: false, error: "La cantidad máxima permitida por producto en la web es de 25 unidades." };
     }
   }
 

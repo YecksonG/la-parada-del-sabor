@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Producto, Categoria, ExtraModificador } from "@/types/database";
+import { Producto, Categoria, ExtraModificador, Cliente } from "@/types/database";
 import {
   registrarVentaPos,
   aceptarPedidoWeb,
   rechazarPedidoWeb,
+  crearClienteRapido,
   CartItem,
   CartItemExtra,
 } from "./pos-actions";
@@ -18,6 +19,7 @@ interface PosClientProps {
   extras: ExtraModificador[];
   tasaBcv: number;
   pedidosPendientes?: any[];
+  clientesIniciales?: Cliente[];
 }
 
 export default function PosClient({
@@ -26,6 +28,7 @@ export default function PosClient({
   extras,
   tasaBcv,
   pedidosPendientes = [],
+  clientesIniciales = [],
 }: PosClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [modalPedidosWeb, setModalPedidosWeb] = useState(false);
@@ -33,6 +36,22 @@ export default function PosClient({
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
+
+  // Gestión de Clientes en POS
+  const [listaClientes, setListaClientes] = useState<Cliente[]>(clientesIniciales);
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string | null>(null);
+  const [modalNuevoCliente, setModalNuevoCliente] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevoTelefono, setNuevoTelefono] = useState("");
+  const [nuevaDireccion, setNuevaDireccion] = useState("");
+  const [guardandoCliente, setGuardandoCliente] = useState(false);
+
+  // Sincronizar clientes cuando cambian las props
+  useEffect(() => {
+    if (clientesIniciales.length > 0) {
+      setListaClientes(clientesIniciales);
+    }
+  }, [clientesIniciales]);
 
   // Cargar preferencia guardada al montar
   useEffect(() => {
@@ -58,6 +77,8 @@ export default function PosClient({
     totalUsd: number;
     totalBs: number;
     ventaId?: string;
+    clienteNombre?: string;
+    clienteTelefono?: string | null;
   } | null>(null);
   const [itemParaExtras, setItemParaExtras] = useState<number | null>(null);
 
@@ -73,14 +94,14 @@ export default function PosClient({
     });
   }, [productos, categoriaSeleccionada, busqueda]);
 
-  // Agregar producto al carrito con sonido pop
+  // Agregar producto al carrito con sonido pop (Límite máximo 50 por item)
   const agregarAlCarrito = (producto: Producto) => {
     sounds.playPop();
     setCarrito((prev) => {
       const index = prev.findIndex((item) => item.producto_id === producto.id && (!item.extras || item.extras.length === 0));
       if (index >= 0) {
         const nuevo = [...prev];
-        nuevo[index].cantidad += 1;
+        nuevo[index].cantidad = Math.min(50, nuevo[index].cantidad + 1);
         return nuevo;
       }
       return [
@@ -102,7 +123,7 @@ export default function PosClient({
 
     setCarrito((prev) => {
       const nuevo = [...prev];
-      const cant = nuevo[index].cantidad + delta;
+      const cant = Math.min(50, nuevo[index].cantidad + delta);
       if (cant <= 0) {
         nuevo.splice(index, 1);
       } else {
@@ -166,6 +187,32 @@ export default function PosClient({
 
   const totalBs = Number((totalUsd * tasaBcv).toFixed(2));
 
+  // Guardar Cliente Rápido desde el POS
+  const handleGuardarClienteRapido = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nuevoNombre.trim() || guardandoCliente) return;
+
+    setGuardandoCliente(true);
+    const res = await crearClienteRapido({
+      nombre: nuevoNombre.trim(),
+      telefono: nuevoTelefono.trim(),
+      direccion_delivery: nuevaDireccion.trim(),
+    });
+    setGuardandoCliente(false);
+
+    if (res.ok && res.cliente) {
+      sounds.playPop();
+      setListaClientes((prev) => [res.cliente, ...prev]);
+      setClienteSeleccionadoId(res.cliente.id);
+      setModalNuevoCliente(false);
+      setNuevoNombre("");
+      setNuevoTelefono("");
+      setNuevaDireccion("");
+    } else {
+      alert(res.error || "No se pudo registrar el cliente.");
+    }
+  };
+
   // Enviar Comanda a Cocina
   const handleEnviarComanda = async () => {
     if (carrito.length === 0 || procesando) return;
@@ -177,6 +224,7 @@ export default function PosClient({
 
     setProcesando(true);
     const res = await registrarVentaPos({
+      cliente_id: clienteSeleccionadoId,
       metodo_pago: metodoPago,
       tipo_entrega: tipoEntrega,
       tasa_bcv: tasaBcv,
@@ -189,14 +237,18 @@ export default function PosClient({
     if (res.ok && res.numero_comanda) {
       sounds.playKitchenBell();
       setTimeout(() => sounds.playCashRegister(), 300);
+      const clienteObj = listaClientes.find((c) => c.id === clienteSeleccionadoId);
       setComandaExitosa({
         numero: res.numero_comanda,
         totalUsd,
         totalBs,
         ventaId: res.venta_id,
+        clienteNombre: clienteObj?.nombre,
+        clienteTelefono: clienteObj?.telefono,
       });
       setCarrito([]);
       setNotasComanda("");
+      setClienteSeleccionadoId(null);
     } else {
       alert(res.error || "No se pudo procesar la comanda.");
     }
@@ -389,6 +441,43 @@ export default function PosClient({
                 {carrito.reduce((a, b) => a + b.cantidad, 0)}
               </span>
             )}
+          </div>
+
+          {/* Selector de Cliente en POS */}
+          <div style={{ background: "var(--bg-subtle)", borderRadius: 10, padding: "8px 10px", marginBottom: 10, border: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                👤 Cliente Asignado:
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalNuevoCliente(true)}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "var(--primary)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "0 4px",
+                }}
+              >
+                ➕ Nuevo
+              </button>
+            </div>
+            <select
+              value={clienteSeleccionadoId || ""}
+              onChange={(e) => setClienteSeleccionadoId(e.target.value || null)}
+              className="payment-select"
+              style={{ fontSize: 12, padding: "6px 8px", width: "100%", borderRadius: 8 }}
+            >
+              <option value="">👤 Mostrador / Casual (Sin registrar)</option>
+              {listaClientes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre} {c.telefono ? `(${c.telefono})` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Selector de Entrega */}
@@ -632,8 +721,18 @@ export default function PosClient({
                 type="button"
                 onClick={() => {
                   const url = `${window.location.origin}/recibo/${comandaExitosa.ventaId || ""}`;
-                  const txt = `🧾 *Recibo de Compra - La Parada del Sabor*\n📌 *Comanda:* #${comandaExitosa.numero}\n💰 *Total:* $${comandaExitosa.totalUsd.toFixed(2)} USD / Bs. ${comandaExitosa.totalBs.toFixed(2)}\n🔗 *Ver Factura & Estado:* ${url}`;
-                  window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
+                  const clienteTxt = comandaExitosa.clienteNombre ? `\n👤 *Cliente:* ${comandaExitosa.clienteNombre}` : "";
+                  const txt = `🧾 *Factura Digital Gourmet - La Parada del Sabor*${clienteTxt}\n📌 *Comanda:* #${comandaExitosa.numero}\n💰 *Total:* $${comandaExitosa.totalUsd.toFixed(2)} USD / Bs. ${comandaExitosa.totalBs.toFixed(2)}\n🔗 *Ver Factura & Estado:* ${url}\n\n¡Gracias por tu compra!`;
+                  
+                  const telDigits = (comandaExitosa.clienteTelefono || "").replace(/\D/g, "");
+                  let waPhone = "";
+                  if (telDigits.length >= 7) {
+                    if (telDigits.startsWith("58")) waPhone = telDigits;
+                    else if (telDigits.startsWith("0")) waPhone = "58" + telDigits.slice(1);
+                    else waPhone = "58" + telDigits;
+                  }
+                  const waLink = waPhone ? `https://wa.me/${waPhone}?text=${encodeURIComponent(txt)}` : `https://wa.me/?text=${encodeURIComponent(txt)}`;
+                  window.open(waLink, "_blank");
                 }}
                 className="btn-ticket-close"
                 style={{
@@ -646,7 +745,7 @@ export default function PosClient({
                   fontWeight: 800,
                 }}
               >
-                📲 Enviar Factura por WhatsApp
+                📲 Enviar Factura al Cliente por WhatsApp {comandaExitosa.clienteNombre ? `(${comandaExitosa.clienteNombre})` : ""}
               </button>
 
               <div style={{ display: "flex", gap: 8 }}>
@@ -673,6 +772,75 @@ export default function PosClient({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rápido: Registrar Nuevo Cliente desde POS */}
+      {modalNuevoCliente && (
+        <div className="modal-overlay">
+          <div className="modal-recipe-card" style={{ maxWidth: 440 }}>
+            <div className="modal-recipe-header">
+              <h2>👤 Registrar Nuevo Cliente</h2>
+              <button
+                type="button"
+                onClick={() => setModalNuevoCliente(false)}
+                className="btn-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarClienteRapido} className="recipe-form">
+              <div className="form-field">
+                <label>Nombre y Apellido *</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Carlos Mendoza"
+                  value={nuevoNombre}
+                  onChange={(e) => setNuevoNombre(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-field">
+                <label>Teléfono / WhatsApp (Opcional)</label>
+                <input
+                  type="tel"
+                  placeholder="Ej: 04141234567"
+                  value={nuevoTelefono}
+                  onChange={(e) => setNuevoTelefono(e.target.value)}
+                />
+              </div>
+
+              <div className="form-field">
+                <label>Dirección Delivery / Referencia (Opcional)</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Calle 4, Casa #12"
+                  value={nuevaDireccion}
+                  onChange={(e) => setNuevaDireccion(e.target.value)}
+                />
+              </div>
+
+              <div className="form-actions">
+                <button
+                  type="button"
+                  onClick={() => setModalNuevoCliente(false)}
+                  className="btn-cancel"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardandoCliente || !nuevoNombre.trim()}
+                  className="btn-submit-recipe"
+                >
+                  {guardandoCliente ? "Guardando..." : "✅ Guardar & Asignar"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

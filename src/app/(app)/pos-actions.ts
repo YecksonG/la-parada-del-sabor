@@ -28,9 +28,51 @@ export type RegistrarVentaPayload = {
   items: CartItem[];
 };
 
+export async function crearClienteRapido(payload: {
+  nombre: string;
+  telefono?: string;
+  direccion_delivery?: string;
+}) {
+  if (!payload.nombre?.trim()) {
+    return { ok: false, error: "El nombre del cliente es obligatorio." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("clientes")
+    .insert({
+      nombre: payload.nombre.trim(),
+      telefono: payload.telefono?.trim() || null,
+      direccion_delivery: payload.direccion_delivery?.trim() || null,
+      total_pedidos: 0,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/clientes");
+  revalidatePath("/");
+  return { ok: true, cliente: data };
+}
+
 export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   if (!payload.items || payload.items.length === 0) {
     return { ok: false, error: "La comanda no tiene ningún producto agregado." };
+  }
+
+  // Validación de cantidad en servidor (1..50 unidades enteras por item en POS)
+  for (const item of payload.items) {
+    if (
+      typeof item.cantidad !== "number" ||
+      !Number.isInteger(item.cantidad) ||
+      item.cantidad < 1 ||
+      item.cantidad > 50
+    ) {
+      return { ok: false, error: "La cantidad por producto en POS debe ser un número entero entre 1 y 50 unidades." };
+    }
   }
 
   const supabase = await createClient();
@@ -63,6 +105,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
       estado: "preparando",
       notas_comanda: payload.notas_comanda || null,
       creado_por: nombreOperador,
+      origen_pedido: "pos",
       total_usd: totalUsdCalculado,
       total_bs: totalBsCalculado,
     })

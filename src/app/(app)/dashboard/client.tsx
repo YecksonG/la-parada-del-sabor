@@ -20,6 +20,8 @@ export default function DashboardClient({
   tasaBcv,
 }: DashboardClientProps) {
   const [periodo, setPeriodo] = useState<"hoy" | "semana" | "mes" | "todo">("mes");
+  const [modalGraficasHistoricas, setModalGraficasHistoricas] = useState(false);
+  const [agrupacionGrafica, setAgrupacionGrafica] = useState<"semana" | "mes">("semana");
 
   // Filtrar ventas por periodo
   const ventasFiltradas = useMemo(() => {
@@ -40,6 +42,87 @@ export default function DashboardClient({
       return true;
     });
   }, [ventas, periodo]);
+
+  // Agrupaciones temporales continuas (Semana a Semana y Mes a Mes)
+  const seriesContinuas = useMemo(() => {
+    const semanasMap: Record<string, { label: string; ventasUsd: number; costosUsd: number; comandas: number; fechaInicio: number }> = {};
+    const mesesMap: Record<string, { label: string; ventasUsd: number; costosUsd: number; comandas: number; fechaInicio: number }> = {};
+
+    const insumosCostosMap = new Map<string, number>();
+    insumos.forEach((ins) => {
+      insumosCostosMap.set(ins.id, Number(ins.costo_unitario_usd) || 0);
+    });
+
+    const recetasCostosMap = new Map<string, number>();
+    productos.forEach((prod) => {
+      const costoReceta = (prod.ingredientes || []).reduce((acc: number, ing: any) => {
+        const costoUnidad = insumosCostosMap.get(ing.insumo_id) || 0;
+        return acc + Number(ing.cantidad_necesaria) * costoUnidad;
+      }, 0);
+      recetasCostosMap.set(prod.id, costoReceta);
+    });
+
+    ventas.forEach((v) => {
+      if (v.estado === "cancelada") return;
+      const fecha = new Date(v.fecha);
+      const montoVenta = Number(v.total_usd) || 0;
+
+      let costoVenta = 0;
+      (v.items || []).forEach((item: any) => {
+        const costoProd = recetasCostosMap.get(item.producto_id) || 0;
+        costoVenta += costoProd * Number(item.cantidad);
+      });
+
+      // 1. Agrupar por Semana
+      const inicioSemana = new Date(fecha);
+      const day = inicioSemana.getDay();
+      const diff = inicioSemana.getDate() - day + (day === 0 ? -6 : 1);
+      inicioSemana.setDate(diff);
+      inicioSemana.setHours(0, 0, 0, 0);
+      const semanaKey = inicioSemana.toISOString().split("T")[0];
+      const semanaLabel = `Sem ${inicioSemana.getDate()}/${inicioSemana.getMonth() + 1}`;
+
+      if (!semanasMap[semanaKey]) {
+        semanasMap[semanaKey] = {
+          label: semanaLabel,
+          ventasUsd: 0,
+          costosUsd: 0,
+          comandas: 0,
+          fechaInicio: inicioSemana.getTime(),
+        };
+      }
+      semanasMap[semanaKey].ventasUsd += montoVenta;
+      semanasMap[semanaKey].costosUsd += costoVenta;
+      semanasMap[semanaKey].comandas += 1;
+
+      // 2. Agrupar por Mes
+      const mesKey = `${fecha.getFullYear()}-${(fecha.getMonth() + 1).toString().padStart(2, "0")}`;
+      const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      const mesLabel = `${mesesNombres[fecha.getMonth()]} ${fecha.getFullYear()}`;
+      const inicioMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1).getTime();
+
+      if (!mesesMap[mesKey]) {
+        mesesMap[mesKey] = {
+          label: mesLabel,
+          ventasUsd: 0,
+          costosUsd: 0,
+          comandas: 0,
+          fechaInicio: inicioMes,
+        };
+      }
+      mesesMap[mesKey].ventasUsd += montoVenta;
+      mesesMap[mesKey].costosUsd += costoVenta;
+      mesesMap[mesKey].comandas += 1;
+    });
+
+    const listaSemanas = Object.values(semanasMap).sort((a, b) => a.fechaInicio - b.fechaInicio);
+    const listaMeses = Object.values(mesesMap).sort((a, b) => a.fechaInicio - b.fechaInicio);
+
+    return {
+      semanas: listaSemanas,
+      meses: listaMeses,
+    };
+  }, [ventas, productos, insumos]);
 
   // Cálculos Financieros
   const finanzas = useMemo(() => {
@@ -180,23 +263,40 @@ export default function DashboardClient({
           </div>
         </div>
 
-        <div className="delivery-type-selector" style={{ width: "auto" }}>
-          {[
-            { id: "hoy", label: "Hoy" },
-            { id: "semana", label: "Últimos 7 días" },
-            { id: "mes", label: "Este Mes" },
-            { id: "todo", label: "Histórico Total" },
-          ].map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => setPeriodo(p.id as any)}
-              className={`delivery-btn ${periodo === p.id ? "delivery-btn-active" : ""}`}
-              style={{ padding: "8px 14px" }}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div className="delivery-type-selector" style={{ width: "auto" }}>
+            {[
+              { id: "hoy", label: "Hoy" },
+              { id: "semana", label: "Últimos 7 días" },
+              { id: "mes", label: "Este Mes" },
+              { id: "todo", label: "Histórico Total" },
+            ].map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  setPeriodo(p.id as any);
+                  if (p.id === "todo") {
+                    setModalGraficasHistoricas(true);
+                  }
+                }}
+                className={`delivery-btn ${periodo === p.id ? "delivery-btn-active" : ""}`}
+                style={{ padding: "8px 14px" }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setModalGraficasHistoricas(true)}
+            className="btn-primary-action"
+            style={{ fontSize: 12, padding: "8px 14px" }}
+            title="Ver evolución de costos semana a semana y mes a mes"
+          >
+            📈 Gráficas Continuas
+          </button>
         </div>
       </div>
 
@@ -432,6 +532,222 @@ export default function DashboardClient({
           </div>
         </div>
       </div>
+
+      {/* Modal de Gráficas Continuas Históricas (Semana a Semana / Mes a Mes) */}
+      {modalGraficasHistoricas && (
+        <div className="modal-overlay" onClick={() => setModalGraficasHistoricas(false)}>
+          <div
+            className="modal-recipe-card"
+            style={{ maxWidth: 880, width: "95%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-recipe-header">
+              <div>
+                <h2>📈 Análisis Continuo de Costos & Facturación</h2>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>
+                  Evolución cronológica de ventas facturadas vs costos de insumos consumidos.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalGraficasHistoricas(false)}
+                className="btn-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Selector de Agrupación Temporal */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", background: "var(--bg-subtle)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={() => setAgrupacionGrafica("semana")}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    border: "none",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: agrupacionGrafica === "semana" ? "var(--primary)" : "transparent",
+                    color: agrupacionGrafica === "semana" ? "#fff" : "var(--text-muted)",
+                  }}
+                >
+                  📅 Semana a Semana
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAgrupacionGrafica("mes")}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 8,
+                    border: "none",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: agrupacionGrafica === "mes" ? "var(--primary)" : "transparent",
+                    color: agrupacionGrafica === "mes" ? "#fff" : "var(--text-muted)",
+                  }}
+                >
+                  📆 Mes a Mes
+                </button>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 12 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "var(--primary)" }}></span>
+                  <strong>Ventas ($)</strong>
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "#ef4444" }}></span>
+                  <strong>Costos Insumos ($)</strong>
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "#22c55e" }}></span>
+                  <strong>Ganancia Neta ($)</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Renderizado de Gráfica Continua */}
+            {(() => {
+              const dataPoints = seriesContinuas[agrupacionGrafica === "semana" ? "semanas" : "meses"];
+              if (dataPoints.length === 0) {
+                return (
+                  <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
+                    No hay suficientes datos registrados para trazar la gráfica.
+                  </div>
+                );
+              }
+
+              const maxVenta = Math.max(...dataPoints.map((d) => d.ventasUsd), 10);
+
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  {/* Gráfica Visual de Barras Comparativas */}
+                  <div
+                    style={{
+                      background: "var(--bg-subtle)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 16,
+                      padding: "20px 16px",
+                      display: "flex",
+                      alignItems: "flex-end",
+                      justifyContent: "space-around",
+                      minHeight: 240,
+                      gap: 12,
+                      overflowX: "auto",
+                    }}
+                  >
+                    {dataPoints.map((dp, idx) => {
+                      const alturaVentasPct = Math.max(8, (dp.ventasUsd / maxVenta) * 100);
+                      const alturaCostosPct = Math.max(4, (dp.costosUsd / maxVenta) * 100);
+                      const ganancia = dp.ventasUsd - dp.costosUsd;
+                      const margen = dp.ventasUsd > 0 ? (ganancia / dp.ventasUsd) * 100 : 0;
+
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 6,
+                            minWidth: 64,
+                            flex: 1,
+                          }}
+                        >
+                          <span style={{ fontSize: 11, fontWeight: 800, color: ganancia >= 0 ? "#22c55e" : "#ef4444" }}>
+                            +${ganancia.toFixed(0)}
+                          </span>
+
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-end",
+                              gap: 4,
+                              height: 150,
+                              width: "100%",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {/* Barra de Ventas */}
+                            <div
+                              title={`Ventas: $${dp.ventasUsd.toFixed(2)} USD (${dp.comandas} comandas)`}
+                              style={{
+                                height: `${alturaVentasPct}%`,
+                                width: 18,
+                                background: "linear-gradient(180deg, var(--primary) 0%, var(--accent) 100%)",
+                                borderRadius: "4px 4px 0 0",
+                                transition: "height 0.3s ease",
+                              }}
+                            />
+                            {/* Barra de Costos */}
+                            <div
+                              title={`Costo Insumos: $${dp.costosUsd.toFixed(2)} USD`}
+                              style={{
+                                height: `${alturaCostosPct}%`,
+                                width: 18,
+                                background: "linear-gradient(180deg, #f87171 0%, #ef4444 100%)",
+                                borderRadius: "4px 4px 0 0",
+                                transition: "height 0.3s ease",
+                              }}
+                            />
+                          </div>
+
+                          <strong style={{ fontSize: 11, color: "var(--text)" }}>{dp.label}</strong>
+                          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>{margen.toFixed(0)}% mg</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Tabla de Detalle Cronológico */}
+                  <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
+                          <th style={{ padding: "8px 12px" }}>Período</th>
+                          <th style={{ padding: "8px 12px" }}>Comandas</th>
+                          <th style={{ padding: "8px 12px" }}>Facturado USD</th>
+                          <th style={{ padding: "8px 12px" }}>Costo Insumos</th>
+                          <th style={{ padding: "8px 12px" }}>Ganancia Neta</th>
+                          <th style={{ padding: "8px 12px" }}>Margen %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dataPoints.slice().reverse().map((dp, i) => {
+                          const ganancia = dp.ventasUsd - dp.costosUsd;
+                          const margen = dp.ventasUsd > 0 ? (ganancia / dp.ventasUsd) * 100 : 0;
+                          return (
+                            <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                              <td style={{ padding: "8px 12px", fontWeight: 700 }}>{dp.label}</td>
+                              <td style={{ padding: "8px 12px" }}>{dp.comandas}</td>
+                              <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--primary-dark)" }}>
+                                ${dp.ventasUsd.toFixed(2)}
+                              </td>
+                              <td style={{ padding: "8px 12px", color: "#ef4444" }}>
+                                ${dp.costosUsd.toFixed(2)}
+                              </td>
+                              <td style={{ padding: "8px 12px", fontWeight: 800, color: ganancia >= 0 ? "#16a34a" : "#dc2626" }}>
+                                ${ganancia.toFixed(2)}
+                              </td>
+                              <td style={{ padding: "8px 12px", fontWeight: 700 }}>
+                                {margen.toFixed(1)}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
