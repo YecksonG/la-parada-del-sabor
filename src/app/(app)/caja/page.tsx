@@ -56,7 +56,7 @@ export default async function CajaPage() {
       sesionActiva={(sesionActiva as SesionCaja) || null}
       historialCajas={(historialCajas as SesionCaja[]) || []}
       ventasTurno={ventasTurno}
-      tasaBcv={Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 0}
+      tasaBcv={Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs || tasaReciente?.paralelo_usd_bs) || 60}
     />
   );
 }

@@ -36,20 +36,35 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const nombreOperador = user?.email?.split("@")[0] ?? "cajero";
+  // 0. Calcular totales directamente en el servidor
+  let totalUsdCalculado = 0;
+  for (const item of payload.items) {
+    const subtotalItem = Number((item.precio_unitario_usd * item.cantidad).toFixed(2));
+    let subtotalExtras = 0;
+    if (item.extras && item.extras.length > 0) {
+      for (const ext of item.extras) {
+        subtotalExtras += Number((ext.precio_unitario_usd * ext.cantidad).toFixed(2));
+      }
+    }
+    totalUsdCalculado += subtotalItem + subtotalExtras;
+  }
+  totalUsdCalculado = Number(totalUsdCalculado.toFixed(2));
+  const tasaBCV = Number(payload.tasa_bcv) > 0 ? Number(payload.tasa_bcv) : 1;
+  const totalBsCalculado = Number((totalUsdCalculado * tasaBCV).toFixed(2));
 
   // 1. Insertar Cabecera de Venta
   const { data: venta, error: ventaError } = await supabase
     .from("ventas")
     .insert({
       cliente_id: payload.cliente_id || null,
-      tasa_bcv: payload.tasa_bcv,
+      tasa_bcv: tasaBCV,
       metodo_pago: payload.metodo_pago,
       tipo_entrega: payload.tipo_entrega,
       estado: "preparando",
       notas_comanda: payload.notas_comanda || null,
       creado_por: nombreOperador,
-      total_usd: 0, // Los triggers server-side calcularán el total exacto
-      total_bs: 0,
+      total_usd: totalUsdCalculado,
+      total_bs: totalBsCalculado,
     })
     .select("id, numero_comanda")
     .single();

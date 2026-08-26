@@ -99,8 +99,18 @@ export default function CajaClient({
     let totalUsd = 0;
 
     ventas.forEach((v) => {
-      const vUsd = Number(v.total_usd) || 0;
-      const vBs = Number(v.total_bs) || 0;
+      // Fallback si total_usd no fue recalculado por triggers o viene en 0
+      const subtotalItems = (v.items || []).reduce((acc, it) => {
+        const precio = Number(it.precio_unitario_usd) || 0;
+        const cant = Number(it.cantidad) || 0;
+        const sub = Number(it.subtotal_usd) > 0 ? Number(it.subtotal_usd) : precio * cant;
+        return acc + sub;
+      }, 0);
+
+      const vUsd = Number(v.total_usd) > 0 ? Number(v.total_usd) : subtotalItems;
+      const tasaVenta = Number(v.tasa_bcv) > 0 ? Number(v.tasa_bcv) : (tasaBcv > 0 ? tasaBcv : 1);
+      const vBs = Number(v.total_bs) > 0 ? Number(v.total_bs) : Number((vUsd * tasaVenta).toFixed(2));
+
       totalUsd += vUsd;
 
       switch (v.metodo_pago as string) {
