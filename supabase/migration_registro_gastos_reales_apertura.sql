@@ -3,73 +3,69 @@
 -- La Parada del Sabor — 27 de Agosto de 2026
 -- ==============================================================================
 
--- 1. Asegurar o actualizar las cuentas bancarias de Grecia y Yeckson
-INSERT INTO public.cuentas_negocio (
-    nombre,
-    codigo,
-    tipo,
-    moneda,
-    banco_plataforma,
-    titular,
-    cedula_rif,
-    telefono_pago_movil,
-    admite_biopago,
-    icono,
-    color,
-    activo,
-    notas
-) VALUES 
-(
-    'Banco de Venezuela (BDV) VES',
-    'bdv_grecia',
-    'banco_nacional',
-    'VES',
-    'Banco de Venezuela (BDV)',
-    'Grecia Márquez',
-    'V-27230887',
-    '0412-6608761',
-    true,
-    '🏛️',
-    '#ef4444',
-    true,
-    'Cuenta receptora del préstamo de apertura ($150 / Bs. 137.872,00). Pagos vía BioPago y Pago Móvil.'
-),
-(
-    'Banco de Venezuela (BDV) VES Y',
-    'bdv_yeckson',
-    'banco_nacional',
-    'VES',
-    'Banco de Venezuela (BDV)',
-    'Yeckson González',
-    'V-29524984',
-    '0412-2595386',
-    true,
-    '🏛️',
-    '#3b82f6',
-    true,
-    'Cuenta operativa de Yeckson para pagos en La Pradera (Lucky Strike) y compra de Hielo vía Débito.'
-)
-ON CONFLICT (codigo) DO UPDATE SET
-    nombre = EXCLUDED.nombre,
-    titular = EXCLUDED.titular,
-    cedula_rif = EXCLUDED.cedula_rif,
-    telefono_pago_movil = EXCLUDED.telefono_pago_movil,
-    admite_biopago = EXCLUDED.admite_biopago,
-    activo = true;
-
--- 2. Limpiar gastos previos de prueba si existen para registrar los datos reales
-DELETE FROM public.transferencias_cuentas WHERE fecha = '2026-08-27';
-DELETE FROM public.gastos WHERE fecha = '2026-08-27';
-
--- 3. Registrar las 2 Transferencias entre Cuentas (Grecia ➡️ Yeckson)
 DO $$
 DECLARE
     v_cta_grecia_id UUID;
     v_cta_yeckson_id UUID;
 BEGIN
-    SELECT id INTO v_cta_grecia_id FROM public.cuentas_negocio WHERE codigo = 'bdv_grecia' LIMIT 1;
-    SELECT id INTO v_cta_yeckson_id FROM public.cuentas_negocio WHERE codigo = 'bdv_yeckson' LIMIT 1;
+    -- 1. Buscar o actualizar la cuenta de Grecia por nombre
+    SELECT id INTO v_cta_grecia_id FROM public.cuentas_negocio WHERE nombre ILIKE '%Banco de Venezuela (BDV) VES' AND nombre NOT ILIKE '% Y' LIMIT 1;
+    
+    IF v_cta_grecia_id IS NOT NULL THEN
+        UPDATE public.cuentas_negocio SET
+            nombre = 'Banco de Venezuela (BDV) VES',
+            tipo = 'banco_nacional',
+            moneda = 'VES',
+            banco_plataforma = 'Banco de Venezuela (BDV)',
+            titular = 'Grecia Márquez',
+            cedula_rif = 'V-27230887',
+            telefono_pago_movil = '0412-6608761',
+            admite_biopago = true,
+            icono = '🏛️',
+            color = '#ef4444',
+            activo = true,
+            notas = 'Cuenta receptora del préstamo de apertura ($150 / Bs. 137.872,00). Pagos vía BioPago y Pago Móvil.'
+        WHERE id = v_cta_grecia_id;
+    ELSE
+        INSERT INTO public.cuentas_negocio (
+            nombre, codigo, tipo, moneda, banco_plataforma, titular, cedula_rif, telefono_pago_movil, admite_biopago, icono, color, activo, notas
+        ) VALUES (
+            'Banco de Venezuela (BDV) VES', 'bdv_grecia', 'banco_nacional', 'VES', 'Banco de Venezuela (BDV)', 'Grecia Márquez', 'V-27230887', '0412-6608761', true, '🏛️', '#ef4444', true, 'Cuenta receptora del préstamo de apertura ($150 / Bs. 137.872,00). Pagos vía BioPago y Pago Móvil.'
+        ) RETURNING id INTO v_cta_grecia_id;
+    END IF;
 
+    -- 2. Buscar o actualizar la cuenta de Yeckson por nombre
+    SELECT id INTO v_cta_yeckson_id FROM public.cuentas_negocio WHERE nombre ILIKE '%Banco de Venezuela (BDV) VES Y' LIMIT 1;
+    
+    IF v_cta_yeckson_id IS NOT NULL THEN
+        UPDATE public.cuentas_negocio SET
+            nombre = 'Banco de Venezuela (BDV) VES Y',
+            tipo = 'banco_nacional',
+            moneda = 'VES',
+            banco_plataforma = 'Banco de Venezuela (BDV)',
+            titular = 'Yeckson González',
+            cedula_rif = 'V-29524984',
+            telefono_pago_movil = '0412-2595386',
+            admite_biopago = true,
+            icono = '🏛️',
+            color = '#3b82f6',
+            activo = true,
+            notas = 'Cuenta operativa de Yeckson para pagos en La Pradera (Lucky Strike) y compra de Hielo vía Débito.'
+        WHERE id = v_cta_yeckson_id;
+    ELSE
+        INSERT INTO public.cuentas_negocio (
+            nombre, codigo, tipo, moneda, banco_plataforma, titular, cedula_rif, telefono_pago_movil, admite_biopago, icono, color, activo, notas
+        ) VALUES (
+            'Banco de Venezuela (BDV) VES Y', 'bdv_yeckson', 'banco_nacional', 'VES', 'Banco de Venezuela (BDV)', 'Yeckson González', 'V-29524984', '0412-2595386', true, '🏛️', '#3b82f6', true, 'Cuenta operativa de Yeckson para pagos en La Pradera (Lucky Strike) y compra de Hielo vía Débito.'
+        ) RETURNING id INTO v_cta_yeckson_id;
+    END IF;
+
+    -- 3. Limpiar movimientos previos de prueba de la fecha
+    DELETE FROM public.transferencias_cuentas WHERE fecha = '2026-08-27';
+    DELETE FROM public.gastos WHERE fecha = '2026-08-27';
+
+    -- 4. Registrar las 2 Transferencias entre Cuentas (Grecia ➡️ Yeckson)
+    
     -- Transferencia 1: Fondeo para Lucky Strike en La Pradera
     INSERT INTO public.transferencias_cuentas (
         fecha,
@@ -132,9 +128,9 @@ BEGIN
         'admin'
     );
 
-    -- 4. Registrar los 6 Gastos Reales de Apertura
+    -- 5. Registrar los 6 Gastos Reales de Apertura
     
-    -- Gasto 1: Super 900 (Inversiones El Sol de Falcón, C.A. - Factura 00044240)
+    -- Gasto 1: Super 900 (Factura 00044240)
     INSERT INTO public.gastos (
         fecha,
         categoria,
