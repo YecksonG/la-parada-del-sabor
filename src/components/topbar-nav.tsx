@@ -58,15 +58,9 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
         },
         {
           href: "/insumos",
-          label: "Despensa",
+          label: "Despensa & Stock",
           icon: "📦",
           desc: "Stock, inventario y alertas mínimas",
-        },
-        {
-          href: "/compras",
-          label: "Compras",
-          icon: "🚚",
-          desc: "Entrada de insumos y registro de gastos",
         },
       ],
     },
@@ -102,9 +96,9 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
         },
         {
           href: "/gastos",
-          label: "Gastos & Cuentas",
-          icon: "💰",
-          desc: "Servicios, nómina, facturas y pagos",
+          label: "Compras & Gastos",
+          icon: "💼",
+          desc: "Entrada de stock, servicios, nómina y cuentas",
         },
         {
           href: "/tasas",

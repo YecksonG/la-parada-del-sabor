@@ -92,6 +92,34 @@ export type ProveedorInsumo = {
   insumo?: Insumo;
 };
 
+export type Compra = {
+  id: string;
+  proveedor_id: string | null;
+  fecha: string;
+  total_usd: number;
+  total_bs: number;
+  tasa_bcv: number;
+  metodo_pago: string;
+  comprobante?: string | null;
+  notas?: string | null;
+  creado_el: string;
+  proveedor?: Proveedor;
+  items?: CompraItem[];
+};
+
+export type CompraItem = {
+  id: string;
+  compra_id: string;
+  insumo_id: string;
+  cantidad_comprada: number;
+  unidad_compra: string;
+  factor_conversion: number;
+  cantidad_base_total: number;
+  precio_unitario_usd: number;
+  subtotal_usd: number;
+  insumo?: Insumo;
+};
+
 export type TasaActivaTipo = "bcv" | "usdt" | "eur" | "promedio" | "personalizada";
 
 export type TasaCambio = {

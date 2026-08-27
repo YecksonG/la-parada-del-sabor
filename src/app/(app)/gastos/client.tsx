@@ -1,12 +1,21 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Gasto, Proveedor, CuentaNegocio, CategoriaGasto } from "@/types/database";
-import { crearGasto, actualizarGasto, eliminarGasto, crearCuentaNegocio, actualizarCuentaNegocio } from "./actions";
+import { Gasto, Proveedor, CuentaNegocio, Insumo, CategoriaGasto } from "@/types/database";
+import {
+  crearGasto,
+  actualizarGasto,
+  eliminarGasto,
+  registrarIngresoInsumo,
+  crearCuentaNegocio,
+  actualizarCuentaNegocio,
+} from "./actions";
 import { createClient } from "@/lib/supabase/client";
 
 interface GastosClientProps {
   gastosIniciales: Gasto[];
+  comprasIniciales: any[];
+  insumos: Insumo[];
   cuentasIniciales: CuentaNegocio[];
   proveedores: Proveedor[];
   tasaBcv: number;
@@ -34,19 +43,37 @@ const SUBCATEGORIAS_SUGERIDAS: Record<CategoriaGasto, string[]> = {
   otros: ["Transporte / Taxis", "Papelería", "Hielo", "Misceláneos"],
 };
 
+const UNIDADES_COMPRA = [
+  { id: "bulto_20kg", label: "Bulto 20 kg (20.000 g)", factor: 20000, unidadBase: "g" },
+  { id: "bulto_24kg", label: "Bulto Harina PAN (24 kg / 24.000 g)", factor: 24000, unidadBase: "g" },
+  { id: "saco_50kg", label: "Saco 50 kg (50.000 g)", factor: 50000, unidadBase: "g" },
+  { id: "kilo", label: "Kilo (1.000 g)", factor: 1000, unidadBase: "g" },
+  { id: "paquete_500g", label: "Paquete 500 g", factor: 500, unidadBase: "g" },
+  { id: "litro", label: "Litro (1.000 ml)", factor: 1000, unidadBase: "ml" },
+  { id: "galon_3_78l", label: "Galón (3.785 ml)", factor: 3785, unidadBase: "ml" },
+  { id: "paquete_100u", label: "Paquete 100 Unidades", factor: 100, unidadBase: "und" },
+  { id: "paquete_50u", label: "Paquete 50 Unidades", factor: 50, unidadBase: "und" },
+  { id: "caja_1000u", label: "Caja 1.000 Unidades", factor: 1000, unidadBase: "und" },
+  { id: "unidad", label: "Unidad Simple (1 und)", factor: 1, unidadBase: "und" },
+];
+
 export default function GastosClient({
   gastosIniciales,
+  comprasIniciales,
+  insumos,
   cuentasIniciales,
   proveedores,
   tasaBcv,
 }: GastosClientProps) {
-  const [tabActiva, setTabActiva] = useState<"gastos" | "cuentas">("gastos");
+  const [tabActiva, setTabActiva] = useState<"gastos" | "compras" | "cuentas">("gastos");
   const [gastos, setGastos] = useState<Gasto[]>(gastosIniciales);
+  const [compras, setCompras] = useState<any[]>(comprasIniciales);
   const [cuentas, setCuentas] = useState<CuentaNegocio[]>(cuentasIniciales);
 
   // Modales
   const [modalGasto, setModalGasto] = useState(false);
   const [gastoEditando, setGastoEditando] = useState<Gasto | null>(null);
+  const [modalCompra, setModalCompra] = useState(false);
   const [modalCuenta, setModalCuenta] = useState(false);
   const [cuentaEditando, setCuentaEditando] = useState<CuentaNegocio | null>(null);
   const [modalFacturaUrl, setModalFacturaUrl] = useState<string | null>(null);
@@ -61,7 +88,7 @@ export default function GastosClient({
   const [filtroRango, setFiltroRango] = useState<"hoy" | "semana" | "mes" | "todos">("mes");
   const [busqueda, setBusqueda] = useState("");
 
-  // Estado Formulario Gasto
+  // Estado Formulario Gasto General
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
   const [categoria, setCategoria] = useState<CategoriaGasto>("servicios");
   const [subcategoria, setSubcategoria] = useState("Gas Comercial / Cilindros");
@@ -76,6 +103,17 @@ export default function GastosClient({
   const [comprobanteUrl, setComprobanteUrl] = useState("");
   const [notas, setNotas] = useState("");
 
+  // Estado Formulario Entrada de Insumos (Compra con Stock)
+  const [compraInsumoId, setCompraInsumoId] = useState(insumos[0]?.id || "");
+  const [compraProveedorId, setCompraProveedorId] = useState("");
+  const [compraCantidad, setCompraCantidad] = useState("1");
+  const [compraUnidadId, setCompraUnidadId] = useState("kilo");
+  const [compraTotalUsd, setCompraTotalUsd] = useState("");
+  const [compraTotalBs, setCompraTotalBs] = useState("");
+  const [compraCuentaId, setCompraCuentaId] = useState("");
+  const [compraFactura, setCompraFactura] = useState("");
+  const [compraNotas, setCompraNotas] = useState("");
+
   // Estado Formulario Cuenta
   const [ctaNombre, setCtaNombre] = useState("");
   const [ctaTipo, setCtaTipo] = useState<CuentaNegocio["tipo"]>("banco_nacional");
@@ -87,7 +125,7 @@ export default function GastosClient({
   const [ctaColor, setCtaColor] = useState("#3b82f6");
   const [ctaNotas, setCtaNotas] = useState("");
 
-  // Abrir Modal para Crear Gasto
+  // Abrir Modal para Crear Gasto General
   const abrirModalCrearGasto = () => {
     setGastoEditando(null);
     setErrorMsg("");
@@ -127,6 +165,21 @@ export default function GastosClient({
     setModalGasto(true);
   };
 
+  // Abrir Modal Ingreso de Insumos (Stock 2 en 1)
+  const abrirModalIngresoInsumo = () => {
+    setErrorMsg("");
+    setCompraInsumoId(insumos[0]?.id || "");
+    setCompraProveedorId("");
+    setCompraCantidad("1");
+    setCompraUnidadId("kilo");
+    setCompraTotalUsd("");
+    setCompraTotalBs("");
+    setCompraCuentaId(cuentas[0]?.id || "");
+    setCompraFactura("");
+    setCompraNotas("");
+    setModalCompra(true);
+  };
+
   // Manejo de cambio de categoría
   const handleCambioCategoria = (cat: CategoriaGasto) => {
     setCategoria(cat);
@@ -138,7 +191,7 @@ export default function GastosClient({
     }
   };
 
-  // Cálculo automático dual USD <-> Bs
+  // Cálculo automático dual USD <-> Bs en Gasto
   const handleCambioMontoUsd = (val: string) => {
     setMontoUsd(val);
     const num = parseFloat(val);
@@ -154,6 +207,25 @@ export default function GastosClient({
     const num = parseFloat(val);
     if (!isNaN(num) && num > 0 && tasaBcv > 0) {
       setMontoUsd((num / tasaBcv).toFixed(2));
+    }
+  };
+
+  // Cálculo dual en Entrada de Insumos
+  const handleCambioCompraUsd = (val: string) => {
+    setCompraTotalUsd(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
+      setCompraTotalBs((num * tasaBcv).toFixed(2));
+    } else {
+      setCompraTotalBs("");
+    }
+  };
+
+  const handleCambioCompraBs = (val: string) => {
+    setCompraTotalBs(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
+      setCompraTotalUsd((num / tasaBcv).toFixed(2));
     }
   };
 
@@ -207,7 +279,7 @@ export default function GastosClient({
     }
   };
 
-  // Guardar Gasto (Crear o Actualizar)
+  // Guardar Gasto General (Crear o Actualizar)
   const handleGuardarGasto = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
@@ -260,6 +332,60 @@ export default function GastosClient({
       } else {
         setErrorMsg(res.error || "Error al registrar el gasto.");
       }
+    }
+  };
+
+  // Guardar Entrada de Insumos (Compra con Stock en Despensa + Gasto)
+  const handleGuardarIngresoInsumo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg("");
+
+    const cant = parseFloat(compraCantidad);
+    const usd = parseFloat(compraTotalUsd);
+    if (isNaN(cant) || cant <= 0) {
+      setErrorMsg("La cantidad debe ser mayor a 0.");
+      return;
+    }
+    if (isNaN(usd) || usd <= 0) {
+      setErrorMsg("El monto total en dólares debe ser mayor a 0.");
+      return;
+    }
+
+    const insumoSel = insumos.find((i) => i.id === compraInsumoId);
+    if (!insumoSel) {
+      setErrorMsg("Selecciona un insumo válido.");
+      return;
+    }
+
+    const unidadSel = UNIDADES_COMPRA.find((u) => u.id === compraUnidadId) || UNIDADES_COMPRA[3];
+    const ctaSel = cuentas.find((c) => c.id === compraCuentaId) || cuentas[0];
+
+    setGuardando(true);
+
+    const res = await registrarIngresoInsumo({
+      insumo_id: insumoSel.id,
+      insumo_nombre: insumoSel.nombre,
+      proveedor_id: compraProveedorId || null,
+      cantidad_comprada: cant,
+      unidad_compra: unidadSel.label,
+      factor_conversion: unidadSel.factor,
+      total_usd: usd,
+      total_bs: parseFloat(compraTotalBs) || Number((usd * tasaBcv).toFixed(2)),
+      tasa_bcv: tasaBcv,
+      cuenta_id: ctaSel?.id,
+      cuenta_origen: ctaSel?.codigo || "efectivo_usd",
+      numero_factura: compraFactura,
+      notas: compraNotas,
+    });
+
+    setGuardando(false);
+
+    if (res.ok) {
+      setModalCompra(false);
+      // Recargar página o actualizar estados
+      window.location.reload();
+    } else {
+      setErrorMsg(res.error || "Error al registrar el ingreso de insumos.");
     }
   };
 
@@ -419,6 +545,26 @@ export default function GastosClient({
     return map;
   }, [gastos]);
 
+  // Cálculo de resumen para el insumo en el modal de compra
+  const insumoSeleccionadoObj = useMemo(() => {
+    return insumos.find((i) => i.id === compraInsumoId) || insumos[0];
+  }, [insumos, compraInsumoId]);
+
+  const unidadSeleccionadaObj = useMemo(() => {
+    return UNIDADES_COMPRA.find((u) => u.id === compraUnidadId) || UNIDADES_COMPRA[3];
+  }, [compraUnidadId]);
+
+  const cantidadTotalBaseCalculada = useMemo(() => {
+    const cant = parseFloat(compraCantidad) || 0;
+    return cant * unidadSeleccionadaObj.factor;
+  }, [compraCantidad, unidadSeleccionadaObj]);
+
+  const costoUnitarioBaseCalculado = useMemo(() => {
+    const total = parseFloat(compraTotalUsd) || 0;
+    if (cantidadTotalBaseCalculada <= 0 || total <= 0) return 0;
+    return total / cantidadTotalBaseCalculada;
+  }, [compraTotalUsd, cantidadTotalBaseCalculada]);
+
   // Exportar a CSV
   const handleExportarCsv = () => {
     const encabezados = ["Fecha", "Categoría", "Subcategoría", "Descripción", "Beneficiario", "Cuenta", "Monto USD", "Monto BS", "Nro Factura", "Notas"];
@@ -451,10 +597,10 @@ export default function GastosClient({
       <div className="recetas-header" style={{ marginBottom: 20 }}>
         <div>
           <h1 className="recetas-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span>💰 Gestión de Gastos & Cuentas</span>
+            <span>💼 Compras, Gastos & Cuentas</span>
           </h1>
           <p className="recetas-subtitle">
-            Control operativo de servicios (gas, agua, luz, internet), nómina, pagos a proveedores, cuentas bancarias y facturas.
+            Centro administrativo 360°: entrada de mercancía a la despensa, pago de servicios, nómina y cuentas bancarias.
           </p>
 
           {/* Selector de Pestañas con clases nativas */}
@@ -464,21 +610,28 @@ export default function GastosClient({
               onClick={() => setTabActiva("gastos")}
               className={`view-mode-btn ${tabActiva === "gastos" ? "active" : ""}`}
             >
-              📋 Registro de Gastos ({gastos.length})
+              📋 Todos los Gastos ({gastos.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setTabActiva("compras")}
+              className={`view-mode-btn ${tabActiva === "compras" ? "active" : ""}`}
+            >
+              📦 Entrada de Insumos ({compras.length})
             </button>
             <button
               type="button"
               onClick={() => setTabActiva("cuentas")}
               className={`view-mode-btn ${tabActiva === "cuentas" ? "active" : ""}`}
             >
-              💳 Cuentas & Métodos de Pago ({cuentas.length})
+              💳 Cuentas & Bancos ({cuentas.length})
             </button>
           </div>
         </div>
 
-        {/* Botones de Acción del Sistema */}
+        {/* Botones de Acción Contextuales */}
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          {tabActiva === "gastos" ? (
+          {tabActiva === "gastos" && (
             <>
               <button
                 type="button"
@@ -494,10 +647,22 @@ export default function GastosClient({
                 onClick={abrirModalCrearGasto}
                 className="btn-primary-action"
               >
-                <span>+</span> Registrar Nuevo Gasto
+                <span>+</span> Registrar Gasto General
               </button>
             </>
-          ) : (
+          )}
+
+          {tabActiva === "compras" && (
+            <button
+              type="button"
+              onClick={abrirModalIngresoInsumo}
+              className="btn-primary-action"
+            >
+              <span>🚚</span> Registrar Ingreso de Insumos
+            </button>
+          )}
+
+          {tabActiva === "cuentas" && (
             <button
               type="button"
               onClick={abrirModalCrearCuenta}
@@ -509,7 +674,8 @@ export default function GastosClient({
         </div>
       </div>
 
-      {tabActiva === "gastos" ? (
+      {/* PESTAÑA 1: TODOS LOS GASTOS */}
+      {tabActiva === "gastos" && (
         <>
           {/* Tarjetas KPI de Resumen */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 24 }}>
@@ -554,19 +720,19 @@ export default function GastosClient({
 
             <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span className="product-kpi-label" style={{ color: "#10b981" }}>🚚 Proveedores</span>
+                <span className="product-kpi-label" style={{ color: "#10b981" }}>🚚 Proveedores & Insumos</span>
                 <span style={{ fontSize: 22 }}>📦</span>
               </div>
               <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>
                 ${totalProveedoresUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
               </div>
               <div className="product-kpi-sub" style={{ marginTop: 2 }}>
-                Insumos & Despensa
+                Materia Prima & Despensa
               </div>
             </div>
           </div>
 
-          {/* Barra de Filtros & Búsqueda con Clases Nativas */}
+          {/* Barra de Filtros & Búsqueda */}
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 18, padding: "14px 18px", marginBottom: 18, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", boxShadow: "var(--shadow-sm)" }}>
             <div className="view-mode-toggle">
               {(["hoy", "semana", "mes", "todos"] as const).map((r) => (
@@ -627,7 +793,7 @@ export default function GastosClient({
               <div className="recetas-empty-box" style={{ border: "none" }}>
                 <span style={{ fontSize: 48 }}>🧾</span>
                 <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay gastos registrados en este período</strong>
-                <p className="recetas-subtitle">Usa el botón "+ Registrar Nuevo Gasto" para asentar pagos.</p>
+                <p className="recetas-subtitle">Usa el botón "+ Registrar Gasto General" para asentar pagos.</p>
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
@@ -781,8 +947,89 @@ export default function GastosClient({
             )}
           </div>
         </>
-      ) : (
-        /* Pestaña: Gestión de Cuentas & Historial de Movimientos */
+      )}
+
+      {/* PESTAÑA 2: ENTRADA DE INSUMOS (STOCK EN DESPENSA + PPMC) */}
+      {tabActiva === "compras" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14, boxShadow: "var(--shadow-sm)" }}>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--text)" }}>🚚 Historial de Entradas a la Despensa</h2>
+              <p className="recetas-subtitle">Cada compra ingresada aquí suma stock automáticamente y recalcula el costo ponderado por gramo/ml.</p>
+            </div>
+            <button
+              type="button"
+              onClick={abrirModalIngresoInsumo}
+              className="btn-primary-action"
+            >
+              <span>+</span> Registrar Nuevo Ingreso
+            </button>
+          </div>
+
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
+            {compras.length === 0 ? (
+              <div className="recetas-empty-box" style={{ border: "none" }}>
+                <span style={{ fontSize: 48 }}>📦</span>
+                <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay registros de compras directas</strong>
+                <p className="recetas-subtitle">Usa el botón "+ Registrar Nuevo Ingreso" para recibir bultos o kilos de insumos.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>Fecha</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>Proveedor</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>Insumos Recibidos</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)", textAlign: "right" }}>Total Compra</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)", textAlign: "center" }}>Factura / Notas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {compras.map((c) => (
+                      <tr key={c.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                        <td style={{ padding: "14px 16px", fontWeight: 700, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                          {c.fecha}
+                        </td>
+                        <td style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>
+                          {c.proveedor?.nombre || "Compra Local / Directa"}
+                        </td>
+                        <td style={{ padding: "14px 16px" }}>
+                          {c.items && c.items.length > 0 ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              {c.items.map((it: any) => (
+                                <div key={it.id} style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>
+                                  📦 {it.insumo?.nombre}: <strong>{it.cantidad_comprada} {it.unidad_compra}</strong> ({it.cantidad_base_total} {it.insumo?.unidad_medida})
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{c.notas || "Sin detalle"}</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "14px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: "var(--primary)" }}>
+                            ${Number(c.total_usd).toFixed(2)} <span style={{ fontSize: 11 }}>USD</span>
+                          </div>
+                          <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                            Bs. {Number(c.total_bs).toFixed(2)}
+                          </div>
+                        </td>
+                        <td style={{ padding: "14px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>
+                          {c.comprobante || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PESTAÑA 3: GESTIÓN DE CUENTAS & HISTORIAL BANCARIO */}
+      {tabActiva === "cuentas" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
           {cuentas.map((cta) => {
             const gastoStats = gastoPorCuenta[cta.id] || gastoPorCuenta[cta.codigo] || { usd: 0, bs: 0, count: 0 };
@@ -846,7 +1093,6 @@ export default function GastosClient({
                   )}
                 </div>
 
-                {/* Métricas de Gasto desde esta Cuenta */}
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                     <div>
@@ -880,13 +1126,13 @@ export default function GastosClient({
         </div>
       )}
 
-      {/* Modal 1: Registrar / Modificar Gasto (CLASES NATIVAS DEL SISTEMA) */}
+      {/* MODAL 1: REGISTRAR / EDITAR GASTO GENERAL */}
       {modalGasto && (
         <div className="modal-overlay" onClick={() => setModalGasto(false)}>
           <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
             <div className="modal-recipe-header">
               <h2>
-                <span>{gastoEditando ? "✏️ Modificar Gasto" : "➕ Registrar Nuevo Gasto"}</span>
+                <span>{gastoEditando ? "✏️ Modificar Gasto" : "➕ Registrar Gasto General"}</span>
               </h2>
               <button
                 type="button"
@@ -904,7 +1150,6 @@ export default function GastosClient({
             )}
 
             <form onSubmit={handleGuardarGasto} className="recipe-form">
-              {/* Fecha & Categoría */}
               <div className="form-grid-2">
                 <div className="form-field">
                   <label>Fecha del Gasto *</label>
@@ -933,7 +1178,6 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Subcategorías rápidas */}
               <div className="form-field">
                 <label>Tipo de Gasto / Sugerencias:</label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -960,20 +1204,18 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Descripción */}
               <div className="form-field">
                 <label>Descripción Detallada *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ej: Pago de gas, nómina semana 34, compra de aguacates..."
+                  placeholder="Ej: Pago de gas, nómina semana 34, reparación de plancha..."
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   className="form-input"
                 />
               </div>
 
-              {/* Montos Dual USD / Bs */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, background: "var(--bg-subtle)", padding: "14px", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
                 <div className="form-field">
                   <label style={{ color: "var(--primary)", fontWeight: 900 }}>Monto en Dólares ($ USD) *</label>
@@ -1004,7 +1246,6 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Cuenta Origen & Beneficiario */}
               <div className="form-grid-2">
                 <div className="form-field">
                   <label>Cuenta / Método de Pago *</label>
@@ -1042,7 +1283,6 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Proveedor Asociado & Nro Factura */}
               <div className="form-grid-2">
                 <div className="form-field">
                   <label>Proveedor (Opcional)</label>
@@ -1072,7 +1312,6 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Adjuntar Foto / Factura */}
               <div className="form-field">
                 <label>
                   Foto de Factura / Recibo <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(Opcional)</span>
@@ -1101,7 +1340,6 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Botones de Envío */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
                 <button
                   type="button"
@@ -1123,7 +1361,192 @@ export default function GastosClient({
         </div>
       )}
 
-      {/* Modal 2: Crear / Editar Cuenta Financiera */}
+      {/* MODAL 2: REGISTRAR ENTRADA DE INSUMOS (STOCK EN DESPENSA 2 EN 1) */}
+      {modalCompra && (
+        <div className="modal-overlay" onClick={() => setModalCompra(false)}>
+          <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 660 }}>
+            <div className="modal-recipe-header">
+              <h2>
+                <span>🚚 Registrar Ingreso de Insumos (Stock 2 en 1)</span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => setModalCompra(false)}
+                className="btn-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {errorMsg && (
+              <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid #ef4444", color: "#f87171", padding: "10px 14px", borderRadius: 10, fontSize: 13 }}>
+                ⚠️ {errorMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleGuardarIngresoInsumo} className="recipe-form">
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Insumo a Recibir *</label>
+                  <select
+                    value={compraInsumoId}
+                    onChange={(e) => setCompraInsumoId(e.target.value)}
+                    className="form-input"
+                  >
+                    {insumos.map((ins) => (
+                      <option key={ins.id} value={ins.id}>
+                        {ins.nombre} ({ins.unidad_medida})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label>Proveedor (Opcional)</label>
+                  <select
+                    value={compraProveedorId}
+                    onChange={(e) => setCompraProveedorId(e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="">-- Compra Local / Sin Registro --</option>
+                    {proveedores.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Cantidad Comprada *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.1"
+                    required
+                    value={compraCantidad}
+                    onChange={(e) => setCompraCantidad(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Formato / Unidad de Compra *</label>
+                  <select
+                    value={compraUnidadId}
+                    onChange={(e) => setCompraUnidadId(e.target.value)}
+                    className="form-input"
+                  >
+                    {UNIDADES_COMPRA.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, background: "var(--bg-subtle)", padding: "14px", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
+                <div className="form-field">
+                  <label style={{ color: "var(--primary)", fontWeight: 900 }}>Total Compra ($ USD) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={compraTotalUsd}
+                    onChange={(e) => handleCambioCompraUsd(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: 16, fontWeight: 900, borderColor: "var(--primary)" }}
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Total en Bolívares (Bs)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={compraTotalBs}
+                    onChange={(e) => handleCambioCompraBs(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: 15, fontWeight: 800 }}
+                  />
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, fontWeight: 600 }}>Tasa: {tasaBcv.toFixed(2)} Bs/USD</span>
+                </div>
+              </div>
+
+              {/* Tarjeta de Cálculo en Vivo de Stock & Costo Base */}
+              <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", padding: "12px 14px", borderRadius: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--green)" }}>SE SUMARÁ AL INVENTARIO:</span>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "var(--text)" }}>
+                      +{cantidadTotalBaseCalculada.toLocaleString()} {insumoSeleccionadoObj?.unidad_medida}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--text-muted)" }}>NUEVO COSTO BASE:</span>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: "var(--text)" }}>
+                      ${costoUnitarioBaseCalculado.toFixed(5)} / {insumoSeleccionadoObj?.unidad_medida}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Cuenta / Origen del Pago *</label>
+                  <select
+                    value={compraCuentaId}
+                    onChange={(e) => setCompraCuentaId(e.target.value)}
+                    className="form-input"
+                  >
+                    {cuentas.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.icono} {c.nombre} ({c.moneda})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-field">
+                  <label>Nro. Factura / Comprobante</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: FACT-00912 / Control"
+                    value={compraFactura}
+                    onChange={(e) => setCompraFactura(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+                <button
+                  type="button"
+                  onClick={() => setModalCompra(false)}
+                  className="btn-refresh-action"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="btn-primary-action"
+                >
+                  {guardando ? "Procesando..." : "🚚 Ingresar Stock & Asentar Gasto"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: CREAR / EDITAR CUENTA FINANCIERA */}
       {modalCuenta && (
         <div className="modal-overlay" onClick={() => setModalCuenta(false)}>
           <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
@@ -1221,7 +1644,6 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Botones de Envío */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
                 <button
                   type="button"
@@ -1243,7 +1665,7 @@ export default function GastosClient({
         </div>
       )}
 
-      {/* Modal 3: Visor de Factura / Comprobante */}
+      {/* MODAL 4: VISOR DE FACTURA / COMPROBANTE */}
       {modalFacturaUrl && (
         <div className="modal-overlay" onClick={() => setModalFacturaUrl(null)}>
           <div
