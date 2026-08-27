@@ -16,6 +16,7 @@ import {
   registrarIngresoInsumo,
   crearCuentaNegocio,
   actualizarCuentaNegocio,
+  eliminarCuentaNegocio,
   crearTransferenciaCuenta,
   eliminarTransferenciaCuenta,
 } from "./actions";
@@ -143,6 +144,7 @@ export default function GastosClient({
   const [montoBs, setMontoBs] = useState("");
   const [cuentaId, setCuentaId] = useState("");
   const [cuentaOrigen, setCuentaOrigen] = useState<string>("efectivo_usd");
+  const [metodoPagoGasto, setMetodoPagoGasto] = useState<string>("pago_movil");
   const [numeroFactura, setNumeroFactura] = useState("");
   const [comprobanteUrl, setComprobanteUrl] = useState("");
   const [notas, setNotas] = useState("");
@@ -164,6 +166,8 @@ export default function GastosClient({
   const [ctaMoneda, setCtaMoneda] = useState<CuentaNegocio["moneda"]>("VES");
   const [ctaBanco, setCtaBanco] = useState(BANCOS_VENEZUELA_LISTA[0].nombre);
   const [ctaTitular, setCtaTitular] = useState("");
+  const [ctaEmail, setCtaEmail] = useState("");
+  const [ctaPayId, setCtaPayId] = useState("");
   const [ctaCedula, setCtaCedula] = useState("");
   const [ctaTelefonoPm, setCtaTelefonoPm] = useState("");
   const [ctaAdmiteBiopago, setCtaAdmiteBiopago] = useState(true);
@@ -198,6 +202,7 @@ export default function GastosClient({
     setMontoBs("");
     setCuentaId(cuentas[0]?.id || "");
     setCuentaOrigen(cuentas[0]?.codigo || "efectivo_usd");
+    setMetodoPagoGasto(cuentas[0]?.tipo === "banco_nacional" ? "pago_movil" : cuentas[0]?.tipo === "billetera_digital" ? "zelle" : cuentas[0]?.tipo === "cripto" ? "binance" : "efectivo");
     setNumeroFactura("");
     setComprobanteUrl("");
     setNotas("");
@@ -218,6 +223,7 @@ export default function GastosClient({
     setMontoBs(g.monto_bs ? g.monto_bs.toString() : (g.monto_usd * (g.tasa_bcv || tasaBcv)).toFixed(2));
     setCuentaId(g.cuenta_id || "");
     setCuentaOrigen(g.cuenta_origen || "efectivo_usd");
+    setMetodoPagoGasto(g.metodo_pago || "pago_movil");
     setNumeroFactura(g.numero_factura || "");
     setComprobanteUrl(g.comprobante_url || "");
     setNotas(g.notas || "");
@@ -367,6 +373,7 @@ export default function GastosClient({
       tasa_bcv: tasaBcv,
       cuenta_id: cuentaId || undefined,
       cuenta_origen: cuentaOrigen,
+      metodo_pago: metodoPagoGasto,
       numero_factura: numeroFactura,
       comprobante_url: comprobanteUrl,
       estado: gastoEditando?.estado || ("pagado" as const),
@@ -452,8 +459,10 @@ export default function GastosClient({
   const abrirModalTransferencia = () => {
     setErrorMsg("");
     setTrFecha(new Date().toISOString().split("T")[0]);
-    setTrCuentaOrigenId(cuentas[0]?.id || "");
-    setTrCuentaDestinoId(cuentas[1]?.id || cuentas[0]?.id || "");
+    const orig = cuentas[0]?.id || "";
+    const dest = cuentas[1]?.id || cuentas[0]?.id || "";
+    setTrCuentaOrigenId(orig);
+    setTrCuentaDestinoId(dest);
     setTrMontoOrigen("");
     setTrMontoDestino("");
     setTrTasaCambio(tasaBcv.toString());
@@ -482,6 +491,8 @@ export default function GastosClient({
     setCtaMoneda("VES");
     setCtaBanco(BANCOS_VENEZUELA_LISTA[0].nombre);
     setCtaTitular("");
+    setCtaEmail("");
+    setCtaPayId("");
     setCtaCedula("");
     setCtaTelefonoPm("");
     setCtaAdmiteBiopago(true);
@@ -499,10 +510,12 @@ export default function GastosClient({
     setCtaMoneda(cta.moneda);
     setCtaBanco(cta.banco_plataforma || BANCOS_VENEZUELA_LISTA[0].nombre);
     setCtaTitular(cta.titular || "");
+    setCtaEmail(cta.numero_cuenta_telefono?.includes("@") ? cta.numero_cuenta_telefono : "");
+    setCtaPayId(!cta.numero_cuenta_telefono?.includes("@") && cta.tipo === "cripto" ? cta.numero_cuenta_telefono || "" : "");
     setCtaCedula(cta.cedula_rif || "");
     setCtaTelefonoPm(cta.telefono_pago_movil || "");
     setCtaAdmiteBiopago(cta.admite_biopago ?? false);
-    setCtaNumero20(cta.numero_cuenta_20digitos || cta.numero_cuenta_telefono || "");
+    setCtaNumero20(cta.numero_cuenta_20digitos || "");
     setCtaIcono(cta.icono || "🏦");
     setCtaColor(cta.color || "#3b82f6");
     setCtaNotas(cta.notas || "");
@@ -535,17 +548,28 @@ export default function GastosClient({
     }
 
     setGuardando(true);
+    let numRef = "";
+    if (ctaTipo === "banco_nacional") {
+      numRef = ctaTelefonoPm || ctaNumero20;
+    } else if (ctaTipo === "billetera_digital") {
+      numRef = ctaEmail;
+    } else if (ctaTipo === "cripto") {
+      numRef = ctaPayId || ctaEmail;
+    } else if (ctaTipo === "efectivo_usd" || ctaTipo === "efectivo_bs" || ctaTipo === "caja_chica") {
+      numRef = "Gaveta Principal";
+    }
+
     const payload = {
       nombre: ctaNombre.trim(),
       tipo: ctaTipo,
       moneda: ctaMoneda,
       banco_plataforma: ctaBanco,
-      titular: ctaTitular,
-      cedula_rif: ctaCedula,
-      telefono_pago_movil: ctaTelefonoPm,
-      admite_biopago: ctaAdmiteBiopago,
-      numero_cuenta_20digitos: ctaNumero20,
-      numero_cuenta_telefono: ctaTelefonoPm || ctaNumero20,
+      titular: ctaTipo.startsWith("efectivo") || ctaTipo === "caja_chica" ? "La Parada del Sabor" : ctaTitular,
+      cedula_rif: ctaTipo === "banco_nacional" ? ctaCedula : null,
+      telefono_pago_movil: ctaTipo === "banco_nacional" ? ctaTelefonoPm : null,
+      admite_biopago: ctaTipo === "banco_nacional" ? ctaAdmiteBiopago : false,
+      numero_cuenta_20digitos: ctaTipo === "banco_nacional" ? ctaNumero20 : null,
+      numero_cuenta_telefono: numRef,
       icono: ctaIcono,
       color: ctaColor,
       notas: ctaNotas,
@@ -569,6 +593,85 @@ export default function GastosClient({
       } else {
         alert(res.error || "Error al crear la cuenta.");
       }
+    }
+  };
+
+  const handleEliminarCuenta = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar o archivar la cuenta "${nombre}"?`)) return;
+    setGuardando(true);
+    const res = await eliminarCuentaNegocio(id);
+    setGuardando(false);
+    if (res.ok) {
+      if (res.desactivada) {
+        alert(res.mensaje || "La cuenta tenía movimientos históricos y ha sido archivada para proteger los registros contables.");
+        setCuentas((prev) => prev.map((c) => (c.id === id ? { ...c, activo: false } : c)));
+      } else {
+        setCuentas((prev) => prev.filter((c) => c.id !== id));
+      }
+    } else {
+      alert(res.error || "No se pudo eliminar la cuenta.");
+    }
+  };
+
+  // Cálculo reactivo multidivisa de transferencias
+  const recalcularTransferencia = (
+    val: string,
+    campoCambiado: "origen" | "destino",
+    origId = trCuentaOrigenId,
+    destId = trCuentaDestinoId,
+    tasaStr = trTasaCambio
+  ) => {
+    const num = parseFloat(val);
+    const tasa = parseFloat(tasaStr) || 1.0;
+    const orig = cuentas.find((c) => c.id === origId);
+    const dest = cuentas.find((c) => c.id === destId);
+    const monOrig = orig?.moneda || "VES";
+    const monDest = dest?.moneda || "VES";
+
+    if (isNaN(num) || num <= 0 || tasa <= 0) {
+      if (campoCambiado === "origen") {
+        setTrMontoOrigen(val);
+        setTrMontoDestino("");
+      } else {
+        setTrMontoDestino(val);
+        setTrMontoOrigen("");
+      }
+      return;
+    }
+
+    if (campoCambiado === "origen") {
+      setTrMontoOrigen(val);
+      if (monOrig === monDest) {
+        setTrMontoDestino(val);
+      } else if (monOrig === "VES" && (monDest === "USD" || monDest === "USDT")) {
+        // VES -> USD/USDT (Compra de USDT / Efectivo)
+        setTrMontoDestino((num / tasa).toFixed(2));
+      } else if ((monOrig === "USD" || monOrig === "USDT") && monDest === "VES") {
+        // USD/USDT -> VES (Venta de USDT / Venta Efectivo)
+        setTrMontoDestino((num * tasa).toFixed(2));
+      } else {
+        setTrMontoDestino(val);
+      }
+    } else {
+      setTrMontoDestino(val);
+      if (monOrig === monDest) {
+        setTrMontoOrigen(val);
+      } else if (monOrig === "VES" && (monDest === "USD" || monDest === "USDT")) {
+        // Ingresó USD destino -> calcular VES origen
+        setTrMontoOrigen((num * tasa).toFixed(2));
+      } else if ((monOrig === "USD" || monOrig === "USDT") && monDest === "VES") {
+        // Ingresó VES destino -> calcular USD origen
+        setTrMontoOrigen((num / tasa).toFixed(2));
+      } else {
+        setTrMontoOrigen(val);
+      }
+    }
+  };
+
+  const handleCambioTrTasa = (nuevaTasa: string) => {
+    setTrTasaCambio(nuevaTasa);
+    if (trMontoOrigen) {
+      recalcularTransferencia(trMontoOrigen, "origen", trCuentaOrigenId, trCuentaDestinoId, nuevaTasa);
     }
   };
 
@@ -701,6 +804,17 @@ export default function GastosClient({
     });
     return map;
   }, [gastos]);
+
+  // Cuenta seleccionada en filtro
+  const cuentaFiltradaObj = useMemo(() => {
+    if (filtroCuenta === "todas") return null;
+    return cuentas.find((c) => c.id === filtroCuenta || c.codigo === filtroCuenta);
+  }, [cuentas, filtroCuenta]);
+
+  // Cuenta seleccionada en modal de gasto
+  const cuentaSeleccionadaGastoObj = useMemo(() => {
+    return cuentas.find((c) => c.id === cuentaId || c.codigo === cuentaOrigen) || cuentas[0];
+  }, [cuentas, cuentaId, cuentaOrigen]);
 
   // Cálculo de resumen para el insumo en el modal de compra
   const insumoSeleccionadoObj = useMemo(() => {
@@ -905,6 +1019,42 @@ export default function GastosClient({
               </div>
             </div>
           </div>
+
+          {/* Banner de Navegación Rápida si se está filtrando por una Cuenta */}
+          {cuentaFiltradaObj && (
+            <div style={{ background: "rgba(239, 68, 68, 0.08)", border: "1.5px solid var(--primary)", borderRadius: 16, padding: "14px 18px", marginBottom: 18, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, boxShadow: "var(--shadow-sm)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 28 }}>{cuentaFiltradaObj.icono || "💳"}</span>
+                <div>
+                  <div style={{ fontSize: 14.5, fontWeight: 900, color: "var(--text)" }}>
+                    Historial de Pagos: <strong style={{ color: "var(--primary)" }}>{cuentaFiltradaObj.nombre}</strong>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                    {cuentaFiltradaObj.titular ? `Titular: ${cuentaFiltradaObj.titular}` : ""} {cuentaFiltradaObj.admite_biopago ? "• 🟢 BioPago Habilitado" : ""}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setTabActiva("cuentas")}
+                  className="btn-primary-action"
+                  style={{ fontSize: 12.5, padding: "8px 16px" }}
+                >
+                  ⬅️ Volver a Cuentas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFiltroCuenta("todas")}
+                  className="btn-refresh-action"
+                  style={{ fontSize: 12.5, padding: "8px 16px" }}
+                >
+                  ✕ Ver Todos los Gastos
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Barra de Filtros & Búsqueda */}
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 18, padding: "14px 18px", marginBottom: 18, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", boxShadow: "var(--shadow-sm)" }}>
@@ -1244,37 +1394,65 @@ export default function GastosClient({
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => abrirModalEditarCuenta(cta)}
-                      style={{
-                        background: "var(--bg-subtle)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        padding: "5px 10px",
-                        fontSize: 12,
-                        fontWeight: 800,
-                        cursor: "pointer",
-                        color: "var(--text)",
-                      }}
-                    >
-                      ✏️ Editar
-                    </button>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => abrirModalEditarCuenta(cta)}
+                        style={{
+                          background: "var(--bg-subtle)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          padding: "5px 10px",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          cursor: "pointer",
+                          color: "var(--text)",
+                        }}
+                        title="Editar cuenta"
+                      >
+                        ✏️ Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEliminarCuenta(cta.id, cta.nombre)}
+                        style={{
+                          background: "rgba(239, 68, 68, 0.1)",
+                          border: "1px solid rgba(239, 68, 68, 0.3)",
+                          borderRadius: 8,
+                          padding: "5px 8px",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          color: "#ef4444",
+                        }}
+                        title="Eliminar o archivar cuenta"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ fontSize: 12.5, color: "var(--text)", marginTop: 12, background: "var(--bg-subtle)", padding: "12px 14px", borderRadius: 12, border: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: 4 }}>
-                    {cta.titular && (
-                      <div>👤 Titular: <strong>{cta.titular}</strong></div>
-                    )}
-                    {cta.cedula_rif && (
-                      <div>🪪 Cédula / RIF: <strong>{cta.cedula_rif}</strong></div>
-                    )}
-                    {cta.telefono_pago_movil && (
-                      <div>📱 Pago Móvil: <strong>{cta.telefono_pago_movil}</strong></div>
-                    )}
-                    {cta.numero_cuenta_20digitos && (
-                      <div style={{ color: "var(--text-muted)", fontSize: 11.5 }}>
-                        🔢 Cuenta 20 Dígitos: <code>{cta.numero_cuenta_20digitos}</code>
+                    {cta.tipo === "banco_nacional" ? (
+                      <>
+                        {cta.titular && <div>👤 Titular: <strong>{cta.titular}</strong></div>}
+                        {cta.cedula_rif && <div>🪪 Cédula / RIF: <strong>{cta.cedula_rif}</strong></div>}
+                        {cta.telefono_pago_movil && <div>📱 Pago Móvil: <strong>{cta.telefono_pago_movil}</strong></div>}
+                        {cta.numero_cuenta_20digitos && (
+                          <div style={{ color: "var(--text-muted)", fontSize: 11.5 }}>
+                            🔢 Nro. Cuenta: <code>{cta.numero_cuenta_20digitos}</code>
+                          </div>
+                        )}
+                      </>
+                    ) : cta.tipo === "billetera_digital" || cta.tipo === "cripto" ? (
+                      <>
+                        {cta.titular && <div>👤 Titular: <strong>{cta.titular}</strong></div>}
+                        {cta.numero_cuenta_telefono && (
+                          <div>📧 Correo / ID: <strong>{cta.numero_cuenta_telefono}</strong></div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ color: "var(--text-muted)", fontWeight: 700 }}>
+                        💵 Fondo Físico de La Parada del Sabor (Gaveta / Caja Chica)
                       </div>
                     )}
                   </div>
@@ -1562,7 +1740,7 @@ export default function GastosClient({
 
               <div className="form-grid-2">
                 <div className="form-field">
-                  <label>Cuenta / Método de Pago *</label>
+                  <label>Cuenta / Origen del Pago *</label>
                   <select
                     value={cuentaId || cuentaOrigen}
                     onChange={(e) => {
@@ -1571,6 +1749,15 @@ export default function GastosClient({
                       if (c) {
                         setCuentaId(c.id);
                         setCuentaOrigen(c.codigo);
+                        if (c.tipo === "banco_nacional") {
+                          setMetodoPagoGasto("pago_movil");
+                        } else if (c.tipo === "billetera_digital") {
+                          setMetodoPagoGasto("zelle");
+                        } else if (c.tipo === "cripto") {
+                          setMetodoPagoGasto("binance");
+                        } else {
+                          setMetodoPagoGasto("efectivo");
+                        }
                       } else {
                         setCuentaOrigen(sel);
                       }
@@ -1586,15 +1773,41 @@ export default function GastosClient({
                 </div>
 
                 <div className="form-field">
-                  <label>Beneficiario / Persona Pagada</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Distribuidor Gas, Juan Pérez..."
-                    value={beneficiario}
-                    onChange={(e) => setBeneficiario(e.target.value)}
+                  <label>Método de Pago Específico *</label>
+                  <select
+                    value={metodoPagoGasto}
+                    onChange={(e) => setMetodoPagoGasto(e.target.value)}
                     className="form-input"
-                  />
+                  >
+                    {cuentaSeleccionadaGastoObj?.tipo === "banco_nacional" ? (
+                      <>
+                        <option value="pago_movil">📱 Pago Móvil Interbancario</option>
+                        <option value="transferencia">🏛️ Transferencia Bancaria</option>
+                        <option value="debito">💳 Tarjeta Débito / POS</option>
+                        {cuentaSeleccionadaGastoObj.admite_biopago && (
+                          <option value="biopago">🟢 BioPago / Huella (BDV)</option>
+                        )}
+                      </>
+                    ) : cuentaSeleccionadaGastoObj?.tipo === "billetera_digital" ? (
+                      <option value="zelle">🟣 Zelle / Plataforma Digital</option>
+                    ) : cuentaSeleccionadaGastoObj?.tipo === "cripto" ? (
+                      <option value="binance">🟡 Binance Pay / Cripto</option>
+                    ) : (
+                      <option value="efectivo">💵 Efectivo en Gaveta / Caja Chica</option>
+                    )}
+                  </select>
                 </div>
+              </div>
+
+              <div className="form-field">
+                <label>Beneficiario / Persona Pagada</label>
+                <input
+                  type="text"
+                  placeholder="Ej: Distribuidor Gas, Juan Pérez..."
+                  value={beneficiario}
+                  onChange={(e) => setBeneficiario(e.target.value)}
+                  className="form-input"
+                />
               </div>
 
               <div className="form-grid-2">
@@ -1860,7 +2073,7 @@ export default function GastosClient({
         </div>
       )}
 
-      {/* MODAL 3: CREAR / EDITAR CUENTA FINANCIERA (CON SELECTOR DE BANCOS NACIONALES & BIOPAGO) */}
+      {/* MODAL 3: CREAR / EDITAR CUENTA FINANCIERA (CON FORMULARIOS DINÁMICOS SEGÚN TIPO) */}
       {modalCuenta && (
         <div className="modal-overlay" onClick={() => setModalCuenta(false)}>
           <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 580 }}>
@@ -1883,14 +2096,48 @@ export default function GastosClient({
                   <label>Tipo de Cuenta *</label>
                   <select
                     value={ctaTipo}
-                    onChange={(e) => setCtaTipo(e.target.value as any)}
+                    onChange={(e) => {
+                      const t = e.target.value as CuentaNegocio["tipo"];
+                      setCtaTipo(t);
+                      if (t === "banco_nacional") {
+                        setCtaMoneda("VES");
+                        setCtaIcono("🏛️");
+                        setCtaBanco(BANCOS_VENEZUELA_LISTA[0].nombre);
+                        setCtaAdmiteBiopago(true);
+                      } else if (t === "billetera_digital") {
+                        setCtaMoneda("USD");
+                        setCtaIcono("🟣");
+                        setCtaBanco("Zelle");
+                        setCtaAdmiteBiopago(false);
+                      } else if (t === "cripto") {
+                        setCtaMoneda("USDT");
+                        setCtaIcono("🟡");
+                        setCtaBanco("Binance Pay");
+                        setCtaAdmiteBiopago(false);
+                      } else if (t === "efectivo_usd") {
+                        setCtaMoneda("USD");
+                        setCtaIcono("💵");
+                        setCtaBanco("Gaveta Físico");
+                        setCtaAdmiteBiopago(false);
+                      } else if (t === "efectivo_bs") {
+                        setCtaMoneda("VES");
+                        setCtaIcono("🇻🇪");
+                        setCtaBanco("Gaveta Bolívares");
+                        setCtaAdmiteBiopago(false);
+                      } else if (t === "caja_chica") {
+                        setCtaMoneda("USD");
+                        setCtaIcono("💼");
+                        setCtaBanco("Caja Chica");
+                        setCtaAdmiteBiopago(false);
+                      }
+                    }}
                     className="form-input"
                   >
                     <option value="banco_nacional">🏛️ Banca Nacional (Venezuela)</option>
                     <option value="billetera_digital">🟣 Billetera Digital (Zelle, etc.)</option>
                     <option value="cripto">🟡 Cripto (Binance USDT)</option>
-                    <option value="efectivo_usd">💵 Efectivo USD (Gaveta)</option>
-                    <option value="efectivo_bs">🇻🇪 Efectivo Bs (Gaveta)</option>
+                    <option value="efectivo_usd">💵 Efectivo USD (Gaveta Principal)</option>
+                    <option value="efectivo_bs">🇻🇪 Efectivo Bs (Gaveta Principal)</option>
                     <option value="caja_chica">💼 Caja Chica Operativa</option>
                     <option value="otra">📦 Otra Cuenta</option>
                   </select>
@@ -1911,126 +2158,251 @@ export default function GastosClient({
                 </div>
               </div>
 
-              {/* Selector de Banco Nacional Desplegable */}
-              {ctaTipo === "banco_nacional" ? (
-                <div className="form-field">
-                  <label>Banco Nacional * (Desplegable Oficial)</label>
-                  <select
-                    value={ctaBanco}
-                    onChange={(e) => handleSeleccionarBancoNacional(e.target.value)}
-                    className="form-input"
-                  >
-                    <optgroup label="🏛️ Bancos del Estado (BioPago)">
-                      {BANCOS_VENEZUELA_LISTA.filter((b) => b.codigo.startsWith("0102") || b.codigo.startsWith("0175") || b.codigo.startsWith("0163") || b.codigo.startsWith("0177") || b.codigo.startsWith("0166")).map((b) => (
-                        <option key={b.codigo} value={b.nombre}>
-                          {b.icono} {b.nombre} (0{b.codigo}) {b.biopago ? "✓ BioPago" : ""}
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="🏦 Bancos Privados Afiliados a BioPago">
-                      {BANCOS_VENEZUELA_LISTA.filter((b) => b.biopago && !b.codigo.startsWith("0102") && !b.codigo.startsWith("0175") && !b.codigo.startsWith("0163") && !b.codigo.startsWith("0177") && !b.codigo.startsWith("0166")).map((b) => (
-                        <option key={b.codigo} value={b.nombre}>
-                          {b.icono} {b.nombre} (0{b.codigo}) ✓ BioPago
-                        </option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="📱 Otros Bancos Nacionales">
-                      {BANCOS_VENEZUELA_LISTA.filter((b) => !b.biopago).map((b) => (
-                        <option key={b.codigo} value={b.nombre}>
-                          {b.icono} {b.nombre} (0{b.codigo})
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
-              ) : (
-                <div className="form-field">
-                  <label>Plataforma o Servicio</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Binance Pay, Zelle, Zinli..."
-                    value={ctaBanco}
-                    onChange={(e) => setCtaBanco(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
+              {/* 1. CASO BANCO NACIONAL */}
+              {ctaTipo === "banco_nacional" && (
+                <>
+                  <div className="form-field">
+                    <label>Banco Nacional * (Desplegable Oficial)</label>
+                    <select
+                      value={ctaBanco}
+                      onChange={(e) => handleSeleccionarBancoNacional(e.target.value)}
+                      className="form-input"
+                    >
+                      <optgroup label="🏛️ Bancos del Estado (BioPago)">
+                        {BANCOS_VENEZUELA_LISTA.filter((b) => b.codigo.startsWith("0102") || b.codigo.startsWith("0175") || b.codigo.startsWith("0163") || b.codigo.startsWith("0177") || b.codigo.startsWith("0166")).map((b) => (
+                          <option key={b.codigo} value={b.nombre}>
+                            {b.icono} {b.nombre} (0{b.codigo}) {b.biopago ? "✓ BioPago" : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🏦 Bancos Privados Afiliados a BioPago">
+                        {BANCOS_VENEZUELA_LISTA.filter((b) => b.biopago && !b.codigo.startsWith("0102") && !b.codigo.startsWith("0175") && !b.codigo.startsWith("0163") && !b.codigo.startsWith("0177") && !b.codigo.startsWith("0166")).map((b) => (
+                          <option key={b.codigo} value={b.nombre}>
+                            {b.icono} {b.nombre} (0{b.codigo}) ✓ BioPago
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="📱 Otros Bancos Nacionales">
+                        {BANCOS_VENEZUELA_LISTA.filter((b) => !b.biopago).map((b) => (
+                          <option key={b.codigo} value={b.nombre}>
+                            {b.icono} {b.nombre} (0{b.codigo})
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </div>
+
+                  <div className="form-field">
+                    <label>Nombre Identificador de la Cuenta *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: BDV Grecia Márquez, BFC La Parada..."
+                      value={ctaNombre}
+                      onChange={(e) => setCtaNombre(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-grid-2">
+                    <div className="form-field">
+                      <label>Titular de la Cuenta</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Grecia Márquez / La Parada del Sabor"
+                        value={ctaTitular}
+                        onChange={(e) => setCtaTitular(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label>Cédula / RIF</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: V-12345678 / J-502717960"
+                        value={ctaCedula}
+                        onChange={(e) => setCtaCedula(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-grid-2">
+                    <div className="form-field">
+                      <label>Teléfono para Pago Móvil</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: 0412-2595386"
+                        value={ctaTelefonoPm}
+                        onChange={(e) => setCtaTelefonoPm(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label>Nro. Cuenta 20 Dígitos</label>
+                      <input
+                        type="text"
+                        maxLength={20}
+                        placeholder="0102-0123-45-6789012345"
+                        value={ctaNumero20}
+                        onChange={(e) => setCtaNumero20(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ background: "var(--bg-subtle)", padding: "12px 14px", borderRadius: 12, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      id="chkBiopago"
+                      checked={ctaAdmiteBiopago}
+                      onChange={(e) => setCtaAdmiteBiopago(e.target.checked)}
+                      style={{ width: 18, height: 18, accentColor: "var(--primary)" }}
+                    />
+                    <label htmlFor="chkBiopago" style={{ fontSize: 13, fontWeight: 800, color: "var(--text)", cursor: "pointer" }}>
+                      🟢 Admite pagos por BioPago / Huella Biométrica (Red BDV)
+                    </label>
+                  </div>
+                </>
               )}
 
-              <div className="form-field">
-                <label>Nombre Identificador de la Cuenta *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej: BDV Grecia Márquez, BFC La Parada, Bancamiga Caja..."
-                  value={ctaNombre}
-                  onChange={(e) => setCtaNombre(e.target.value)}
-                  className="form-input"
-                />
-              </div>
+              {/* 2. CASO BILLETERA DIGITAL (ZELLE, ZINLI, PAYPAL) */}
+              {ctaTipo === "billetera_digital" && (
+                <>
+                  <div className="form-field">
+                    <label>Plataforma o Servicio *</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Zelle, Zinli, PayPal..."
+                      value={ctaBanco}
+                      onChange={(e) => setCtaBanco(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
 
-              {/* Datos de Pago Móvil & Titular */}
-              <div className="form-grid-2">
-                <div className="form-field">
-                  <label>Titular de la Cuenta</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Grecia Márquez / La Parada del Sabor"
-                    value={ctaTitular}
-                    onChange={(e) => setCtaTitular(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
+                  <div className="form-field">
+                    <label>Nombre Identificador de la Cuenta *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: Zelle Grecia Márquez, Zelle Negocio..."
+                      value={ctaNombre}
+                      onChange={(e) => setCtaNombre(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
 
-                <div className="form-field">
-                  <label>Cédula / RIF</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: V-12345678 / J-502717960"
-                    value={ctaCedula}
-                    onChange={(e) => setCtaCedula(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
+                  <div className="form-grid-2">
+                    <div className="form-field">
+                      <label>Nombre del Titular</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Grecia Márquez"
+                        value={ctaTitular}
+                        onChange={(e) => setCtaTitular(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
 
-              <div className="form-grid-2">
-                <div className="form-field">
-                  <label>Teléfono para Pago Móvil</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: 0412-2595386"
-                    value={ctaTelefonoPm}
-                    onChange={(e) => setCtaTelefonoPm(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
+                    <div className="form-field">
+                      <label>Correo Electrónico (Email asociado)</label>
+                      <input
+                        type="email"
+                        placeholder="ejemplo@gmail.com"
+                        value={ctaEmail}
+                        onChange={(e) => setCtaEmail(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
 
-                <div className="form-field">
-                  <label>Nro. de Cuenta Completo (20 dígitos)</label>
-                  <input
-                    type="text"
-                    maxLength={20}
-                    placeholder="0102-0123-45-6789012345"
-                    value={ctaNumero20}
-                    onChange={(e) => setCtaNumero20(e.target.value)}
-                    className="form-input"
-                  />
-                </div>
-              </div>
+              {/* 3. CASO CRIPTO (BINANCE USDT) */}
+              {ctaTipo === "cripto" && (
+                <>
+                  <div className="form-field">
+                    <label>Plataforma Cripto *</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Binance Pay, Bybit..."
+                      value={ctaBanco}
+                      onChange={(e) => setCtaBanco(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
 
-              {/* Checkbox BioPago */}
-              <div style={{ background: "var(--bg-subtle)", padding: "12px 14px", borderRadius: 12, border: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-                <input
-                  type="checkbox"
-                  id="chkBiopago"
-                  checked={ctaAdmiteBiopago}
-                  onChange={(e) => setCtaAdmiteBiopago(e.target.checked)}
-                  style={{ width: 18, height: 18, accentColor: "var(--primary)" }}
-                />
-                <label htmlFor="chkBiopago" style={{ fontSize: 13, fontWeight: 800, color: "var(--text)", cursor: "pointer" }}>
-                  🟢 Admite pagos por BioPago / Huella Biométrica (Red Banco de Venezuela)
-                </label>
-              </div>
+                  <div className="form-field">
+                    <label>Nombre Identificador de la Cuenta *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: Binance Pay USDT, Billetera Cripto..."
+                      value={ctaNombre}
+                      onChange={(e) => setCtaNombre(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-grid-2">
+                    <div className="form-field">
+                      <label>Nombre del Titular</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: Grecia Márquez / La Parada"
+                        value={ctaTitular}
+                        onChange={(e) => setCtaTitular(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label>Correo Electrónico de Binance</label>
+                      <input
+                        type="email"
+                        placeholder="correo@binance.com"
+                        value={ctaEmail}
+                        onChange={(e) => setCtaEmail(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label>Binance Pay ID / Binance ID / Wallet</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: 198274620 (Pay ID)"
+                      value={ctaPayId}
+                      onChange={(e) => setCtaPayId(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* 4. CASO EFECTIVO / CAJA CHICA */}
+              {(ctaTipo === "efectivo_usd" || ctaTipo === "efectivo_bs" || ctaTipo === "caja_chica" || ctaTipo === "otra") && (
+                <>
+                  <div className="form-field">
+                    <label>Nombre Identificador del Fondo Físico *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej: Gaveta Efectivo USD, Gaveta Efectivo Bs, Caja Chica..."
+                      value={ctaNombre}
+                      onChange={(e) => setCtaNombre(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div style={{ background: "var(--bg-subtle)", padding: "12px 14px", borderRadius: 12, border: "1px solid var(--border)", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    💡 <strong>Fondo Físico del Negocio:</strong> Este fondo pertenece a <strong>La Parada del Sabor</strong>. No requiere datos bancarios ni titulares personales; sus movimientos alimentan el arqueo de caja y egresos directos en efectivo.
+                  </div>
+                </>
+              )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
                 <button
@@ -2053,10 +2425,10 @@ export default function GastosClient({
         </div>
       )}
 
-      {/* MODAL 4: MOVER FONDOS / TRANSFERENCIA ENTRE CUENTAS */}
+      {/* MODAL 4: MOVER FONDOS / TRANSFERENCIA ENTRE CUENTAS CON CALCULADORA MULTIDIVISA */}
       {modalTransferencia && (
         <div className="modal-overlay" onClick={() => setModalTransferencia(false)}>
-          <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620 }}>
+          <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
             <div className="modal-recipe-header">
               <h2>
                 <span>🔄 Mover Fondos entre Cuentas (Fondeo / Traspaso)</span>
@@ -2093,7 +2465,18 @@ export default function GastosClient({
                   <label>Cuenta de Salida (Origen) *</label>
                   <select
                     value={trCuentaOrigenId}
-                    onChange={(e) => setTrCuentaOrigenId(e.target.value)}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setTrCuentaOrigenId(id);
+                      const orig = cuentas.find((c) => c.id === id);
+                      const dest = cuentas.find((c) => c.id === trCuentaDestinoId);
+                      if (orig?.tipo === "cripto" && dest?.tipo === "banco_nacional") {
+                        setTrMetodo("venta_usdt_p2p");
+                      } else if (orig?.tipo === "banco_nacional" && dest?.tipo === "cripto") {
+                        setTrMetodo("compra_usdt_p2p");
+                      }
+                      recalcularTransferencia(trMontoOrigen, "origen", id, trCuentaDestinoId, trTasaCambio);
+                    }}
                     className="form-input"
                   >
                     {cuentas.map((c) => (
@@ -2108,7 +2491,18 @@ export default function GastosClient({
                   <label>Cuenta Receptora (Destino) *</label>
                   <select
                     value={trCuentaDestinoId}
-                    onChange={(e) => setTrCuentaDestinoId(e.target.value)}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      setTrCuentaDestinoId(id);
+                      const orig = cuentas.find((c) => c.id === trCuentaOrigenId);
+                      const dest = cuentas.find((c) => c.id === id);
+                      if (orig?.tipo === "cripto" && dest?.tipo === "banco_nacional") {
+                        setTrMetodo("venta_usdt_p2p");
+                      } else if (orig?.tipo === "banco_nacional" && dest?.tipo === "cripto") {
+                        setTrMetodo("compra_usdt_p2p");
+                      }
+                      recalcularTransferencia(trMontoOrigen, "origen", trCuentaOrigenId, id, trTasaCambio);
+                    }}
                     className="form-input"
                   >
                     {cuentas.map((c) => (
@@ -2120,33 +2514,90 @@ export default function GastosClient({
                 </div>
               </div>
 
+              {/* Panel de Tasa de Cambio con Selector Rápido & Edición Manual */}
+              <div style={{ background: "var(--bg-subtle)", padding: "14px", borderRadius: 16, border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "var(--text)" }}>
+                    💱 Tasa de Conversión Aplicada:
+                  </span>
+
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleCambioTrTasa(tasaBcv.toString())}
+                      className="btn-refresh-action"
+                      style={{ fontSize: 11, padding: "4px 10px", fontWeight: 800 }}
+                    >
+                      🏛️ BCV ({tasaBcv.toFixed(2)})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCambioTrTasa((tasaBcv * 1.15).toFixed(2))}
+                      className="btn-refresh-action"
+                      style={{ fontSize: 11, padding: "4px 10px", fontWeight: 800 }}
+                    >
+                      🟡 USDT P2P
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCambioTrTasa(tasaBcv.toString())}
+                      className="btn-refresh-action"
+                      style={{ fontSize: 11, padding: "4px 10px", fontWeight: 800 }}
+                    >
+                      💵 Efectivo
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                    Tasa (Bs/USD o Bs/USDT):
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder={tasaBcv.toString()}
+                    value={trTasaCambio}
+                    onChange={(e) => handleCambioTrTasa(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: 15, fontWeight: 900, maxWidth: 180, color: "var(--primary)" }}
+                  />
+                  <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                    Editable manual
+                  </span>
+                </div>
+              </div>
+
+              {/* Inputs de Monto Origen y Destino Bidireccionales */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, background: "var(--bg-subtle)", padding: "14px", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
                 <div className="form-field">
-                  <label style={{ color: "var(--primary)", fontWeight: 900 }}>Monto Enviado (Origen) *</label>
+                  <label style={{ color: "var(--primary)", fontWeight: 900 }}>
+                    Monto Enviado ({cuentas.find((c) => c.id === trCuentaOrigenId)?.moneda || "VES"}) *
+                  </label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     placeholder="0.00"
                     value={trMontoOrigen}
-                    onChange={(e) => {
-                      setTrMontoOrigen(e.target.value);
-                      if (!trMontoDestino) setTrMontoDestino(e.target.value);
-                    }}
+                    onChange={(e) => recalcularTransferencia(e.target.value, "origen")}
                     className="form-input"
                     style={{ fontSize: 16, fontWeight: 900 }}
                   />
                 </div>
 
                 <div className="form-field">
-                  <label>Monto Recibido (Destino) *</label>
+                  <label style={{ color: "var(--green)", fontWeight: 900 }}>
+                    Monto Recibido ({cuentas.find((c) => c.id === trCuentaDestinoId)?.moneda || "VES"}) *
+                  </label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     placeholder="0.00"
                     value={trMontoDestino}
-                    onChange={(e) => setTrMontoDestino(e.target.value)}
+                    onChange={(e) => recalcularTransferencia(e.target.value, "destino")}
                     className="form-input"
                     style={{ fontSize: 16, fontWeight: 900 }}
                   />
@@ -2163,8 +2614,10 @@ export default function GastosClient({
                   >
                     <option value="pago_movil">📱 Pago Móvil Interbancario</option>
                     <option value="transferencia">🏛️ Transferencia Bancaria</option>
-                    <option value="biopago">🟢 BioPago / Huella</option>
-                    <option value="efectivo">💵 Entrega de Efectivo</option>
+                    <option value="biopago">🟢 BioPago (Huella)</option>
+                    <option value="compra_usdt_p2p">🟡 Compra USDT Binance P2P</option>
+                    <option value="venta_usdt_p2p">🟡 Venta USDT Binance P2P</option>
+                    <option value="efectivo">💵 Entrega / Retiro de Efectivo</option>
                     <option value="zelle">🟣 Zelle</option>
                     <option value="binance">🟡 Binance Pay</option>
                   </select>
@@ -2186,7 +2639,7 @@ export default function GastosClient({
                 <label>Concepto / Motivo del Traspaso</label>
                 <input
                   type="text"
-                  placeholder="Ej: Fondeo a BDV Grecia Márquez para pagar compras en Super 900 con BioPago"
+                  placeholder="Ej: Fondeo a BDV Grecia Márquez para pagar insumos en Super 900 con BioPago"
                   value={trConcepto}
                   onChange={(e) => setTrConcepto(e.target.value)}
                   className="form-input"

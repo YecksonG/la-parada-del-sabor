@@ -328,6 +328,7 @@ export type Gasto = {
   tasa_bcv: number;
   cuenta_origen: CuentaOrigenGasto;
   cuenta_id?: string | null;
+  metodo_pago?: string | null;
   numero_factura?: string | null;
   comprobante_url?: string | null;
   estado: "pagado" | "pendiente" | "anulado";

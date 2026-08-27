@@ -30,6 +30,7 @@ export type PayloadGasto = {
   tasa_bcv?: number;
   cuenta_origen?: string;
   cuenta_id?: string;
+  metodo_pago?: string | null;
   numero_factura?: string;
   comprobante_url?: string;
   estado?: "pagado" | "pendiente" | "anulado";
@@ -110,7 +111,7 @@ export async function crearGasto(payload: PayloadGasto) {
       monto_usd: payload.monto_usd,
       monto_bs: monto_bs,
       tasa_bcv: tasa,
-      cuenta_origen: ctaOrigen,
+      cuenta_origen: payload.metodo_pago || ctaOrigen,
       cuenta_id: payload.cuenta_id || null,
       numero_factura: payload.numero_factura?.trim() || null,
       comprobante_url: payload.comprobante_url || null,
@@ -169,22 +170,35 @@ export async function actualizarGasto(id: string, payload: Partial<PayloadGasto>
   }
   if (payload.beneficiario !== undefined) updateData.beneficiario = payload.beneficiario?.trim() || null;
   if (payload.proveedor_id !== undefined) updateData.proveedor_id = payload.proveedor_id || null;
-  if (payload.cuenta_origen !== undefined) updateData.cuenta_origen = payload.cuenta_origen;
+  if (payload.metodo_pago !== undefined) updateData.cuenta_origen = payload.metodo_pago;
+  else if (payload.cuenta_origen !== undefined) updateData.cuenta_origen = payload.cuenta_origen;
   if (payload.cuenta_id !== undefined) updateData.cuenta_id = payload.cuenta_id || null;
   if (payload.numero_factura !== undefined) updateData.numero_factura = payload.numero_factura?.trim() || null;
   if (payload.comprobante_url !== undefined) updateData.comprobante_url = payload.comprobante_url || null;
   if (payload.estado !== undefined) updateData.estado = payload.estado;
   if (payload.notas !== undefined) updateData.notas = payload.notas?.trim() || null;
+  if (payload.tasa_bcv !== undefined) updateData.tasa_bcv = payload.tasa_bcv;
+  if (payload.monto_bs !== undefined) updateData.monto_bs = payload.monto_bs;
 
   if (payload.monto_usd !== undefined) {
     if (typeof payload.monto_usd !== "number" || !Number.isFinite(payload.monto_usd) || payload.monto_usd <= 0) {
       return { ok: false, error: "El monto en dólares debe ser mayor a 0." };
     }
     updateData.monto_usd = payload.monto_usd;
-    const tasa = payload.tasa_bcv || 60.0;
-    updateData.monto_bs = typeof payload.monto_bs === "number" && Number.isFinite(payload.monto_bs) && payload.monto_bs > 0
-      ? payload.monto_bs
-      : Number((payload.monto_usd * tasa).toFixed(2));
+
+    if (payload.monto_bs === undefined) {
+      let tasa = payload.tasa_bcv;
+      if (!tasa) {
+        const { data: tasaData } = await supabase
+          .from("tasas_cambio")
+          .select("bcv_usd_bs")
+          .order("fecha", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        tasa = Number(tasaData?.bcv_usd_bs) || 1.0;
+      }
+      updateData.monto_bs = Number((payload.monto_usd * tasa).toFixed(2));
+    }
   }
 
   const { data, error } = await supabase
@@ -380,20 +394,20 @@ export async function registrarIngresoInsumo(payload: RegistrarCompraInsumoPaylo
 
 export type PayloadCuentaNegocio = {
   nombre: string;
-  codigo?: string;
+  codigo?: string | null;
   tipo: CuentaNegocio["tipo"];
   moneda: CuentaNegocio["moneda"];
-  banco_plataforma?: string;
-  titular?: string;
-  numero_cuenta_telefono?: string;
-  cedula_rif?: string;
-  telefono_pago_movil?: string;
-  admite_biopago?: boolean;
-  numero_cuenta_20digitos?: string;
-  saldo_inicial?: number;
-  icono?: string;
-  color?: string;
-  notas?: string;
+  banco_plataforma?: string | null;
+  titular?: string | null;
+  numero_cuenta_telefono?: string | null;
+  cedula_rif?: string | null;
+  telefono_pago_movil?: string | null;
+  admite_biopago?: boolean | null;
+  numero_cuenta_20digitos?: string | null;
+  saldo_inicial?: number | null;
+  icono?: string | null;
+  color?: string | null;
+  notas?: string | null;
 };
 
 export async function crearCuentaNegocio(payload: PayloadCuentaNegocio) {
@@ -478,6 +492,82 @@ export async function actualizarCuentaNegocio(id: string, payload: Partial<Paylo
 
   revalidatePath("/gastos");
   return { ok: true, cuenta: data };
+}
+
+export async function eliminarCuentaNegocio(id: string) {
+  if (!id || !UUID_REGEX.test(id)) {
+    return { ok: false, error: "Identificador de cuenta no válido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // Obtener cuenta para validar por ID y por código
+  const { data: ctaObj } = await supabase
+    .from("cuentas_negocio")
+    .select("id, codigo")
+    .eq("id", id)
+    .single();
+
+  if (!ctaObj) {
+    return { ok: false, error: "Cuenta no encontrada." };
+  }
+
+  // Comprobar si tiene gastos, compras o transferencias asociadas
+  const { count: countGastos } = await supabase
+    .from("gastos")
+    .select("id", { count: "exact", head: true })
+    .or(`cuenta_id.eq.${id},cuenta_origen.eq.${ctaObj.codigo}`);
+
+  const { count: countCompras } = await supabase
+    .from("compras")
+    .select("id", { count: "exact", head: true })
+    .eq("metodo_pago", ctaObj.codigo);
+
+  const { count: countTransfOrigen } = await supabase
+    .from("transferencias_cuentas")
+    .select("id", { count: "exact", head: true })
+    .eq("cuenta_origen_id", id);
+
+  const { count: countTransfDestino } = await supabase
+    .from("transferencias_cuentas")
+    .select("id", { count: "exact", head: true })
+    .eq("cuenta_destino_id", id);
+
+  const totalMovimientos = (countGastos || 0) + (countCompras || 0) + (countTransfOrigen || 0) + (countTransfDestino || 0);
+
+  if (totalMovimientos > 0) {
+    // Si tiene movimientos históricos, marcar como inactiva para no romper integridad
+    const { error: updateError } = await supabase
+      .from("cuentas_negocio")
+      .update({ activo: false, actualizado_el: new Date().toISOString() })
+      .eq("id", id);
+
+    if (updateError) {
+      return { ok: false, error: "No se pudo desactivar la cuenta: " + updateError.message };
+    }
+
+    revalidatePath("/gastos");
+    return {
+      ok: true,
+      desactivada: true,
+      mensaje: "La cuenta tenía movimientos históricos asociados y ha sido archivada para proteger los registros contables.",
+    };
+  }
+
+  // Si no tiene movimientos, se elimina directamente
+  const { error: deleteError } = await supabase
+    .from("cuentas_negocio")
+    .delete()
+    .eq("id", id);
+
+  if (deleteError) {
+    return { ok: false, error: deleteError.message || "Error al eliminar la cuenta." };
+  }
+
+  revalidatePath("/gastos");
+  return { ok: true, eliminada: true };
 }
 
 // ==============================================================================
