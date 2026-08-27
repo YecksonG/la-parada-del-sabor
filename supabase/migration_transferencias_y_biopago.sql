@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS public.transferencias_cuentas (
     monto_destino NUMERIC(14, 2) NOT NULL CHECK (monto_destino > 0),
     moneda_destino VARCHAR(10) NOT NULL DEFAULT 'VES',
     tasa_cambio NUMERIC(14, 4) DEFAULT 1.0,
-    metodo_transferencia VARCHAR(50) DEFAULT 'pago_movil', -- pago_movil, transferencia, biopago, efectivo, zelle, binance
+    metodo_transferencia VARCHAR(50) DEFAULT 'pago_movil',
     referencia VARCHAR(100),
     concepto TEXT,
     comprobante_url TEXT,
