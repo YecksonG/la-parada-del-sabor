@@ -233,11 +233,33 @@ export type CuentaOrigenGasto =
   | "efectivo_bs" 
   | "pago_movil_bfc" 
   | "transferencia_bfc" 
+  | "bdv_ves"
+  | "bancamiga"
+  | "banesco"
   | "binance" 
   | "zelle" 
   | "punto_venta" 
   | "caja_chica" 
-  | "otra";
+  | "otra"
+  | string;
+
+export type CuentaNegocio = {
+  id: string;
+  nombre: string;
+  codigo: string;
+  tipo: "efectivo_usd" | "efectivo_bs" | "banco_nacional" | "billetera_digital" | "cripto" | "caja_chica" | "otra";
+  moneda: "USD" | "VES" | "USDT" | "COP";
+  banco_plataforma?: string | null;
+  titular?: string | null;
+  numero_cuenta_telefono?: string | null;
+  saldo_inicial?: number;
+  icono?: string;
+  color?: string;
+  activo: boolean;
+  notas?: string | null;
+  creado_el: string;
+  actualizado_el?: string;
+};
 
 export type Gasto = {
   id: string;
@@ -251,6 +273,7 @@ export type Gasto = {
   monto_bs: number;
   tasa_bcv: number;
   cuenta_origen: CuentaOrigenGasto;
+  cuenta_id?: string | null;
   numero_factura?: string | null;
   comprobante_url?: string | null;
   estado: "pagado" | "pendiente" | "anulado";
@@ -260,4 +283,6 @@ export type Gasto = {
   creado_el: string;
   actualizado_el?: string;
   proveedor?: Proveedor;
+  cuenta?: CuentaNegocio;
 };
+
