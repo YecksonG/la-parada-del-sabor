@@ -217,3 +217,47 @@ export type SesionCaja = {
   usuario_cierre: string | null;
   creado_el: string;
 };
+
+export type CategoriaGasto = 
+  | "servicios" 
+  | "nomina" 
+  | "proveedores" 
+  | "alquiler" 
+  | "mantenimiento" 
+  | "marketing" 
+  | "impuestos" 
+  | "otros";
+
+export type CuentaOrigenGasto = 
+  | "efectivo_usd" 
+  | "efectivo_bs" 
+  | "pago_movil_bfc" 
+  | "transferencia_bfc" 
+  | "binance" 
+  | "zelle" 
+  | "punto_venta" 
+  | "caja_chica" 
+  | "otra";
+
+export type Gasto = {
+  id: string;
+  fecha: string;
+  categoria: CategoriaGasto;
+  subcategoria?: string | null;
+  descripcion: string;
+  beneficiario?: string | null;
+  proveedor_id?: string | null;
+  monto_usd: number;
+  monto_bs: number;
+  tasa_bcv: number;
+  cuenta_origen: CuentaOrigenGasto;
+  numero_factura?: string | null;
+  comprobante_url?: string | null;
+  estado: "pagado" | "pendiente" | "anulado";
+  sesion_caja_id?: string | null;
+  notas?: string | null;
+  creado_por?: string | null;
+  creado_el: string;
+  actualizado_el?: string;
+  proveedor?: Proveedor;
+};

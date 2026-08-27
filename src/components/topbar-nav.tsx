@@ -101,6 +101,12 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
           desc: "Métricas, ventas y finanzas en vivo",
         },
         {
+          href: "/gastos",
+          label: "Gastos & Cuentas",
+          icon: "💰",
+          desc: "Servicios, nómina, facturas y pagos",
+        },
+        {
           href: "/tasas",
           label: "Tasas Cambiarias",
           icon: "💵",
