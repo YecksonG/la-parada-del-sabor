@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Gasto, Proveedor, CuentaNegocio, CategoriaGasto, CuentaOrigenGasto } from "@/types/database";
+import { Gasto, Proveedor, CuentaNegocio, CategoriaGasto } from "@/types/database";
 import { crearGasto, actualizarGasto, eliminarGasto, crearCuentaNegocio, actualizarCuentaNegocio } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 
@@ -446,126 +446,64 @@ export default function GastosClient({
   };
 
   return (
-    <main className="dashboard-container" style={{ maxWidth: 1320, margin: "0 auto", padding: "16px" }}>
-      {/* Cabecera Principal con Navegación de Pestañas */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
+    <main className="recetas-container" style={{ maxWidth: 1320, margin: "0 auto", padding: "20px 24px" }}>
+      {/* Header Principal con Estilo Nativo */}
+      <div className="recetas-header" style={{ marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, color: "var(--text)", display: "flex", alignItems: "center", gap: 10 }}>
+          <h1 className="recetas-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span>💰 Gestión de Gastos & Cuentas</span>
           </h1>
-          <p style={{ color: "var(--text-muted)", fontSize: 13, marginTop: 4 }}>
+          <p className="recetas-subtitle">
             Control operativo de servicios (gas, agua, luz, internet), nómina, pagos a proveedores, cuentas bancarias y facturas.
           </p>
 
-          {/* Selector de Pestañas */}
-          <div style={{ display: "inline-flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 4, marginTop: 14, gap: 4 }}>
+          {/* Selector de Pestañas con clases nativas */}
+          <div className="view-mode-toggle" style={{ marginTop: 14 }}>
             <button
               type="button"
               onClick={() => setTabActiva("gastos")}
-              style={{
-                padding: "8px 18px",
-                borderRadius: 9,
-                fontSize: 13,
-                fontWeight: 800,
-                border: "none",
-                cursor: "pointer",
-                background: tabActiva === "gastos" ? "var(--primary)" : "transparent",
-                color: tabActiva === "gastos" ? "#ffffff" : "var(--text)",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 0.2s ease",
-              }}
+              className={`view-mode-btn ${tabActiva === "gastos" ? "active" : ""}`}
             >
-              <span>📋 Registro de Gastos</span>
-              <span style={{ fontSize: 11, background: "rgba(0,0,0,0.2)", padding: "2px 6px", borderRadius: 10 }}>
-                {gastos.length}
-              </span>
+              📋 Registro de Gastos ({gastos.length})
             </button>
-
             <button
               type="button"
               onClick={() => setTabActiva("cuentas")}
-              style={{
-                padding: "8px 18px",
-                borderRadius: 9,
-                fontSize: 13,
-                fontWeight: 800,
-                border: "none",
-                cursor: "pointer",
-                background: tabActiva === "cuentas" ? "var(--primary)" : "transparent",
-                color: tabActiva === "cuentas" ? "#ffffff" : "var(--text)",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "all 0.2s ease",
-              }}
+              className={`view-mode-btn ${tabActiva === "cuentas" ? "active" : ""}`}
             >
-              <span>💳 Cuentas & Métodos de Pago</span>
-              <span style={{ fontSize: 11, background: "rgba(0,0,0,0.2)", padding: "2px 6px", borderRadius: 10 }}>
-                {cuentas.length}
-              </span>
+              💳 Cuentas & Métodos de Pago ({cuentas.length})
             </button>
           </div>
         </div>
 
-        {/* Botones de Acción con Estilo del Sistema */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        {/* Botones de Acción del Sistema */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           {tabActiva === "gastos" ? (
             <>
               <button
                 type="button"
                 onClick={handleExportarCsv}
-                className="btn btn-secondary"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontWeight: 800,
-                  fontSize: 13,
-                  padding: "10px 18px",
-                  borderRadius: 12,
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-                }}
+                className="btn-refresh-action"
+                title="Descargar reporte en formato CSV"
               >
-                <span>📥 Exportar Reporte</span>
+                <span>📥</span> Exportar Reporte
               </button>
 
               <button
                 type="button"
                 onClick={abrirModalCrearGasto}
-                className="btn btn-primary"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontWeight: 800,
-                  fontSize: 14,
-                  padding: "10px 20px",
-                  borderRadius: 12,
-                  boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
-                }}
+                className="btn-primary-action"
               >
-                <span>➕ Registrar Nuevo Gasto</span>
+                <span>+</span> Registrar Nuevo Gasto
               </button>
             </>
           ) : (
             <button
               type="button"
               onClick={abrirModalCrearCuenta}
-              className="btn btn-primary"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                fontWeight: 800,
-                fontSize: 14,
-                padding: "10px 20px",
-                borderRadius: 12,
-                boxShadow: "0 4px 14px rgba(245, 158, 11, 0.35)",
-              }}
+              className="btn-primary-action"
             >
-              <span>➕ Nueva Cuenta Financiera</span>
+              <span>+</span> Nueva Cuenta Financiera
             </button>
           )}
         </div>
@@ -575,80 +513,70 @@ export default function GastosClient({
         <>
           {/* Tarjetas KPI de Resumen */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 24 }}>
-            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>Total Gastos</span>
-                <span style={{ fontSize: 20 }}>💸</span>
+                <span className="product-kpi-label">Total Gastos</span>
+                <span style={{ fontSize: 22 }}>💸</span>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: "var(--primary)" }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "var(--primary)" }}>
                 ${totalGastosUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+              <div className="product-kpi-sub" style={{ marginTop: 2 }}>
                 Bs. {totalGastosBs.toFixed(2)}
               </div>
             </div>
 
-            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#3b82f6", textTransform: "uppercase" }}>⚡ Servicios</span>
-                <span style={{ fontSize: 20 }}>💡</span>
+                <span className="product-kpi-label" style={{ color: "#3b82f6" }}>⚡ Servicios</span>
+                <span style={{ fontSize: 22 }}>💡</span>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "var(--text)" }}>
-                ${totalServiciosUsd.toFixed(2)} <span style={{ fontSize: 12, fontWeight: 600 }}>USD</span>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>
+                ${totalServiciosUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              <div className="product-kpi-sub" style={{ marginTop: 2 }}>
                 Gas, Agua, Luz, Internet
               </div>
             </div>
 
-            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#8b5cf6", textTransform: "uppercase" }}>👥 Nómina & Personal</span>
-                <span style={{ fontSize: 20 }}>👨‍🍳</span>
+                <span className="product-kpi-label" style={{ color: "#8b5cf6" }}>👥 Nómina & Personal</span>
+                <span style={{ fontSize: 22 }}>👨‍🍳</span>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "var(--text)" }}>
-                ${totalNominaUsd.toFixed(2)} <span style={{ fontSize: 12, fontWeight: 600 }}>USD</span>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>
+                ${totalNominaUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              <div className="product-kpi-sub" style={{ marginTop: 2 }}>
                 Sueldos, Adelantos, Jornales
               </div>
             </div>
 
-            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "16px 18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#10b981", textTransform: "uppercase" }}>🚚 Proveedores</span>
-                <span style={{ fontSize: 20 }}>📦</span>
+                <span className="product-kpi-label" style={{ color: "#10b981" }}>🚚 Proveedores</span>
+                <span style={{ fontSize: 22 }}>📦</span>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "var(--text)" }}>
-                ${totalProveedoresUsd.toFixed(2)} <span style={{ fontSize: 12, fontWeight: 600 }}>USD</span>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>
+                ${totalProveedoresUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              <div className="product-kpi-sub" style={{ marginTop: 2 }}>
                 Insumos & Despensa
               </div>
             </div>
           </div>
 
-          {/* Barra de Filtros & Búsqueda */}
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, padding: "14px 16px", marginBottom: 18, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {/* Barra de Filtros & Búsqueda con Clases Nativas */}
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 18, padding: "14px 18px", marginBottom: 18, display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", boxShadow: "var(--shadow-sm)" }}>
+            <div className="view-mode-toggle">
               {(["hoy", "semana", "mes", "todos"] as const).map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setFiltroRango(r)}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: 20,
-                    fontSize: 12,
-                    fontWeight: 800,
-                    border: "none",
-                    cursor: "pointer",
-                    background: filtroRango === r ? "var(--primary)" : "var(--surface-hover, rgba(255,255,255,0.05))",
-                    color: filtroRango === r ? "#ffffff" : "var(--text)",
-                    transition: "all 0.2s ease",
-                  }}
+                  className={`view-mode-btn ${filtroRango === r ? "active" : ""}`}
                 >
-                  {r === "hoy" ? "Hoy" : r === "semana" ? "Últimos 7 Días" : r === "mes" ? "Este Mes" : "Historial Completo"}
+                  {r === "hoy" ? "Hoy" : r === "semana" ? "7 Días" : r === "mes" ? "Este Mes" : "Historial"}
                 </button>
               ))}
             </div>
@@ -659,30 +587,15 @@ export default function GastosClient({
                 placeholder="🔍 Buscar gasto, factura, beneficiario..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  border: "1px solid var(--border)",
-                  background: "var(--background)",
-                  color: "var(--text)",
-                  fontSize: 12.5,
-                  minWidth: 200,
-                  flex: "1 1 200px",
-                }}
+                className="form-input"
+                style={{ minWidth: 200, flex: "1 1 200px" }}
               />
 
               <select
                 value={filtroCategoria}
                 onChange={(e) => setFiltroCategoria(e.target.value)}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  border: "1px solid var(--border)",
-                  background: "var(--background)",
-                  color: "var(--text)",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                }}
+                className="form-input"
+                style={{ width: "auto", fontWeight: 700 }}
               >
                 <option value="todas">Todas las Categorías</option>
                 {Object.entries(CATEGORIAS_CONFIG).map(([k, v]) => (
@@ -695,15 +608,8 @@ export default function GastosClient({
               <select
                 value={filtroCuenta}
                 onChange={(e) => setFiltroCuenta(e.target.value)}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 10,
-                  border: "1px solid var(--border)",
-                  background: "var(--background)",
-                  color: "var(--text)",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                }}
+                className="form-input"
+                style={{ width: "auto", fontWeight: 700 }}
               >
                 <option value="todas">Todas las Cuentas</option>
                 {cuentas.map((c) => (
@@ -716,25 +622,25 @@ export default function GastosClient({
           </div>
 
           {/* Tabla de Gastos */}
-          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
+          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
             {gastosFiltrados.length === 0 ? (
-              <div style={{ padding: "48px 20px", textAlign: "center", color: "var(--text-muted)" }}>
-                <span style={{ fontSize: 42, display: "block", marginBottom: 10 }}>🧾</span>
-                <strong style={{ fontSize: 16, color: "var(--text)" }}>No hay gastos registrados en este período</strong>
-                <p style={{ fontSize: 13, marginTop: 4 }}>Usa el botón "+ Registrar Nuevo Gasto" para asentar pagos.</p>
+              <div className="recetas-empty-box" style={{ border: "none" }}>
+                <span style={{ fontSize: 48 }}>🧾</span>
+                <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay gastos registrados en este período</strong>
+                <p className="recetas-subtitle">Usa el botón "+ Registrar Nuevo Gasto" para asentar pagos.</p>
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
-                    <tr style={{ background: "rgba(255,255,255,0.02)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
-                      <th style={{ padding: "12px 14px", fontWeight: 800 }}>Fecha</th>
-                      <th style={{ padding: "12px 14px", fontWeight: 800 }}>Categoría</th>
-                      <th style={{ padding: "12px 14px", fontWeight: 800 }}>Descripción / Beneficiario</th>
-                      <th style={{ padding: "12px 14px", fontWeight: 800 }}>Cuenta Origen</th>
-                      <th style={{ padding: "12px 14px", fontWeight: 800, textAlign: "right" }}>Monto</th>
-                      <th style={{ padding: "12px 14px", fontWeight: 800, textAlign: "center" }}>Factura / Adjunto</th>
-                      <th style={{ padding: "12px 14px", fontWeight: 800, textAlign: "center" }}>Acciones</th>
+                    <tr style={{ background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>Fecha</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>Categoría</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>Descripción / Beneficiario</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)" }}>Cuenta Origen</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)", textAlign: "right" }}>Monto</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)", textAlign: "center" }}>Factura / Adjunto</th>
+                      <th style={{ padding: "14px 16px", fontWeight: 800, color: "var(--text)", textAlign: "center" }}>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -743,23 +649,24 @@ export default function GastosClient({
                       const cuentaMatch = g.cuenta || cuentas.find((c) => c.id === g.cuenta_id || c.codigo === g.cuenta_origen);
 
                       return (
-                        <tr key={g.id} style={{ borderBottom: "1px solid var(--border)", transition: "background 0.15s ease" }}>
-                          <td style={{ padding: "12px 14px", whiteSpace: "nowrap", fontWeight: 600, color: "var(--text-muted)" }}>
+                        <tr key={g.id} style={{ borderBottom: "1px solid var(--border-subtle)", transition: "background 0.15s ease" }}>
+                          <td style={{ padding: "14px 16px", whiteSpace: "nowrap", fontWeight: 700, color: "var(--text-muted)" }}>
                             {g.fecha}
                           </td>
 
-                          <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                          <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
                             <span
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
-                                gap: 4,
-                                padding: "4px 9px",
-                                borderRadius: 7,
-                                fontSize: 11.5,
+                                gap: 5,
+                                padding: "4px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
                                 fontWeight: 800,
                                 background: `${catCfg.color}18`,
                                 color: catCfg.color,
+                                border: `1px solid ${catCfg.color}35`,
                               }}
                             >
                               <span>{catCfg.icon}</span>
@@ -767,37 +674,37 @@ export default function GastosClient({
                             </span>
                           </td>
 
-                          <td style={{ padding: "12px 14px" }}>
-                            <div style={{ fontWeight: 700, color: "var(--text)" }}>{g.descripcion}</div>
+                          <td style={{ padding: "14px 16px" }}>
+                            <div style={{ fontWeight: 800, color: "var(--text)" }}>{g.descripcion}</div>
                             {g.beneficiario && (
-                              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                              <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
                                 👤 Beneficiario: <strong>{g.beneficiario}</strong>
                               </div>
                             )}
                             {g.proveedor && (
-                              <div style={{ fontSize: 11, color: "#10b981", marginTop: 2 }}>
-                                🏢 Proveedor: <strong>{g.proveedor.nombre}</strong>
+                              <div style={{ fontSize: 11.5, color: "var(--green)", marginTop: 2, fontWeight: 700 }}>
+                                🏢 Proveedor: {g.proveedor.nombre}
                               </div>
                             )}
                           </td>
 
                           <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ fontSize: 12.5, fontWeight: 800, display: "inline-flex", alignItems: "center", gap: 6, color: "var(--text)" }}>
                               <span>{cuentaMatch?.icono || "🏦"}</span>
                               <span>{cuentaMatch?.nombre || g.cuenta_origen}</span>
                             </span>
                           </td>
 
-                          <td style={{ padding: "12px 14px", textAlign: "right", whiteSpace: "nowrap" }}>
-                            <strong style={{ fontSize: 14, fontWeight: 900, color: "var(--text)" }}>
-                              ${Number(g.monto_usd).toFixed(2)} USD
-                            </strong>
-                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                          <td style={{ padding: "14px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
+                            <div style={{ fontSize: 15, fontWeight: 900, color: "var(--text)" }}>
+                              ${Number(g.monto_usd).toFixed(2)} <span style={{ fontSize: 11, fontWeight: 700 }}>USD</span>
+                            </div>
+                            <div style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 600 }}>
                               Bs. {Number(g.monto_bs).toFixed(2)}
                             </div>
                           </td>
 
-                          <td style={{ padding: "12px 14px", textAlign: "center", whiteSpace: "nowrap" }}>
+                          <td style={{ padding: "14px 16px", textAlign: "center", whiteSpace: "nowrap" }}>
                             {g.comprobante_url ? (
                               <button
                                 type="button"
@@ -805,42 +712,42 @@ export default function GastosClient({
                                 style={{
                                   display: "inline-flex",
                                   alignItems: "center",
-                                  gap: 4,
-                                  fontSize: 11.5,
+                                  gap: 5,
+                                  fontSize: 12,
                                   fontWeight: 800,
                                   color: "#3b82f6",
                                   background: "rgba(59, 130, 246, 0.12)",
                                   border: "1px solid rgba(59, 130, 246, 0.3)",
-                                  padding: "4px 10px",
-                                  borderRadius: 7,
+                                  padding: "5px 12px",
+                                  borderRadius: 8,
                                   cursor: "pointer",
                                 }}
                               >
                                 <span>📎 Ver Factura</span>
                               </button>
                             ) : g.numero_factura ? (
-                              <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 700 }}>
+                              <span style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>
                                 Nro: {g.numero_factura}
                               </span>
                             ) : (
-                              <span style={{ color: "var(--text-muted)", fontSize: 11.5, fontStyle: "italic" }}>Sin Factura</span>
+                              <span style={{ color: "var(--text-muted)", fontSize: 12, fontStyle: "italic" }}>Sin Factura</span>
                             )}
                           </td>
 
-                          <td style={{ padding: "12px 14px", textAlign: "center", whiteSpace: "nowrap" }}>
-                            <div style={{ display: "inline-flex", gap: 6 }}>
+                          <td style={{ padding: "14px 16px", textAlign: "center", whiteSpace: "nowrap" }}>
+                            <div style={{ display: "inline-flex", gap: 8 }}>
                               <button
                                 type="button"
                                 onClick={() => abrirModalEditarGasto(g)}
                                 title="Modificar gasto"
                                 style={{
-                                  background: "rgba(245, 158, 11, 0.1)",
-                                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                                  background: "var(--bg-subtle)",
+                                  border: "1px solid var(--border)",
                                   color: "var(--primary)",
-                                  padding: "4px 8px",
-                                  borderRadius: 6,
+                                  padding: "6px 10px",
+                                  borderRadius: 8,
                                   fontSize: 12,
-                                  fontWeight: 700,
+                                  fontWeight: 800,
                                   cursor: "pointer",
                                 }}
                               >
@@ -855,8 +762,8 @@ export default function GastosClient({
                                   background: "rgba(239, 68, 68, 0.1)",
                                   border: "1px solid rgba(239, 68, 68, 0.3)",
                                   color: "#ef4444",
-                                  padding: "4px 8px",
-                                  borderRadius: 6,
+                                  padding: "6px 10px",
+                                  borderRadius: 8,
                                   fontSize: 12,
                                   cursor: "pointer",
                                 }}
@@ -883,26 +790,27 @@ export default function GastosClient({
             return (
               <div
                 key={cta.id}
+                className="product-kpi-card"
                 style={{
-                  background: "var(--surface)",
-                  border: `1px solid var(--border)`,
+                  background: "var(--bg-card)",
+                  border: `1.5px solid var(--border)`,
                   borderTop: `4px solid ${cta.color || "var(--primary)"}`,
-                  borderRadius: 16,
-                  padding: "18px 20px",
-                  boxShadow: "0 4px 14px rgba(0,0,0,0.05)",
+                  borderRadius: 20,
+                  padding: "20px 22px",
+                  boxShadow: "var(--shadow-md)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
-                  gap: 14,
+                  gap: 16,
                 }}
               >
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 28 }}>{cta.icono || "🏦"}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 32 }}>{cta.icono || "🏦"}</span>
                       <div>
-                        <h3 style={{ fontSize: 16, fontWeight: 900, color: "var(--text)" }}>{cta.nombre}</h3>
-                        <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 600 }}>
+                        <h3 style={{ fontSize: 17, fontWeight: 900, color: "var(--text)" }}>{cta.nombre}</h3>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>
                           {cta.banco_plataforma || cta.tipo} • Moneda: <strong>{cta.moneda}</strong>
                         </span>
                       </div>
@@ -912,12 +820,12 @@ export default function GastosClient({
                       type="button"
                       onClick={() => abrirModalEditarCuenta(cta)}
                       style={{
-                        background: "var(--background)",
+                        background: "var(--bg-subtle)",
                         border: "1px solid var(--border)",
                         borderRadius: 8,
-                        padding: "4px 8px",
-                        fontSize: 11.5,
-                        fontWeight: 700,
+                        padding: "5px 10px",
+                        fontSize: 12,
+                        fontWeight: 800,
                         cursor: "pointer",
                         color: "var(--text)",
                       }}
@@ -927,10 +835,10 @@ export default function GastosClient({
                   </div>
 
                   {cta.titular && (
-                    <div style={{ fontSize: 12, color: "var(--text)", marginTop: 10, background: "var(--background)", padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)" }}>
+                    <div style={{ fontSize: 12.5, color: "var(--text)", marginTop: 12, background: "var(--bg-subtle)", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border-subtle)" }}>
                       <div>👤 Titular: <strong>{cta.titular}</strong></div>
                       {cta.numero_cuenta_telefono && (
-                        <div style={{ marginTop: 2, color: "var(--text-muted)", fontSize: 11.5 }}>
+                        <div style={{ marginTop: 3, color: "var(--text-muted)", fontSize: 12, fontWeight: 600 }}>
                           🔢 Cuenta / Ref: {cta.numero_cuenta_telefono}
                         </div>
                       )}
@@ -939,16 +847,16 @@ export default function GastosClient({
                 </div>
 
                 {/* Métricas de Gasto desde esta Cuenta */}
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                     <div>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                      <span className="product-kpi-label">
                         Total Pagado / Egresos
                       </span>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: "var(--primary)", marginTop: 2 }}>
+                      <div style={{ fontSize: 20, fontWeight: 900, color: "var(--primary)", marginTop: 2 }}>
                         ${gastoStats.usd.toFixed(2)} <span style={{ fontSize: 12 }}>USD</span>
                       </div>
-                      <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
                         Bs. {gastoStats.bs.toFixed(2)} • {gastoStats.count} pagos
                       </div>
                     </div>
@@ -959,18 +867,10 @@ export default function GastosClient({
                         setFiltroCuenta(cta.id);
                         setTabActiva("gastos");
                       }}
-                      style={{
-                        background: "var(--primary)",
-                        color: "#ffffff",
-                        border: "none",
-                        padding: "6px 12px",
-                        borderRadius: 8,
-                        fontSize: 11.5,
-                        fontWeight: 800,
-                        cursor: "pointer",
-                      }}
+                      className="btn-primary-action"
+                      style={{ fontSize: 12, padding: "8px 14px" }}
                     >
-                      Ver Movimientos →
+                      Ver Pagos →
                     </button>
                   </div>
                 </div>
@@ -980,77 +880,49 @@ export default function GastosClient({
         </div>
       )}
 
-      {/* Modal 1: Registrar / Modificar Gasto (FONDO 100% SÓLIDO SIN TRANSPARENCIAS) */}
+      {/* Modal 1: Registrar / Modificar Gasto (CLASES NATIVAS DEL SISTEMA) */}
       {modalGasto && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(6px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: 16,
-          }}
-          onClick={() => setModalGasto(false)}
-        >
-          <div
-            style={{
-              background: "#18181b",
-              backgroundColor: "var(--surface, #18181b)",
-              color: "var(--text, #ffffff)",
-              border: "1px solid var(--border, #27272a)",
-              borderRadius: 20,
-              width: "100%",
-              maxWidth: 620,
-              maxHeight: "92vh",
-              overflowY: "auto",
-              padding: "24px",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
-              <h2 style={{ fontSize: 19, fontWeight: 900, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
-                <span>{gastoEditando ? "✏️ Modificar Registro de Gasto" : "➕ Registrar Nuevo Gasto"}</span>
+        <div className="modal-overlay" onClick={() => setModalGasto(false)}>
+          <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
+            <div className="modal-recipe-header">
+              <h2>
+                <span>{gastoEditando ? "✏️ Modificar Gasto" : "➕ Registrar Nuevo Gasto"}</span>
               </h2>
               <button
                 type="button"
                 onClick={() => setModalGasto(false)}
-                style={{ background: "transparent", border: "none", fontSize: 22, cursor: "pointer", color: "var(--text-muted)" }}
+                className="btn-modal-close"
               >
                 ✕
               </button>
             </div>
 
             {errorMsg && (
-              <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid #ef4444", color: "#f87171", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
+              <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid #ef4444", color: "#f87171", padding: "10px 14px", borderRadius: 10, fontSize: 13 }}>
                 ⚠️ {errorMsg}
               </div>
             )}
 
-            <form onSubmit={handleGuardarGasto} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <form onSubmit={handleGuardarGasto} className="recipe-form">
               {/* Fecha & Categoría */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Fecha del Gasto *</label>
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Fecha del Gasto *</label>
                   <input
                     type="date"
                     required
                     value={fecha}
                     onChange={(e) => setFecha(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)", fontWeight: 700 }}
+                    className="form-input"
                   />
                 </div>
 
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Categoría Principal *</label>
+                <div className="form-field">
+                  <label>Categoría Principal *</label>
                   <select
                     value={categoria}
                     onChange={(e) => handleCambioCategoria(e.target.value as CategoriaGasto)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)", fontWeight: 800 }}
+                    className="form-input"
                   >
                     {Object.entries(CATEGORIAS_CONFIG).map(([k, v]) => (
                       <option key={k} value={k}>
@@ -1062,8 +934,8 @@ export default function GastosClient({
               </div>
 
               {/* Subcategorías rápidas */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 6 }}>Subcategoría / Sugerencias:</label>
+              <div className="form-field">
+                <label>Tipo de Gasto / Sugerencias:</label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {SUBCATEGORIAS_SUGERIDAS[categoria]?.map((sug) => (
                     <button
@@ -1071,14 +943,15 @@ export default function GastosClient({
                       type="button"
                       onClick={() => setSubcategoria(sug)}
                       style={{
-                        padding: "5px 11px",
-                        borderRadius: 12,
+                        padding: "5px 12px",
+                        borderRadius: 10,
                         fontSize: 11.5,
-                        fontWeight: 700,
+                        fontWeight: 800,
                         border: "1px solid var(--border)",
                         cursor: "pointer",
-                        background: subcategoria === sug ? "var(--primary)" : "var(--background, #09090b)",
+                        background: subcategoria === sug ? "var(--primary)" : "var(--bg-subtle)",
                         color: subcategoria === sug ? "#ffffff" : "var(--text)",
+                        transition: "all 0.15s ease",
                       }}
                     >
                       {sug}
@@ -1088,22 +961,22 @@ export default function GastosClient({
               </div>
 
               {/* Descripción */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Descripción Detallada *</label>
+              <div className="form-field">
+                <label>Descripción Detallada *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ej: Pago de gas, nómina semana 34, compra de aguacates..."
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                  className="form-input"
                 />
               </div>
 
               {/* Montos Dual USD / Bs */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, background: "rgba(245, 158, 11, 0.08)", padding: "12px", borderRadius: 12, border: "1px dashed rgba(245, 158, 11, 0.5)" }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 900, color: "var(--primary)", display: "block", marginBottom: 5 }}>Monto en Dólares ($ USD) *</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, background: "var(--bg-subtle)", padding: "14px", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
+                <div className="form-field">
+                  <label style={{ color: "var(--primary)", fontWeight: 900 }}>Monto en Dólares ($ USD) *</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1111,28 +984,30 @@ export default function GastosClient({
                     placeholder="0.00"
                     value={montoUsd}
                     onChange={(e) => handleCambioMontoUsd(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "2px solid var(--primary)", background: "var(--background, #09090b)", color: "var(--text, #fff)", fontWeight: 900, fontSize: 16 }}
+                    className="form-input"
+                    style={{ fontSize: 16, fontWeight: 900, borderColor: "var(--primary)" }}
                   />
                 </div>
 
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)", display: "block", marginBottom: 5 }}>Monto en Bolívares (Bs)</label>
+                <div className="form-field">
+                  <label>Monto en Bolívares (Bs)</label>
                   <input
                     type="number"
                     step="0.01"
                     placeholder="0.00"
                     value={montoBs}
                     onChange={(e) => handleCambioMontoBs(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)", fontWeight: 800, fontSize: 15 }}
+                    className="form-input"
+                    style={{ fontSize: 15, fontWeight: 800 }}
                   />
-                  <span style={{ fontSize: 10.5, color: "var(--text-muted)", marginTop: 2, display: "block" }}>Tasa: {tasaBcv.toFixed(2)} Bs/USD</span>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, fontWeight: 600 }}>Tasa: {tasaBcv.toFixed(2)} Bs/USD</span>
                 </div>
               </div>
 
               {/* Cuenta Origen & Beneficiario */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Cuenta / Método de Pago *</label>
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Cuenta / Método de Pago *</label>
                   <select
                     value={cuentaId || cuentaOrigen}
                     onChange={(e) => {
@@ -1145,7 +1020,7 @@ export default function GastosClient({
                         setCuentaOrigen(sel);
                       }
                     }}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)", fontWeight: 800 }}
+                    className="form-input"
                   >
                     {cuentas.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -1155,26 +1030,26 @@ export default function GastosClient({
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Beneficiario / Persona Pagada</label>
+                <div className="form-field">
+                  <label>Beneficiario / Persona Pagada</label>
                   <input
                     type="text"
                     placeholder="Ej: Distribuidor Gas, Juan Pérez..."
                     value={beneficiario}
                     onChange={(e) => setBeneficiario(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                    className="form-input"
                   />
                 </div>
               </div>
 
               {/* Proveedor Asociado & Nro Factura */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Proveedor (Opcional)</label>
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Proveedor (Opcional)</label>
                   <select
                     value={proveedorId}
                     onChange={(e) => setProveedorId(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                    className="form-input"
                   >
                     <option value="">-- Sin proveedor asociado --</option>
                     {proveedores.map((p) => (
@@ -1185,24 +1060,24 @@ export default function GastosClient({
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Nro. Factura / Comprobante</label>
+                <div className="form-field">
+                  <label>Nro. Factura / Comprobante</label>
                   <input
                     type="text"
                     placeholder="Ej: 00044240 / Control: 157296"
                     value={numeroFactura}
                     onChange={(e) => setNumeroFactura(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                    className="form-input"
                   />
                 </div>
               </div>
 
               {/* Adjuntar Foto / Factura */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>
+              <div className="form-field">
+                <label>
                   Foto de Factura / Recibo <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(Opcional)</span>
                 </label>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", background: "var(--background, #09090b)", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
@@ -1210,14 +1085,14 @@ export default function GastosClient({
                     disabled={subiendoArchivo}
                     style={{ fontSize: 12, color: "var(--text)" }}
                   />
-                  {subiendoArchivo && <span style={{ fontSize: 12, color: "var(--primary)" }}>⏳ Subiendo...</span>}
+                  {subiendoArchivo && <span style={{ fontSize: 12, color: "var(--primary)", fontWeight: 700 }}>⏳ Subiendo...</span>}
                   {comprobanteUrl && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 12, color: "#10b981", fontWeight: 800 }}>✓ Adjunta</span>
+                      <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 800 }}>✓ Adjunta</span>
                       <button
                         type="button"
                         onClick={() => setModalFacturaUrl(comprobanteUrl)}
-                        style={{ fontSize: 11, background: "rgba(59,130,246,0.2)", border: "1px solid #3b82f6", color: "#60a5fa", padding: "2px 6px", borderRadius: 4, cursor: "pointer" }}
+                        style={{ fontSize: 11, background: "rgba(59,130,246,0.15)", border: "1px solid #3b82f6", color: "#3b82f6", padding: "2px 8px", borderRadius: 6, cursor: "pointer", fontWeight: 700 }}
                       >
                         Ver
                       </button>
@@ -1227,20 +1102,18 @@ export default function GastosClient({
               </div>
 
               {/* Botones de Envío */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
                 <button
                   type="button"
                   onClick={() => setModalGasto(false)}
-                  className="btn btn-secondary"
-                  style={{ fontWeight: 700, padding: "10px 18px", borderRadius: 10 }}
+                  className="btn-refresh-action"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="btn btn-primary"
-                  style={{ fontWeight: 800, padding: "10px 24px", borderRadius: 10 }}
+                  className="btn-primary-action"
                 >
                   {guardando ? "Guardando..." : gastoEditando ? "💾 Actualizar Gasto" : "💾 Guardar Gasto"}
                 </button>
@@ -1252,69 +1125,41 @@ export default function GastosClient({
 
       {/* Modal 2: Crear / Editar Cuenta Financiera */}
       {modalCuenta && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
-            backdropFilter: "blur(6px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: 16,
-          }}
-          onClick={() => setModalCuenta(false)}
-        >
-          <div
-            style={{
-              background: "#18181b",
-              backgroundColor: "var(--surface, #18181b)",
-              color: "var(--text, #ffffff)",
-              border: "1px solid var(--border, #27272a)",
-              borderRadius: 20,
-              width: "100%",
-              maxWidth: 520,
-              maxHeight: "92vh",
-              overflowY: "auto",
-              padding: "24px",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
-              <h2 style={{ fontSize: 19, fontWeight: 900, color: "var(--text)" }}>
-                {cuentaEditando ? "✏️ Modificar Cuenta Financiera" : "➕ Nueva Cuenta Financiera"}
+        <div className="modal-overlay" onClick={() => setModalCuenta(false)}>
+          <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 540 }}>
+            <div className="modal-recipe-header">
+              <h2>
+                <span>{cuentaEditando ? "✏️ Modificar Cuenta" : "➕ Nueva Cuenta Financiera"}</span>
               </h2>
               <button
                 type="button"
                 onClick={() => setModalCuenta(false)}
-                style={{ background: "transparent", border: "none", fontSize: 22, cursor: "pointer", color: "var(--text-muted)" }}
+                className="btn-modal-close"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleGuardarCuenta} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Nombre de la Cuenta *</label>
+            <form onSubmit={handleGuardarCuenta} className="recipe-form">
+              <div className="form-field">
+                <label>Nombre de la Cuenta *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ej: Banco de Venezuela (BDV), Binance Pay, Banesco..."
                   value={ctaNombre}
                   onChange={(e) => setCtaNombre(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                  className="form-input"
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Moneda *</label>
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Moneda *</label>
                   <select
                     value={ctaMoneda}
                     onChange={(e) => setCtaMoneda(e.target.value as any)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)", fontWeight: 800 }}
+                    className="form-input"
                   >
                     <option value="VES">VES (Bolívares)</option>
                     <option value="USD">USD (Dólares)</option>
@@ -1323,12 +1168,12 @@ export default function GastosClient({
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Tipo de Cuenta</label>
+                <div className="form-field">
+                  <label>Tipo de Cuenta</label>
                   <select
                     value={ctaTipo}
                     onChange={(e) => setCtaTipo(e.target.value as any)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)", fontWeight: 800 }}
+                    className="form-input"
                   >
                     <option value="banco_nacional">Banco Nacional</option>
                     <option value="billetera_digital">Billetera Digital (Zelle, etc.)</option>
@@ -1341,56 +1186,54 @@ export default function GastosClient({
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Banco o Plataforma</label>
+              <div className="form-field">
+                <label>Banco o Plataforma</label>
                 <input
                   type="text"
                   placeholder="Ej: Banco de Venezuela, Bancamiga, Zelle..."
                   value={ctaBanco}
                   onChange={(e) => setCtaBanco(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                  className="form-input"
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Titular de la Cuenta</label>
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Titular de la Cuenta</label>
                   <input
                     type="text"
                     placeholder="Ej: La Parada del Sabor"
                     value={ctaTitular}
                     onChange={(e) => setCtaTitular(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                    className="form-input"
                   />
                 </div>
 
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 800, display: "block", marginBottom: 5 }}>Nro. Cuenta / Teléfono / Ref</label>
+                <div className="form-field">
+                  <label>Nro. Cuenta / Teléfono / Ref</label>
                   <input
                     type="text"
                     placeholder="Ej: 0412-2595386 / 0102-0123..."
                     value={ctaNumero}
                     onChange={(e) => setCtaNumero(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--background, #09090b)", color: "var(--text, #fff)" }}
+                    className="form-input"
                   />
                 </div>
               </div>
 
               {/* Botones de Envío */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, borderTop: "1px solid var(--border)", paddingTop: 14 }}>
                 <button
                   type="button"
                   onClick={() => setModalCuenta(false)}
-                  className="btn btn-secondary"
-                  style={{ fontWeight: 700, padding: "10px 18px", borderRadius: 10 }}
+                  className="btn-refresh-action"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={guardando}
-                  className="btn btn-primary"
-                  style={{ fontWeight: 800, padding: "10px 24px", borderRadius: 10 }}
+                  className="btn-primary-action"
                 >
                   {guardando ? "Guardando..." : cuentaEditando ? "💾 Actualizar Cuenta" : "💾 Guardar Cuenta"}
                 </button>
@@ -1402,64 +1245,44 @@ export default function GastosClient({
 
       {/* Modal 3: Visor de Factura / Comprobante */}
       {modalFacturaUrl && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.85)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1100,
-            padding: 16,
-          }}
-          onClick={() => setModalFacturaUrl(null)}
-        >
+        <div className="modal-overlay" onClick={() => setModalFacturaUrl(null)}>
           <div
-            style={{
-              background: "#18181b",
-              border: "1px solid var(--border, #27272a)",
-              borderRadius: 20,
-              width: "100%",
-              maxWidth: 720,
-              maxHeight: "90vh",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-              boxShadow: "0 25px 70px rgba(0,0,0,0.8)",
-            }}
+            className="modal-recipe-card"
+            style={{ maxWidth: 740, padding: 0, overflow: "hidden" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
-              <strong style={{ fontSize: 16, color: "var(--text)" }}>📎 Visor de Factura / Comprobante</strong>
+            <div className="modal-recipe-header" style={{ padding: "16px 20px" }}>
+              <h2>
+                <span>📎 Factura / Comprobante de Gasto</span>
+              </h2>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <a
                   href={modalFacturaUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ fontSize: 12, fontWeight: 800, color: "var(--primary)", textDecoration: "none" }}
+                  className="btn-refresh-action"
+                  style={{ fontSize: 12, padding: "5px 12px" }}
                 >
-                  ↗️ Abrir en Pestaña Nueva
+                  ↗️ Abrir Completa
                 </a>
                 <button
                   type="button"
                   onClick={() => setModalFacturaUrl(null)}
-                  style={{ background: "transparent", border: "none", fontSize: 20, cursor: "pointer", color: "var(--text-muted)" }}
+                  className="btn-modal-close"
                 >
                   ✕
                 </button>
               </div>
             </div>
 
-            <div style={{ padding: 16, overflowY: "auto", display: "flex", justifyContent: "center", alignItems: "center", background: "#09090b" }}>
+            <div style={{ padding: 16, display: "flex", justifyContent: "center", alignItems: "center", background: "var(--bg-subtle)", minHeight: 400 }}>
               {/\.pdf(\?.*)?$/i.test(modalFacturaUrl) ? (
-                <iframe src={modalFacturaUrl} style={{ width: "100%", height: 550, border: "none" }} />
+                <iframe src={modalFacturaUrl} style={{ width: "100%", height: 550, border: "none", borderRadius: 12 }} />
               ) : (
                 <img
                   src={modalFacturaUrl}
                   alt="Factura / Comprobante"
-                  style={{ maxWidth: "100%", maxHeight: 600, objectFit: "contain", borderRadius: 10 }}
+                  style={{ maxWidth: "100%", maxHeight: 580, objectFit: "contain", borderRadius: 12, boxShadow: "var(--shadow-md)" }}
                 />
               )}
             </div>
