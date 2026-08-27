@@ -9,11 +9,13 @@ export default async function ProveedoresPage() {
   const [
     { data: proveedores },
     { data: compras },
+    { data: gastos },
     { data: insumos },
     { data: rels },
   ] = await Promise.all([
     supabase.from("proveedores").select("*").order("nombre", { ascending: true }),
     supabase.from("compras").select("proveedor_id, total_usd"),
+    supabase.from("gastos").select("id, proveedor_id, beneficiario, monto_usd, monto_bs"),
     supabase
       .from("insumos")
       .select("*")
@@ -42,15 +44,38 @@ export default async function ProveedoresPage() {
     return p;
   });
 
-  // Asociar compras a cada proveedor
-  const comprasPorProveedor: { [id: string]: { conteo: number; totalUsd: number } } = {};
+  // Asociar compras y gastos a cada proveedor
+  const comprasPorProveedor: { [id: string]: { conteo: number; totalUsd: number; totalBs: number } } = {};
+  
+  // 1. Compras formales de insumos
   (compras || []).forEach((c) => {
     if (c.proveedor_id) {
       if (!comprasPorProveedor[c.proveedor_id]) {
-        comprasPorProveedor[c.proveedor_id] = { conteo: 0, totalUsd: 0 };
+        comprasPorProveedor[c.proveedor_id] = { conteo: 0, totalUsd: 0, totalBs: 0 };
       }
       comprasPorProveedor[c.proveedor_id].conteo += 1;
       comprasPorProveedor[c.proveedor_id].totalUsd += Number(c.total_usd) || 0;
+    }
+  });
+
+  // 2. Gastos vinculados por proveedor_id o coincidencia de beneficiario
+  (gastos || []).forEach((g) => {
+    let provId = g.proveedor_id;
+    if (!provId && g.beneficiario) {
+      const benLower = g.beneficiario.toLowerCase();
+      const match = (proveedores || []).find((p) =>
+        benLower.includes(p.nombre.toLowerCase()) || p.nombre.toLowerCase().includes(benLower)
+      );
+      if (match) provId = match.id;
+    }
+
+    if (provId) {
+      if (!comprasPorProveedor[provId]) {
+        comprasPorProveedor[provId] = { conteo: 0, totalUsd: 0, totalBs: 0 };
+      }
+      comprasPorProveedor[provId].conteo += 1;
+      comprasPorProveedor[provId].totalUsd += Number(g.monto_usd) || 0;
+      comprasPorProveedor[provId].totalBs += Number(g.monto_bs) || 0;
     }
   });
 

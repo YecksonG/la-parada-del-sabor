@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Proveedor, Insumo } from "@/types/database";
-import { guardarProveedor } from "./actions";
+import { guardarProveedor, eliminarProveedor } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import { parseProveedorInsumos } from "@/lib/proveedor-insumos-helper";
 
 interface ProveedoresClientProps {
   proveedores: Proveedor[];
   insumos: Insumo[];
-  statsCompras: { [id: string]: { conteo: number; totalUsd: number } };
+  statsCompras: { [id: string]: { conteo: number; totalUsd: number; totalBs?: number } };
 }
 
 export default function ProveedoresClient({
@@ -147,6 +147,20 @@ export default function ProveedoresClient({
     }
   };
 
+  const handleEliminar = async (id: string, nombreProv: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar al proveedor "${nombreProv}"? Esta acción desvinculará sus registros sin alterar tus cuentas.`)) return;
+    sounds.playDelete();
+    setGuardando(true);
+    const res = await eliminarProveedor(id);
+    setGuardando(false);
+    if (res.ok) {
+      sounds.playKitchenBell();
+      setModalAbierto(false);
+    } else {
+      alert(res.error || "Error al eliminar el proveedor.");
+    }
+  };
+
   return (
     <main className="recetas-container">
       <div className="recetas-header">
@@ -210,7 +224,7 @@ export default function ProveedoresClient({
         /* VISTA 1: CUADROS / GRID */
         <div className="insumos-grid">
           {proveedoresFiltrados.map((p) => {
-            const stats = statsCompras[p.id] || { conteo: 0, totalUsd: 0 };
+            const stats = statsCompras[p.id] || { conteo: 0, totalUsd: 0, totalBs: 0 };
             const { insumos_ids, notas_texto } = parseProveedorInsumos(p.notas);
             const insumosSuministrados = insumos_ids
               .map((id) => insumosMap.get(id))
@@ -223,7 +237,7 @@ export default function ProveedoresClient({
                     <h3 className="insumo-name">🏢 {p.nombre}</h3>
                     {p.rif && <span className="receta-cat-badge">RIF: {p.rif}</span>}
                   </div>
-                  <span className="badge-ticket">{stats.conteo} Compras</span>
+                  <span className="badge-ticket">{stats.conteo} Movimientos</span>
                 </div>
 
                 {p.contacto && (
@@ -265,18 +279,31 @@ export default function ProveedoresClient({
 
                 <div className="insumo-cost-details">
                   <div className="cost-detail-item">
-                    <span>Total Comprado:</span>
-                    <strong className="text-primary">${stats.totalUsd.toFixed(2)} USD</strong>
+                    <span>Total Facturado:</span>
+                    <strong className="text-primary">
+                      ${stats.totalUsd.toFixed(2)} USD
+                      {stats.totalBs ? <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span> : null}
+                    </strong>
                   </div>
                 </div>
 
-                <div className="insumo-card-footer">
+                <div className="insumo-card-footer" style={{ display: "flex", gap: 8 }}>
                   <button
                     type="button"
                     onClick={() => abrirEditar(p)}
                     className="btn-insumo-adjust"
+                    style={{ flex: 1 }}
                   >
                     ✏️ Editar Proveedor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEliminar(p.id, p.nombre)}
+                    className="btn-danger-outline"
+                    style={{ padding: "6px 12px", fontSize: 13, borderRadius: 8 }}
+                    title="Eliminar Proveedor"
+                  >
+                    🗑️
                   </button>
                 </div>
               </div>
@@ -348,21 +375,31 @@ export default function ProveedoresClient({
                       )}
                     </td>
                     <td>
-                      <span className="badge-ticket" style={{ fontSize: 12 }}>{stats.conteo} Compras</span>
+                      <span className="badge-ticket" style={{ fontSize: 12 }}>{stats.conteo} Movimientos</span>
                     </td>
                     <td>
                       <strong className="text-primary" style={{ fontSize: 14 }}>
                         ${stats.totalUsd.toFixed(2)} USD
+                        {stats.totalBs ? <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span> : null}
                       </strong>
                     </td>
-                    <td style={{ textAlign: "right" }}>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <button
                         type="button"
                         onClick={() => abrirEditar(p)}
                         className="btn-insumo-adjust"
-                        style={{ padding: "5px 12px", fontSize: 12 }}
+                        style={{ padding: "5px 12px", fontSize: 12, marginRight: 6 }}
                       >
                         ✏️ Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEliminar(p.id, p.nombre)}
+                        className="btn-danger-outline"
+                        style={{ padding: "5px 10px", fontSize: 12, borderRadius: 6 }}
+                        title="Eliminar Proveedor"
+                      >
+                        🗑️
                       </button>
                     </td>
                   </tr>
@@ -522,11 +559,25 @@ export default function ProveedoresClient({
                 />
               </div>
 
-              <div className="modal-recipe-actions">
-                <button type="button" onClick={() => setModalAbierto(false)} className="btn-cancel">Cancelar</button>
-                <button type="submit" disabled={guardando} className="btn-submit-recipe">
-                  {guardando ? "Guardando..." : "💾 Guardar Proveedor"}
-                </button>
+              <div className="modal-recipe-actions" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  {proveedorSeleccionado && (
+                    <button
+                      type="button"
+                      onClick={() => handleEliminar(proveedorSeleccionado.id, proveedorSeleccionado.nombre)}
+                      className="btn-danger-outline"
+                      style={{ padding: "8px 14px", fontSize: 13 }}
+                    >
+                      🗑️ Eliminar Proveedor
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={() => setModalAbierto(false)} className="btn-cancel">Cancelar</button>
+                  <button type="submit" disabled={guardando} className="btn-submit-recipe">
+                    {guardando ? "Guardando..." : "💾 Guardar Proveedor"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

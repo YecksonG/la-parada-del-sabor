@@ -93,3 +93,32 @@ export async function guardarProveedor(payload: GuardarProveedorPayload) {
   revalidatePath("/compras");
   return { ok: true };
 }
+
+export async function eliminarProveedor(id: string) {
+  if (!id) return { ok: false, error: "Identificador no válido." };
+
+  const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // Eliminar referencias en tabla puente primero si existen
+  await supabase.from("proveedor_insumos").delete().eq("proveedor_id", id);
+
+  // Desvincular de gastos y compras para preservar el histórico
+  await supabase.from("gastos").update({ proveedor_id: null }).eq("proveedor_id", id);
+  await supabase.from("compras").update({ proveedor_id: null }).eq("proveedor_id", id);
+
+  // Eliminar el proveedor
+  const { error } = await supabase.from("proveedores").delete().eq("id", id);
+
+  if (error) {
+    return { ok: false, error: error.message || "Error al eliminar proveedor." };
+  }
+
+  revalidatePath("/proveedores");
+  revalidatePath("/insumos");
+  revalidatePath("/compras");
+  revalidatePath("/gastos");
+  return { ok: true };
+}
+
