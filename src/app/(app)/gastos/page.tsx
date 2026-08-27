@@ -1,16 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import GastosClient from "./client";
-import { Gasto, Proveedor, CuentaNegocio, Insumo, Compra } from "@/types/database";
+import { Gasto, Proveedor, CuentaNegocio, Insumo, TransferenciaCuenta } from "@/types/database";
 
 export const metadata = {
   title: "Compras & Gastos | La Parada del Sabor",
-  description: "Centro administrativo unificado de compras de insumos, servicios, nómina, cuentas bancarias y facturas.",
+  description: "Centro administrativo unificado de compras de insumos, servicios, nómina, cuentas bancarias, transferencias y facturas.",
 };
 
 export default async function GastosPage() {
   const supabase = await createClient();
 
-  const [gastosRes, comprasRes, insumosRes, provRes, cuentasRes, tasaRes] = await Promise.all([
+  const [gastosRes, comprasRes, insumosRes, provRes, cuentasRes, transferenciasRes, tasaRes] = await Promise.all([
     supabase
       .from("gastos")
       .select("*, proveedor:proveedores(*), cuenta:cuentas_negocio(*)")
@@ -36,6 +36,11 @@ export default async function GastosPage() {
       .select("*")
       .order("nombre", { ascending: true }),
     supabase
+      .from("transferencias_cuentas")
+      .select("*, cuenta_origen:cuentas_negocio!transferencias_cuentas_cuenta_origen_id_fkey(*), cuenta_destino:cuentas_negocio!transferencias_cuentas_cuenta_destino_id_fkey(*)")
+      .order("fecha", { ascending: false })
+      .limit(100),
+    supabase
       .from("tasas_cambio")
       .select("bcv_usd_bs, tasa_usd_bs")
       .order("fecha", { ascending: false })
@@ -48,6 +53,7 @@ export default async function GastosPage() {
   const insumos = (insumosRes.data as Insumo[]) || [];
   const proveedores = (provRes.data as Proveedor[]) || [];
   const cuentas = (cuentasRes.data as CuentaNegocio[]) || [];
+  const transferencias = (transferenciasRes.data as TransferenciaCuenta[]) || [];
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 60.0;
 
   return (
@@ -56,6 +62,7 @@ export default async function GastosPage() {
       comprasIniciales={compras}
       insumos={insumos}
       cuentasIniciales={cuentas}
+      transferenciasIniciales={transferencias}
       proveedores={proveedores}
       tasaBcv={tasaBcv}
     />

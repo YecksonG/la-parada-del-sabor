@@ -280,6 +280,10 @@ export type CuentaNegocio = {
   banco_plataforma?: string | null;
   titular?: string | null;
   numero_cuenta_telefono?: string | null;
+  cedula_rif?: string | null;
+  telefono_pago_movil?: string | null;
+  admite_biopago?: boolean;
+  numero_cuenta_20digitos?: string | null;
   saldo_inicial?: number;
   icono?: string;
   color?: string;
@@ -287,6 +291,28 @@ export type CuentaNegocio = {
   notas?: string | null;
   creado_el: string;
   actualizado_el?: string;
+};
+
+export type TransferenciaCuenta = {
+  id: string;
+  fecha: string;
+  cuenta_origen_id: string;
+  cuenta_destino_id: string;
+  monto_origen: number;
+  moneda_origen: string;
+  monto_destino: number;
+  moneda_destino: string;
+  tasa_cambio: number;
+  metodo_transferencia: "pago_movil" | "transferencia" | "biopago" | "efectivo" | "zelle" | "binance" | string;
+  referencia?: string | null;
+  concepto?: string | null;
+  comprobante_url?: string | null;
+  notas?: string | null;
+  creado_por?: string | null;
+  creado_el: string;
+  actualizado_el?: string;
+  cuenta_origen?: CuentaNegocio;
+  cuenta_destino?: CuentaNegocio;
 };
 
 export type Gasto = {

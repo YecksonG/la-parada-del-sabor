@@ -386,6 +386,10 @@ export type PayloadCuentaNegocio = {
   banco_plataforma?: string;
   titular?: string;
   numero_cuenta_telefono?: string;
+  cedula_rif?: string;
+  telefono_pago_movil?: string;
+  admite_biopago?: boolean;
+  numero_cuenta_20digitos?: string;
   saldo_inicial?: number;
   icono?: string;
   color?: string;
@@ -413,6 +417,10 @@ export async function crearCuentaNegocio(payload: PayloadCuentaNegocio) {
       banco_plataforma: payload.banco_plataforma?.trim() || null,
       titular: payload.titular?.trim() || null,
       numero_cuenta_telefono: payload.numero_cuenta_telefono?.trim() || null,
+      cedula_rif: payload.cedula_rif?.trim() || null,
+      telefono_pago_movil: payload.telefono_pago_movil?.trim() || null,
+      admite_biopago: Boolean(payload.admite_biopago),
+      numero_cuenta_20digitos: payload.numero_cuenta_20digitos?.trim() || null,
       saldo_inicial: payload.saldo_inicial || 0,
       icono: payload.icono || "🏦",
       color: payload.color || "#3b82f6",
@@ -449,6 +457,10 @@ export async function actualizarCuentaNegocio(id: string, payload: Partial<Paylo
   if (payload.banco_plataforma !== undefined) updateData.banco_plataforma = payload.banco_plataforma?.trim() || null;
   if (payload.titular !== undefined) updateData.titular = payload.titular?.trim() || null;
   if (payload.numero_cuenta_telefono !== undefined) updateData.numero_cuenta_telefono = payload.numero_cuenta_telefono?.trim() || null;
+  if (payload.cedula_rif !== undefined) updateData.cedula_rif = payload.cedula_rif?.trim() || null;
+  if (payload.telefono_pago_movil !== undefined) updateData.telefono_pago_movil = payload.telefono_pago_movil?.trim() || null;
+  if (payload.admite_biopago !== undefined) updateData.admite_biopago = Boolean(payload.admite_biopago);
+  if (payload.numero_cuenta_20digitos !== undefined) updateData.numero_cuenta_20digitos = payload.numero_cuenta_20digitos?.trim() || null;
   if (payload.icono) updateData.icono = payload.icono;
   if (payload.color) updateData.color = payload.color;
   if (payload.notas !== undefined) updateData.notas = payload.notas?.trim() || null;
@@ -467,3 +479,98 @@ export async function actualizarCuentaNegocio(id: string, payload: Partial<Paylo
   revalidatePath("/gastos");
   return { ok: true, cuenta: data };
 }
+
+// ==============================================================================
+// GESTIÓN DE TRANSFERENCIAS Y MOVIMIENTOS ENTRE CUENTAS
+// ==============================================================================
+
+export type PayloadTransferencia = {
+  fecha: string;
+  cuenta_origen_id: string;
+  cuenta_destino_id: string;
+  monto_origen: number;
+  moneda_origen: string;
+  monto_destino: number;
+  moneda_destino: string;
+  tasa_cambio?: number;
+  metodo_transferencia: string;
+  referencia?: string;
+  concepto?: string;
+  comprobante_url?: string;
+  notas?: string;
+};
+
+export async function crearTransferenciaCuenta(payload: PayloadTransferencia) {
+  const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  if (!payload.cuenta_origen_id || !UUID_REGEX.test(payload.cuenta_origen_id)) {
+    return { ok: false, error: "Selecciona una cuenta de origen válida." };
+  }
+  if (!payload.cuenta_destino_id || !UUID_REGEX.test(payload.cuenta_destino_id)) {
+    return { ok: false, error: "Selecciona una cuenta de destino válida." };
+  }
+  if (payload.cuenta_origen_id === payload.cuenta_destino_id) {
+    return { ok: false, error: "La cuenta de origen y destino no pueden ser la misma." };
+  }
+  if (typeof payload.monto_origen !== "number" || payload.monto_origen <= 0 || !Number.isFinite(payload.monto_origen)) {
+    return { ok: false, error: "El monto a transferir debe ser mayor a 0." };
+  }
+  if (typeof payload.monto_destino !== "number" || payload.monto_destino <= 0 || !Number.isFinite(payload.monto_destino)) {
+    return { ok: false, error: "El monto recibido debe ser mayor a 0." };
+  }
+
+  const METODOS_PERMITIDOS = ["pago_movil", "transferencia", "biopago", "efectivo", "zelle", "binance", "otro"];
+  const metodoValido = METODOS_PERMITIDOS.includes(payload.metodo_transferencia)
+    ? payload.metodo_transferencia
+    : "pago_movil";
+
+  const { data, error } = await supabase
+    .from("transferencias_cuentas")
+    .insert({
+      fecha: payload.fecha || new Date().toISOString().split("T")[0],
+      cuenta_origen_id: payload.cuenta_origen_id,
+      cuenta_destino_id: payload.cuenta_destino_id,
+      monto_origen: payload.monto_origen,
+      moneda_origen: payload.moneda_origen || "VES",
+      monto_destino: payload.monto_destino,
+      moneda_destino: payload.moneda_destino || "VES",
+      tasa_cambio: payload.tasa_cambio || 1.0,
+      metodo_transferencia: metodoValido,
+      referencia: payload.referencia?.trim().slice(0, 100) || null,
+      concepto: payload.concepto?.trim().slice(0, 255) || null,
+      comprobante_url: payload.comprobante_url || null,
+      notas: payload.notas?.trim().slice(0, 500) || null,
+      creado_por: auth.user.email || "admin",
+    })
+    .select("*, cuenta_origen:cuentas_negocio!transferencias_cuentas_cuenta_origen_id_fkey(*), cuenta_destino:cuentas_negocio!transferencias_cuentas_cuenta_destino_id_fkey(*)")
+    .single();
+
+  if (error) {
+    console.error("Error creando transferencia:", error);
+    return { ok: false, error: error.message || "Error al registrar la transferencia." };
+  }
+
+  revalidatePath("/gastos");
+  return { ok: true, transferencia: data };
+}
+
+export async function eliminarTransferenciaCuenta(id: string) {
+  if (!id || !UUID_REGEX.test(id)) {
+    return { ok: false, error: "Identificador de transferencia no válido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error } = await supabase.from("transferencias_cuentas").delete().eq("id", id);
+  if (error) {
+    return { ok: false, error: error.message || "Error al eliminar transferencia." };
+  }
+
+  revalidatePath("/gastos");
+  return { ok: true };
+}
+
