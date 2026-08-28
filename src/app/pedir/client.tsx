@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import { Categoria, Producto, ExtraModificador, ZonaDelivery } from "@/types/database";
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
+import { getComboArepasCount } from "@/lib/combo-helper";
+import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
 
 interface MenuClienteViewProps {
   categorias: Categoria[];
@@ -36,6 +38,7 @@ export default function MenuClienteView({
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CarritoItemWeb[]>([]);
   const [drawerCheckout, setDrawerCheckout] = useState(false);
+  const [comboModalData, setComboModalData] = useState<{ producto: Producto; totalArepas: number } | null>(null);
 
   // Bloquear scroll de la página de fondo cuando el drawer de checkout está abierto
   useEffect(() => {
@@ -269,6 +272,12 @@ export default function MenuClienteView({
 
   // Agregar al carrito directamente (Límite máximo 25 por producto)
   const handleAgregarProductoDirecto = (prod: Producto) => {
+    const comboArepas = getComboArepasCount(prod);
+    if (comboArepas !== null) {
+      setComboModalData({ producto: prod, totalArepas: comboArepas });
+      return;
+    }
+
     setCarrito((prev) => {
       const existingIdx = prev.findIndex((item) => item.producto.id === prod.id);
       if (existingIdx >= 0) {
@@ -293,6 +302,22 @@ export default function MenuClienteView({
         },
       ];
     });
+  };
+
+  const handleConfirmarCombo = (notasItem: string) => {
+    if (!comboModalData) return;
+    const prod = comboModalData.producto;
+    setCarrito((prev) => [
+      ...prev,
+      {
+        tempId: `${prod.id}-${Date.now()}-${Math.random()}`,
+        producto: prod,
+        cantidad: 1,
+        notas_item: notasItem,
+        extras: [],
+      },
+    ]);
+    setComboModalData(null);
   };
 
   const handleModificarCantidadPorProducto = (productoId: string, delta: number) => {
@@ -485,6 +510,7 @@ export default function MenuClienteView({
               const precioBs = precioUsd * tasaBcv;
               const itemEnCarrito = carrito.find((item) => item.producto.id === prod.id);
               const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
+              const isCombo = getComboArepasCount(prod) !== null;
 
               return (
                 <div key={prod.id} className="pedir-product-card">
@@ -509,7 +535,21 @@ export default function MenuClienteView({
                       <span className="pedir-price-bs">Bs. {precioBs.toFixed(2)}</span>
                     </div>
 
-                    {cantidadEnCarrito > 0 ? (
+                    {isCombo ? (
+                      <button
+                        type="button"
+                        onClick={() => handleAgregarProductoDirecto(prod)}
+                        className="pedir-btn-add"
+                        style={{
+                          background: "linear-gradient(135deg, #e65c00, #ff8c00)",
+                          color: "#ffffff",
+                          fontWeight: 800,
+                          fontSize: 13,
+                        }}
+                      >
+                        🍱 Armar Sabores {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
+                      </button>
+                    ) : cantidadEnCarrito > 0 ? (
                       <div className="pedir-card-qty-controls">
                         <button
                           type="button"
@@ -1301,6 +1341,16 @@ export default function MenuClienteView({
       >
         <span>💬</span>
       </a>
+
+      {/* Modal Interactivo de Personalización de Combos */}
+      {comboModalData && (
+        <ModalPersonalizarCombo
+          producto={comboModalData.producto}
+          totalArepas={comboModalData.totalArepas}
+          onConfirmar={handleConfirmarCombo}
+          onCerrar={() => setComboModalData(null)}
+        />
+      )}
     </div>
   );
 }

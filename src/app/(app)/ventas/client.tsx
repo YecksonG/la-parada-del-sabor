@@ -186,6 +186,11 @@ export default function VentasClient({ ventas }: VentasClientProps) {
                             ))}
                           </div>
                         )}
+                        {(item.notas_item || item.notas) && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-dark)", background: "var(--primary-light)", padding: "3px 7px", borderRadius: 6, marginTop: 4 }}>
+                            🍱 {item.notas_item || item.notas}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

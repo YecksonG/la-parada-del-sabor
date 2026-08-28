@@ -183,7 +183,8 @@ export type VentaItem = {
   cantidad: number;
   precio_unitario_usd: number;
   subtotal_usd: number;
-  notas: string | null;
+  notas?: string | null;
+  notas_item?: string | null;
   producto?: Producto;
   extras?: VentaItemExtra[];
 };

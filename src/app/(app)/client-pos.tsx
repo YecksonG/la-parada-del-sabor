@@ -12,6 +12,8 @@ import {
   CartItemExtra,
 } from "./pos-actions";
 import { sounds } from "@/lib/sound-effects";
+import { getComboArepasCount } from "@/lib/combo-helper";
+import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
 
 interface PosClientProps {
   categorias: Categoria[];
@@ -36,6 +38,7 @@ export default function PosClient({
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
+  const [comboModalData, setComboModalData] = useState<{ producto: Producto; totalArepas: number } | null>(null);
 
   // Gestión de Clientes en POS
   const [listaClientes, setListaClientes] = useState<Cliente[]>(clientesIniciales);
@@ -115,6 +118,12 @@ export default function PosClient({
 
   // Agregar producto al carrito con sonido pop (Límite máximo 50 por item)
   const agregarAlCarrito = (producto: Producto) => {
+    const comboArepas = getComboArepasCount(producto);
+    if (comboArepas !== null) {
+      setComboModalData({ producto, totalArepas: comboArepas });
+      return;
+    }
+
     sounds.playPop();
     setCarrito((prev) => {
       const index = prev.findIndex((item) => item.producto_id === producto.id && (!item.extras || item.extras.length === 0));
@@ -134,6 +143,23 @@ export default function PosClient({
         },
       ];
     });
+  };
+
+  const handleConfirmarComboPos = (notasItem: string) => {
+    if (!comboModalData) return;
+    const producto = comboModalData.producto;
+    setCarrito((prev) => [
+      ...prev,
+      {
+        producto_id: producto.id,
+        nombre: producto.nombre,
+        precio_unitario_usd: Number(producto.precio_usd),
+        cantidad: 1,
+        notas_item: notasItem,
+        extras: [],
+      },
+    ]);
+    setComboModalData(null);
   };
 
   const modificarCantidad = (index: number, delta: number) => {
@@ -577,6 +603,11 @@ export default function PosClient({
                   <div className="cart-item-main">
                     <div className="cart-item-info">
                       <strong className="cart-item-name">{item.nombre}</strong>
+                      {item.notas_item && (
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-dark)", background: "var(--primary-light)", padding: "2px 6px", borderRadius: 4, marginTop: 3 }}>
+                          🍱 {item.notas_item}
+                        </div>
+                      )}
                       <span className="cart-item-unit-price">
                         ${item.precio_unitario_usd.toFixed(2)} c/u
                       </span>
@@ -1254,6 +1285,16 @@ export default function PosClient({
             )}
           </div>
         </div>
+      )}
+
+      {/* Modal Interactivo de Personalización de Combos POS */}
+      {comboModalData && (
+        <ModalPersonalizarCombo
+          producto={comboModalData.producto}
+          totalArepas={comboModalData.totalArepas}
+          onConfirmar={handleConfirmarComboPos}
+          onCerrar={() => setComboModalData(null)}
+        />
       )}
     </div>
   );
