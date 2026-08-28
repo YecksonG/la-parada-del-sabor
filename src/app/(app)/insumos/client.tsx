@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Insumo, UnidadMedida, Proveedor } from "@/types/database";
-import { guardarInsumo, ajustarStockInsumo } from "./actions";
+import { guardarInsumo, ajustarStockInsumo, eliminarInsumo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import {
   getProveedoresPorInsumo,
@@ -153,6 +153,23 @@ export default function InsumosClient({
     }
   };
 
+  const handleEliminarInsumo = async (insumo: Insumo) => {
+    if (
+      !confirm(
+        `¿Estás seguro de que deseas eliminar permanentemente el insumo "${insumo.nombre}"?\n\nEsta acción eliminará su registro de recetas asociadas y proveedores.`
+      )
+    ) {
+      return;
+    }
+
+    const res = await eliminarInsumo(insumo.id);
+    if (res.ok) {
+      sounds.playDelete();
+    } else {
+      alert(res.error || "Error al eliminar el insumo.");
+    }
+  };
+
   return (
     <main className="recetas-container">
       {/* Header con Valor Total y Toggle de Vistas */}
@@ -268,6 +285,15 @@ export default function InsumosClient({
                     title="Editar Insumo"
                   >
                     ✏️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleEliminarInsumo(ins)}
+                    className="btn-insumo-edit-top"
+                    title="Eliminar Insumo"
+                    style={{ color: "var(--danger)" }}
+                  >
+                    🗑️
                   </button>
                 </div>
 
@@ -492,9 +518,17 @@ export default function InsumosClient({
                           onClick={() => abrirEditar(ins)}
                           className="btn-insumo-edit"
                           style={{ padding: "6px 10px", fontSize: 12 }}
-                          title="Editar Insumo"
                         >
                           ✏️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEliminarInsumo(ins)}
+                          className="btn-insumo-edit"
+                          style={{ padding: "6px 10px", fontSize: 12, color: "var(--danger)" }}
+                          title="Eliminar"
+                        >
+                          🗑️
                         </button>
                       </div>
                     </td>

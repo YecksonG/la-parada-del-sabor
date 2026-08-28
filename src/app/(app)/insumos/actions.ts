@@ -167,3 +167,31 @@ export async function ajustarStockInsumo(id: string, nuevoStock: number) {
   revalidatePath("/");
   return { ok: true };
 }
+
+export async function eliminarInsumo(id: string) {
+  if (!id || typeof id !== "string") {
+    return { ok: false, error: "ID de insumo no proporcionado." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth(supabase);
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // First remove the relation to proveedores
+  await supabase.from("proveedor_insumos").delete().eq("insumo_id", id);
+  // Also clean up from recetas (escandallos) to prevent foreign key errors
+  await supabase.from("recetas_ingredientes").delete().eq("insumo_id", id);
+
+  const { error } = await supabase.from("insumos").delete().eq("id", id);
+  if (error) {
+    if (error.code === '23503') { // Foreign key constraint violation
+      return { ok: false, error: "No se puede eliminar este insumo porque está en uso en otra sección." };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/insumos");
+  revalidatePath("/recetas");
+  revalidatePath("/");
+  return { ok: true };
+}
