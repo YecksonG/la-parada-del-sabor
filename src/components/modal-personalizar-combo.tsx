@@ -133,7 +133,7 @@ export default function ModalPersonalizarCombo({
         {/* Barra de Progreso de Arepas Seleccionadas */}
         <div className="combo-progress-box">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 900, color: esCompleto ? "#16a34a" : "var(--text)" }}>
+            <span style={{ fontSize: 13, fontWeight: 900, color: esCompleto ? "#15803d" : "var(--text)" }}>
               {esCompleto
                 ? `✅ ¡Listo! (${totalSeleccionadas} de ${totalArepas} seleccionadas)`
                 : `Selecciona tus arepas: (${totalSeleccionadas} de ${totalArepas})`}
@@ -142,8 +142,8 @@ export default function ModalPersonalizarCombo({
               style={{
                 fontSize: 11,
                 fontWeight: 900,
-                color: esCompleto ? "#16a34a" : "var(--primary-dark)",
-                background: esCompleto ? "rgba(22, 163, 74, 0.15)" : "var(--primary-light)",
+                color: esCompleto ? "#15803d" : "var(--primary-dark)",
+                background: esCompleto ? "rgba(21, 128, 61, 0.15)" : "var(--primary-light)",
                 padding: "3px 10px",
                 borderRadius: 12,
                 border: "1px solid var(--border)",
