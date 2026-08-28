@@ -29,6 +29,27 @@ export default function ModalPersonalizarCombo({
   const faltantes = Math.max(0, totalArepas - totalSeleccionadas);
   const esCompleto = totalSeleccionadas === totalArepas;
 
+  // Bloqueo estricto del scroll de fondo para iOS y Android
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalTop = document.body.style.top;
+    const scrollY = window.scrollY;
+
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.top = originalTop;
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   // Escape key handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -75,28 +96,26 @@ export default function ModalPersonalizarCombo({
 
   return (
     <div
-      className="modal-overlay"
+      className="combo-modal-overlay"
       onClick={onCerrar}
-      style={{ zIndex: 9999 }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="combo-modal-title"
     >
       <div
         ref={modalCardRef}
-        className="modal-card combo-modal-card"
+        className="combo-modal-card"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 520, width: "94%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
       >
         {/* Header del Modal */}
         <div className="combo-modal-header">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 28 }} aria-hidden="true">{producto.icono || "🍱"}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="combo-flavor-icon" aria-hidden="true">{producto.icono || "🍱"}</span>
             <div>
-              <h2 id="combo-modal-title" style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", margin: 0 }}>
+              <h2 id="combo-modal-title" style={{ fontSize: 17, fontWeight: 900, color: "var(--text)", margin: 0 }}>
                 Elige los Sabores del Combo
               </h2>
-              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, fontWeight: 600 }}>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, fontWeight: 700 }}>
                 {producto.nombre}
               </p>
             </div>
@@ -105,7 +124,7 @@ export default function ModalPersonalizarCombo({
             type="button"
             onClick={onCerrar}
             className="combo-modal-close-btn"
-            aria-label="Cerrar modal de personalización"
+            aria-label="Cerrar modal de sabores"
           >
             ✕
           </button>
@@ -113,34 +132,35 @@ export default function ModalPersonalizarCombo({
 
         {/* Barra de Progreso de Arepas Seleccionadas */}
         <div className="combo-progress-box">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 800, color: esCompleto ? "#16a34a" : "var(--text)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 900, color: esCompleto ? "#16a34a" : "var(--text)" }}>
               {esCompleto
-                ? `✅ ¡Listo! (${totalSeleccionadas}/${totalArepas} seleccionadas)`
+                ? `✅ ¡Listo! (${totalSeleccionadas} de ${totalArepas} seleccionadas)`
                 : `Selecciona tus arepas: (${totalSeleccionadas} de ${totalArepas})`}
             </span>
             <span
               style={{
-                fontSize: 12,
-                fontWeight: 800,
-                color: esCompleto ? "#16a34a" : "var(--primary)",
-                background: esCompleto ? "rgba(22, 163, 74, 0.12)" : "rgba(230, 92, 0, 0.12)",
-                padding: "2px 8px",
+                fontSize: 11,
+                fontWeight: 900,
+                color: esCompleto ? "#16a34a" : "var(--primary-dark)",
+                background: esCompleto ? "rgba(22, 163, 74, 0.15)" : "var(--primary-light)",
+                padding: "3px 10px",
                 borderRadius: 12,
+                border: "1px solid var(--border)",
               }}
             >
               {esCompleto ? "Completo" : `Faltan ${faltantes}`}
             </span>
           </div>
 
-          <div style={{ height: 8, background: "var(--bg-subtle)", borderRadius: 6, overflow: "hidden" }}>
+          <div style={{ height: 8, background: "var(--bg-card)", borderRadius: 6, overflow: "hidden", border: "1px solid var(--border)" }}>
             <div
               style={{
                 height: "100%",
                 width: `${Math.min(100, (totalSeleccionadas / totalArepas) * 100)}%`,
                 background: esCompleto
-                  ? "linear-gradient(90deg, #22c55e, #16a34a)"
-                  : "linear-gradient(90deg, #f97316, #e65c00)",
+                  ? "linear-gradient(90deg, #10b981, #059669)"
+                  : "linear-gradient(90deg, #f59e0b, #d97706)",
                 transition: "width 0.25s ease",
               }}
             />
@@ -148,7 +168,7 @@ export default function ModalPersonalizarCombo({
         </div>
 
         {/* Lista de Sabores con Stepper */}
-        <div className="combo-flavors-list" style={{ overflowY: "auto", flex: 1, padding: "10px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className="combo-flavors-list">
           {SABORES_AREPAS_COMBO.map((sabor) => {
             const cant = sabores[sabor.id] || 0;
             const puedeSumar = totalSeleccionadas < totalArepas;
@@ -157,63 +177,32 @@ export default function ModalPersonalizarCombo({
               <div
                 key={sabor.id}
                 className={`combo-flavor-row ${cant > 0 ? "flavor-selected" : ""}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  border: cant > 0 ? "1.5px solid var(--primary)" : "1px solid var(--border)",
-                  background: cant > 0 ? "rgba(230, 92, 0, 0.05)" : "var(--card-bg)",
-                  transition: "all 0.15s ease",
-                }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                  <span style={{ fontSize: 22 }} aria-hidden="true">{sabor.icono}</span>
+                <div className="combo-flavor-info">
+                  <span className="combo-flavor-icon" aria-hidden="true">{sabor.icono}</span>
                   <div>
-                    <strong style={{ fontSize: 14, color: "var(--text)", display: "block" }}>
+                    <div className="combo-flavor-name">
                       {sabor.nombre}
-                    </strong>
-                    <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 500 }}>
+                    </div>
+                    <div className="combo-flavor-desc">
                       {sabor.desc}
-                    </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Controles de Cantidad */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="combo-stepper-wrap">
                   <button
                     type="button"
                     disabled={cant <= 0}
                     onClick={() => handleModificarSabor(sabor.id, -1)}
+                    className="combo-stepper-btn"
                     aria-label={`Restar una ${sabor.nombre}`}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      border: "1px solid var(--border)",
-                      background: cant > 0 ? "var(--surface)" : "var(--bg-subtle)",
-                      color: cant > 0 ? "var(--text)" : "var(--text-muted)",
-                      fontWeight: 900,
-                      fontSize: 16,
-                      cursor: cant > 0 ? "pointer" : "not-allowed",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
                   >
-                    -
+                    −
                   </button>
 
-                  <span
-                    style={{
-                      minWidth: 20,
-                      textAlign: "center",
-                      fontSize: 15,
-                      fontWeight: 800,
-                      color: cant > 0 ? "var(--primary)" : "var(--text-muted)",
-                    }}
-                  >
+                  <span className={`combo-stepper-num ${cant > 0 ? "has-count" : ""}`}>
                     {cant}
                   </span>
 
@@ -221,21 +210,8 @@ export default function ModalPersonalizarCombo({
                     type="button"
                     disabled={!puedeSumar}
                     onClick={() => handleModificarSabor(sabor.id, 1)}
+                    className={`combo-stepper-btn ${puedeSumar ? "plus-active" : ""}`}
                     aria-label={`Sumar una ${sabor.nombre}`}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      border: "none",
-                      background: puedeSumar ? "var(--primary)" : "var(--bg-subtle)",
-                      color: puedeSumar ? "#ffffff" : "var(--text-muted)",
-                      fontWeight: 900,
-                      fontSize: 16,
-                      cursor: puedeSumar ? "pointer" : "not-allowed",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
                   >
                     +
                   </button>
@@ -246,43 +222,24 @@ export default function ModalPersonalizarCombo({
         </div>
 
         {/* Observación Opcional con maxLength */}
-        <div style={{ marginTop: 8, marginBottom: 12 }}>
+        <div className="combo-obs-wrap">
           <input
             type="text"
             maxLength={60}
             aria-label="Observación opcional para el combo"
-            placeholder="Observación opcional (máx 60 caracteres)"
+            placeholder="Observación opcional (ej: 1 Pelúa sin queso, salsas aparte...)"
             value={notaOpcional}
             onChange={(e) => setNotaOpcional(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid var(--border)",
-              background: "var(--bg-subtle)",
-              color: "var(--text)",
-              fontSize: 12,
-              outline: "none",
-            }}
+            className="combo-obs-input"
           />
         </div>
 
-        {/* Botón de Confirmación */}
-        <div style={{ display: "flex", gap: 10 }}>
+        {/* Botones de Acción */}
+        <div className="combo-actions-wrap">
           <button
             type="button"
             onClick={onCerrar}
-            style={{
-              flex: 1,
-              padding: "12px",
-              borderRadius: 12,
-              border: "1px solid var(--border)",
-              background: "transparent",
-              color: "var(--text-muted)",
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
+            className="combo-btn-cancel"
           >
             Cancelar
           </button>
@@ -290,19 +247,7 @@ export default function ModalPersonalizarCombo({
             type="button"
             disabled={!esCompleto}
             onClick={handleConfirmar}
-            style={{
-              flex: 2,
-              padding: "12px",
-              borderRadius: 12,
-              border: "none",
-              background: esCompleto ? "linear-gradient(135deg, #e65c00, #ff8c00)" : "var(--border)",
-              color: esCompleto ? "#ffffff" : "var(--text-muted)",
-              fontWeight: 900,
-              fontSize: 14,
-              cursor: esCompleto ? "pointer" : "not-allowed",
-              boxShadow: esCompleto ? "0 4px 14px rgba(230, 92, 0, 0.4)" : "none",
-              transition: "all 0.2s ease",
-            }}
+            className="combo-btn-confirm"
           >
             {esCompleto ? `Listo • Agregar Combo ($${Number(producto.precio_usd).toFixed(2)})` : `Elige ${faltantes} más`}
           </button>
