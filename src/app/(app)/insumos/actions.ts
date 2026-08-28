@@ -177,21 +177,21 @@ export async function eliminarInsumo(id: string) {
   const auth = await requireAuth(supabase);
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  // First remove the relation to proveedores
-  await supabase.from("proveedor_insumos").delete().eq("insumo_id", id);
-  // Also clean up from recetas (escandallos) to prevent foreign key errors
-  await supabase.from("recetas_ingredientes").delete().eq("insumo_id", id);
+  const { data, error } = await supabase.rpc("fn_eliminar_insumo_seguro", {
+    p_insumo_id: id,
+  });
 
-  const { error } = await supabase.from("insumos").delete().eq("id", id);
   if (error) {
-    if (error.code === '23503') { // Foreign key constraint violation
-      return { ok: false, error: "No se puede eliminar este insumo porque está en uso en otra sección." };
-    }
     return { ok: false, error: error.message };
+  }
+
+  if (data && data.ok === false) {
+    return { ok: false, error: data.error };
   }
 
   revalidatePath("/insumos");
   revalidatePath("/recetas");
+  revalidatePath("/proveedores");
   revalidatePath("/");
   return { ok: true };
 }
