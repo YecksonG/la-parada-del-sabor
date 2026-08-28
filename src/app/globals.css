@@ -5259,80 +5259,180 @@ a {
 .pedir-cart-items-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-  max-height: 180px;
+  gap: 10px;
+  margin-bottom: 16px;
+  max-height: 220px;
   overflow-y: auto;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 10px;
+  border-bottom: 1.5px solid var(--border);
+  padding-bottom: 12px;
 }
 
 .pedir-cart-item-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-subtle);
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  gap: 12px;
+  background: var(--bg-card);
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
 }
 
-.pedir-qty-controls {
+.pedir-cart-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pedir-cart-item-name-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.pedir-qty-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
+.pedir-cart-item-icon {
+  font-size: 18px;
+  line-height: 1;
 }
 
-.pedir-qty-num {
-  font-size: 13px;
+.pedir-cart-item-name {
+  font-size: 15px;
   font-weight: 800;
-  min-width: 18px;
-  text-align: center;
+  color: var(--text);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.pedir-cart-item-extras {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.pedir-cart-item-notes {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.pedir-cart-item-price-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.pedir-cart-item-price-usd {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--primary);
+}
+
+.pedir-cart-item-price-sep {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.pedir-cart-item-price-bs {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Horizontal Quantity Stepper Box */
+.pedir-qty-box {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  background: var(--bg-subtle) !important;
+  padding: 4px 6px !important;
+  border-radius: 12px !important;
+  border: 1.5px solid var(--border) !important;
+  flex-shrink: 0 !important;
+}
+
+.pedir-qty-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  border-radius: 8px !important;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+
+.pedir-qty-btn:active {
+  transform: scale(0.92);
+  background: var(--primary-light) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-dark) !important;
+}
+
+.pedir-qty-val {
+  font-size: 15px !important;
+  font-weight: 900 !important;
+  min-width: 24px !important;
+  text-align: center !important;
+  color: var(--text) !important;
+  padding: 0 4px !important;
 }
 
 .pedir-checkout-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .pedir-form-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .pedir-form-group label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 .pedir-form-input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
   outline: none;
   font-family: inherit;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
 }
 
 .pedir-form-input:focus {
   border-color: var(--primary);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.2);
 }
 
 .pedir-form-label-destacado {

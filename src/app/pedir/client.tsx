@@ -602,18 +602,23 @@ export default function MenuClienteView({
                   return (
                     <div key={item.tempId} className="pedir-cart-item-row">
                       <div className="pedir-cart-item-info">
-                        <span className="pedir-cart-item-name">{item.producto.nombre}</span>
+                        <div className="pedir-cart-item-name-row">
+                          <span className="pedir-cart-item-icon">{item.producto.icono || "🫓"}</span>
+                          <span className="pedir-cart-item-name">{item.producto.nombre}</span>
+                        </div>
                         {item.extras.length > 0 && (
-                          <span className="pedir-cart-item-extras">
+                          <div className="pedir-cart-item-extras">
                             + {item.extras.map((e) => e.nombre).join(", ")}
-                          </span>
+                          </div>
                         )}
                         {item.notas_item && (
-                          <span className="pedir-cart-item-notes">Nota: {item.notas_item}</span>
+                          <div className="pedir-cart-item-notes">📝 {item.notas_item}</div>
                         )}
-                        <span className="pedir-cart-item-price">
-                          ${precioTotal.toFixed(2)} USD • Bs. {(precioTotal * tasaBcv).toFixed(2)}
-                        </span>
+                        <div className="pedir-cart-item-price-wrap">
+                          <span className="pedir-cart-item-price-usd">${precioTotal.toFixed(2)} USD</span>
+                          <span className="pedir-cart-item-price-sep">•</span>
+                          <span className="pedir-cart-item-price-bs">Bs. {(precioTotal * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
                       </div>
 
                       {/* Controles de Cantidad en Carrito */}
@@ -621,16 +626,16 @@ export default function MenuClienteView({
                         <button
                           type="button"
                           onClick={() => handleModificarCantidad(item.tempId, -1)}
-                          className="pedir-qty-btn"
+                          className="pedir-qty-btn pedir-qty-btn-minus"
                           aria-label={`Restar una unidad de ${item.producto.nombre}`}
                         >
-                          -
+                          −
                         </button>
                         <span className="pedir-qty-val">{item.cantidad}</span>
                         <button
                           type="button"
                           onClick={() => handleModificarCantidad(item.tempId, 1)}
-                          className="pedir-qty-btn"
+                          className="pedir-qty-btn pedir-qty-btn-plus"
                           aria-label={`Sumar una unidad de ${item.producto.nombre}`}
                         >
                           +
@@ -644,7 +649,7 @@ export default function MenuClienteView({
               {/* Formulario de Datos del Cliente */}
               <form id="pedir-checkout-form-id" onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
                 <div className="pedir-form-group">
-                  <label htmlFor="nombreClienteInput">Tu Nombre y Apellido *</label>
+                  <label htmlFor="nombreClienteInput">👤 Tu Nombre y Apellido *</label>
                   <input
                     id="nombreClienteInput"
                     type="text"
@@ -657,7 +662,7 @@ export default function MenuClienteView({
                 </div>
 
                 <div className="pedir-form-group">
-                  <label htmlFor="telefonoClienteInput">Teléfono / WhatsApp *</label>
+                  <label htmlFor="telefonoClienteInput">📱 Teléfono / WhatsApp *</label>
                   <input
                     id="telefonoClienteInput"
                     type="tel"
@@ -1207,6 +1212,12 @@ export default function MenuClienteView({
                   )}
                 </div>
               </div>
+
+              {errorMsg && (
+                <div className="pedir-error-alert" role="alert" style={{ marginBottom: 10 }}>
+                  ⚠️ {errorMsg}
+                </div>
+              )}
 
               <button
                 type="submit"
