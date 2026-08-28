@@ -879,22 +879,36 @@ export default function MenuClienteView({
                     <option value="efectivo_bs">🇻🇪 Efectivo Bolívares (al recibir o retirar)</option>
                   </select>
 
-                  {/* Mensaje de tranquilidad y flujo claro */}
+                  {/* Mensaje de tranquilidad y flujo claro super llamativo */}
                   <div
                     style={{
-                      marginTop: 10,
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      background: "var(--bg-subtle)",
-                      border: "1px solid var(--border)",
+                      marginTop: 12,
+                      padding: "14px 16px",
+                      borderRadius: 16,
+                      background: "linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(234, 88, 12, 0.08) 100%)",
+                      border: "1.5px solid rgba(245, 158, 11, 0.4)",
+                      boxShadow: "0 4px 16px rgba(245, 158, 11, 0.1)",
                       display: "flex",
-                      alignItems: "flex-start",
-                      gap: 10,
+                      flexDirection: "column",
+                      gap: 8,
                     }}
                   >
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>🧾</span>
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--text)", lineHeight: 1.4, fontWeight: 600 }}>
-                      Al presionar el botón abajo, se generará tu <strong>Factura Digital Oficial con número de orden</strong>, donde verás los datos de pago exactos y el botón para adjuntar tu comprobante por WhatsApp.
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 16 }}>🧾</span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 900,
+                          color: "var(--primary-dark)",
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        ¿Cómo es el proceso de pago?
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12.5, color: "var(--text)", lineHeight: 1.45, fontWeight: 700 }}>
+                      Al presionar el botón abajo, se generará tu <strong>Factura Digital Oficial</strong> con el monto exacto y los datos para pagar y adjuntar tu captura por WhatsApp.
                     </p>
                   </div>
                 </div>

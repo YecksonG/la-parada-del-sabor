@@ -400,6 +400,34 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
 
       {/* Contenedor Principal del Ticket */}
       <main className="recibo-container">
+        {/* Banner de Estado Pendiente en el Top */}
+        {venta.estado === "pendiente" && ["pago_movil", "transferencia", "binance", "zelle"].includes(venta.metodo_pago) && (
+          <div
+            className="no-print"
+            style={{
+              background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(234, 88, 12, 0.1))",
+              border: "1.5px solid #f59e0b",
+              borderRadius: 16,
+              padding: "14px 18px",
+              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              boxShadow: "0 4px 16px rgba(245, 158, 11, 0.15)",
+            }}
+          >
+            <span style={{ fontSize: 24, lineHeight: 1 }}>📌</span>
+            <div>
+              <strong style={{ fontSize: 13.5, color: "var(--text)", display: "block" }}>
+                ¡Orden #{venta.numero_comanda.toString().padStart(4, "0")} Registrada!
+              </strong>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600, lineHeight: 1.35 }}>
+                Verifica tu factura abajo, realiza tu transferencia y toca el botón verde para adjuntar tu comprobante por WhatsApp.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="recibo-ticket-card">
           {/* Mancha de Salsa Gourmet Realista */}
           <div className="salsa-stain-decor" aria-hidden="true">
@@ -853,29 +881,42 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
 
               {/* Paso 2: Reportar Comprobante por WhatsApp */}
               {["pago_movil", "transferencia", "binance", "zelle"].includes(venta.metodo_pago) ? (
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div
+                  style={{
+                    borderTop: "1.5px dashed var(--border)",
+                    paddingTop: 18,
+                    marginTop: 4,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                    background: "rgba(37, 211, 102, 0.06)",
+                    padding: "18px 16px",
+                    borderRadius: 18,
+                    border: "1.5px solid rgba(37, 211, 102, 0.35)",
+                  }}
+                >
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                       <span
                         style={{
-                          fontSize: 10,
+                          fontSize: 10.5,
                           fontWeight: 900,
-                          background: "rgba(37, 211, 102, 0.15)",
-                          color: "#16a34a",
+                          background: "#25D366",
+                          color: "#ffffff",
                           padding: "3px 10px",
                           borderRadius: 12,
-                          border: "1px solid rgba(37, 211, 102, 0.3)",
                           letterSpacing: 0.5,
+                          boxShadow: "0 2px 8px rgba(37, 211, 102, 0.4)",
                         }}
                       >
-                        PASO 2 DE 2
-                      </span>
-                      <span style={{ fontSize: 14, fontWeight: 900, color: "var(--text)" }}>
-                        📲 Reporta tu Pago a Cocina
+                        ⚡ PASO FINAL INDISPENSABLE
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                      Toca el botón abajo para abrir WhatsApp con tu Comanda #{venta.numero_comanda.toString().padStart(4, "0")} y adjuntar la captura del comprobante:
+                    <h4 style={{ margin: "4px 0 2px 0", fontSize: 15, fontWeight: 900, color: "var(--text)" }}>
+                      📲 Envía tu Comprobante a Cocina
+                    </h4>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600, lineHeight: 1.4 }}>
+                      Toca el botón verde abajo para abrir WhatsApp con tu Comanda #{venta.numero_comanda.toString().padStart(4, "0")} ya vinculada y adjuntar tu captura de pago:
                     </p>
                   </div>
 
@@ -897,7 +938,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 10,
-                      boxShadow: "0 8px 24px rgba(37, 211, 102, 0.35)",
+                      boxShadow: "0 8px 24px rgba(37, 211, 102, 0.4)",
                       textAlign: "center",
                     }}
                   >
