@@ -953,7 +953,7 @@ export default function MenuClienteView({
               <button
                 type="submit"
                 form="pedir-checkout-form-id"
-                disabled={enviando}
+                disabled={enviando || carrito.length === 0}
                 className="pedir-btn-submit-order"
               >
                 {enviando ? "Generando Factura Oficial..." : "🧾 Confirmar y Ver Factura para Pagar"}
