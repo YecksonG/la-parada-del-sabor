@@ -138,7 +138,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
         precio_unitario_bs: precioUnitarioBs,
         subtotal_usd: subtotalItem,
         subtotal_bs: subtotalBs,
-        notas_item: item.notas_item || null,
+        notas_item: item.notas_item ? item.notas_item.trim().slice(0, 150) : null,
       })
       .select("id")
       .single();

@@ -19,20 +19,20 @@ export const SABORES_AREPAS_COMBO: SaborArepa[] = [
 ];
 
 /**
- * Determina cuántas arepas contiene un combo dado su nombre o descripción.
+ * Determina cuántas arepas contiene un combo dado su nombre o descripción usando límites de palabra precisos.
  * Retorna null si no es un combo de arepas.
  */
 export function getComboArepasCount(prod: Producto): number | null {
   const nombre = prod.nombre.toLowerCase();
-  if (nombre.includes("10 arep") || nombre.includes("combo 10") || nombre.includes("familiar 10")) return 10;
-  if (nombre.includes("6 arep") || nombre.includes("combo 6")) return 6;
-  if (nombre.includes("2 arep") || nombre.includes("combo 2")) return 2;
+  if (/\b10\s*arep/i.test(nombre) || /\bcombo\s*10\b/i.test(nombre) || /\bfamiliar\s*10\b/i.test(nombre)) return 10;
+  if (/\b6\s*arep/i.test(nombre) || /\bcombo\s*6\b/i.test(nombre)) return 6;
+  if (/\b2\s*arep/i.test(nombre) || /\bcombo\s*2\b/i.test(nombre)) return 2;
   return null;
 }
 
 /**
  * Serializa la selección de sabores en un formato legible para tickets y cocina.
- * Ej: "Sabores: 3x Pelúa, 3x Catira" o "Sabores: 2x Reina Pepiada (Nota: Sin mayonesa)"
+ * Trunca a 145 caracteres máximo para proteger los campos VARCHAR(150) de base de datos.
  */
 export function serializarSaboresCombo(
   saboresSeleccionados: Record<string, number>,
@@ -49,7 +49,9 @@ export function serializarSaboresCombo(
 
   let res = `Sabores: ${lineas.join(", ")}`;
   if (notaAdicional?.trim()) {
-    res += ` — Obs: ${notaAdicional.trim()}`;
+    const obsLimpia = notaAdicional.trim().slice(0, 60);
+    res += ` — Obs: ${obsLimpia}`;
   }
-  return res;
+
+  return res.slice(0, 145);
 }

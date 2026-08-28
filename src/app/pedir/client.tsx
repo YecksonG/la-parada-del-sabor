@@ -508,8 +508,9 @@ export default function MenuClienteView({
             {productosFiltrados.map((prod) => {
               const precioUsd = Number(prod.precio_usd || 0);
               const precioBs = precioUsd * tasaBcv;
-              const itemEnCarrito = carrito.find((item) => item.producto.id === prod.id);
-              const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
+              const cantidadEnCarrito = carrito
+                .filter((item) => item.producto.id === prod.id)
+                .reduce((acc, item) => acc + item.cantidad, 0);
               const isCombo = getComboArepasCount(prod) !== null;
 
               return (

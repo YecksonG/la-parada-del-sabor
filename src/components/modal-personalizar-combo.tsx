@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { Producto } from "@/types/database";
 import { SABORES_AREPAS_COMBO, serializarSaboresCombo } from "@/lib/combo-helper";
 import { sounds } from "@/lib/sound-effects";
@@ -20,25 +20,42 @@ export default function ModalPersonalizarCombo({
 }: ModalPersonalizarComboProps) {
   const [sabores, setSabores] = useState<Record<string, number>>({});
   const [notaOpcional, setNotaOpcional] = useState("");
+  const modalCardRef = useRef<HTMLDivElement>(null);
 
   const totalSeleccionadas = useMemo(() => {
     return Object.values(sabores).reduce((acc, curr) => acc + (curr || 0), 0);
   }, [sabores]);
 
-  const faltantes = totalArepas - totalSeleccionadas;
+  const faltantes = Math.max(0, totalArepas - totalSeleccionadas);
   const esCompleto = totalSeleccionadas === totalArepas;
 
+  // Escape key handler
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onCerrar();
+      }
+    },
+    [onCerrar]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
   const handleModificarSabor = (saborId: string, delta: number) => {
-    const actual = sabores[saborId] || 0;
-    const nuevo = actual + delta;
-
-    if (nuevo < 0) return;
-    if (delta > 0 && totalSeleccionadas >= totalArepas) return;
-
-    if (delta > 0) sounds.playPop();
-    else sounds.playDelete();
-
     setSabores((prev) => {
+      const actual = prev[saborId] || 0;
+      const nuevo = actual + delta;
+      if (nuevo < 0) return prev;
+
+      const totalActual = Object.values(prev).reduce((acc, c) => acc + (c || 0), 0);
+      if (delta > 0 && totalActual >= totalArepas) return prev;
+
+      if (delta > 0) sounds.playPop();
+      else sounds.playDelete();
+
       const next = { ...prev };
       if (nuevo === 0) {
         delete next[saborId];
@@ -57,8 +74,16 @@ export default function ModalPersonalizarCombo({
   };
 
   return (
-    <div className="modal-overlay" onClick={onCerrar} style={{ zIndex: 9999 }}>
+    <div
+      className="modal-overlay"
+      onClick={onCerrar}
+      style={{ zIndex: 9999 }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="combo-modal-title"
+    >
       <div
+        ref={modalCardRef}
         className="modal-card combo-modal-card"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 520, width: "94%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}
@@ -66,9 +91,9 @@ export default function ModalPersonalizarCombo({
         {/* Header del Modal */}
         <div className="combo-modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 28 }}>{producto.icono || "🍱"}</span>
+            <span style={{ fontSize: 28 }} aria-hidden="true">{producto.icono || "🍱"}</span>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", margin: 0 }}>
+              <h2 id="combo-modal-title" style={{ fontSize: 18, fontWeight: 900, color: "var(--text)", margin: 0 }}>
                 Elige los Sabores del Combo
               </h2>
               <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, fontWeight: 600 }}>
@@ -80,7 +105,7 @@ export default function ModalPersonalizarCombo({
             type="button"
             onClick={onCerrar}
             className="combo-modal-close-btn"
-            title="Cerrar"
+            aria-label="Cerrar modal de personalización"
           >
             ✕
           </button>
@@ -144,7 +169,7 @@ export default function ModalPersonalizarCombo({
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
-                  <span style={{ fontSize: 22 }}>{sabor.icono}</span>
+                  <span style={{ fontSize: 22 }} aria-hidden="true">{sabor.icono}</span>
                   <div>
                     <strong style={{ fontSize: 14, color: "var(--text)", display: "block" }}>
                       {sabor.nombre}
@@ -161,6 +186,7 @@ export default function ModalPersonalizarCombo({
                     type="button"
                     disabled={cant <= 0}
                     onClick={() => handleModificarSabor(sabor.id, -1)}
+                    aria-label={`Restar una ${sabor.nombre}`}
                     style={{
                       width: 32,
                       height: 32,
@@ -195,6 +221,7 @@ export default function ModalPersonalizarCombo({
                     type="button"
                     disabled={!puedeSumar}
                     onClick={() => handleModificarSabor(sabor.id, 1)}
+                    aria-label={`Sumar una ${sabor.nombre}`}
                     style={{
                       width: 32,
                       height: 32,
@@ -218,11 +245,13 @@ export default function ModalPersonalizarCombo({
           })}
         </div>
 
-        {/* Observación Opcional */}
+        {/* Observación Opcional con maxLength */}
         <div style={{ marginTop: 8, marginBottom: 12 }}>
           <input
             type="text"
-            placeholder="Observación opcional (ej: 1 Pelúa sin queso, salsas aparte...)"
+            maxLength={60}
+            aria-label="Observación opcional para el combo"
+            placeholder="Observación opcional (máx 60 caracteres)"
             value={notaOpcional}
             onChange={(e) => setNotaOpcional(e.target.value)}
             style={{
