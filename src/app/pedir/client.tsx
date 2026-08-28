@@ -860,354 +860,44 @@ export default function MenuClienteView({
                   </div>
                 )}
 
-                {/* Método de Pago */}
-                <div className="pedir-form-group">
-                  <label>Método de Pago</label>
+                {/* Método de Pago Simplificado e Intuitivo */}
+                <div className="pedir-form-group" style={{ marginBottom: 12 }}>
+                  <label className="pedir-form-label-destacado" style={{ marginBottom: 8 }}>
+                    💳 ¿Cómo deseas pagar? *
+                  </label>
                   <select
                     value={metodoPago}
                     onChange={(e) => setMetodoPago(e.target.value)}
                     className="pedir-form-input"
+                    style={{ fontSize: 14, fontWeight: 700, padding: "12px 14px" }}
                   >
-                    <option value="pago_movil">📱 Pago Móvil (Bs)</option>
-                    <option value="transferencia">🏦 Transferencia Bancaria (Bs)</option>
-                    <option value="binance">🟡 Binance USDT (Pay ID)</option>
-                    <option value="zelle">🟣 Zelle (USD)</option>
-                    <option value="efectivo_usd">💵 Efectivo USD</option>
-                    <option value="efectivo_bs">🇻🇪 Efectivo Bolívares</option>
+                    <option value="pago_movil">📱 Pago Móvil (Bolívares)</option>
+                    <option value="transferencia">🏦 Transferencia Bancaria BFC (Bolívares)</option>
+                    <option value="binance">🟡 Binance Pay (USDT)</option>
+                    <option value="zelle">🟣 Zelle (Dólares)</option>
+                    <option value="efectivo_usd">💵 Efectivo Dólares (al recibir o retirar)</option>
+                    <option value="efectivo_bs">🇻🇪 Efectivo Bolívares (al recibir o retirar)</option>
                   </select>
+
+                  {/* Mensaje de tranquilidad y flujo claro */}
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: "10px 14px",
+                      borderRadius: 12,
+                      background: "var(--bg-subtle)",
+                      border: "1px solid var(--border)",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                    }}
+                  >
+                    <span style={{ fontSize: 18, lineHeight: 1 }}>🧾</span>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--text)", lineHeight: 1.4, fontWeight: 600 }}>
+                      Al presionar el botón abajo, se generará tu <strong>Factura Digital Oficial con número de orden</strong>, donde verás los datos de pago exactos y el botón para adjuntar tu comprobante por WhatsApp.
+                    </p>
+                  </div>
                 </div>
-
-                {/* 1. Datos de Pago Móvil BFC */}
-                {metodoPago === "pago_movil" && (
-                  <div className="pedir-pm-box">
-                    <div className="pedir-pm-header">
-                      <span>📱 Datos para Pago Móvil</span>
-                      <span className="pedir-pm-bank">BFC (0151)</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleCopiarTexto("0151 04244325183 29524904", "todo_pm")}
-                      className="pedir-btn-copy-all"
-                    >
-                      <span>{copiado === "todo_pm" ? "✅ ¡Datos Copiados para Banco!" : "📋 Copiar Datos (Pegar en tu Banco)"}</span>
-                    </button>
-
-                    <div className="pedir-pm-grid">
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Banco:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val">Fondo Común (0151)</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("0151", "banco")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar código de banco"
-                          >
-                            {copiado === "banco" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Cédula:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val">29.524.904</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("29524904", "ci")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar cédula"
-                          >
-                            {copiado === "ci" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Teléfono:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val">0424-4325183</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("04244325183", "tlf")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar teléfono"
-                          >
-                            {copiado === "tlf" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Monto Exacto:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ color: "var(--primary)" }}>
-                            Bs. {totalCarritoBs.toFixed(2)}
-                          </strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto(totalCarritoBs.toFixed(2), "monto_bs")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar monto en Bs"
-                          >
-                            {copiado === "monto_bs" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="pedir-pm-hint">
-                      💡 Copia los datos para pegarlos directamente en la app de tu banco y luego envíanos la captura por WhatsApp.
-                    </p>
-                  </div>
-                )}
-
-                {/* 2. Datos para Transferencia Bancaria BFC */}
-                {metodoPago === "transferencia" && (
-                  <div className="pedir-pm-box">
-                    <div className="pedir-pm-header">
-                      <span>🏦 Transferencia Bancaria (VES)</span>
-                      <span className="pedir-pm-bank">BFC (0151)</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleCopiarTexto("01510035451002204840", "cuenta_bfc")}
-                      className="pedir-btn-copy-all"
-                    >
-                      <span>{copiado === "cuenta_bfc" ? "✅ ¡Número de Cuenta Copiado!" : "📋 Copiar Número de Cuenta (20 Dígitos)"}</span>
-                    </button>
-
-                    <div className="pedir-pm-grid">
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Banco:</span>
-                        <strong className="pedir-pm-val">Banco Fondo Común (BFC)</strong>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Titular:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ fontSize: 11 }}>GONZALEZ NOGUERA YECKSON</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("GONZALEZ NOGUERA YECKSON", "titular")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar nombre"
-                          >
-                            {copiado === "titular" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Cédula:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val">V-29524904</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("29524904", "ci_transf")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar cédula"
-                          >
-                            {copiado === "ci_transf" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">N° de Cuenta:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ fontSize: 11 }}>01510035451002204840</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("01510035451002204840", "cta_mini")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar cuenta"
-                          >
-                            {copiado === "cta_mini" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Monto a Transferir:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ color: "var(--primary)" }}>
-                            Bs. {totalCarritoBs.toFixed(2)}
-                          </strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto(totalCarritoBs.toFixed(2), "monto_transf")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar monto"
-                          >
-                            {copiado === "monto_transf" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="pedir-pm-hint">
-                      💡 Realiza la transferencia desde BFC u otros bancos y envíanos el comprobante digital al WhatsApp.
-                    </p>
-                  </div>
-                )}
-
-                {/* 3. Datos para Binance USDT */}
-                {metodoPago === "binance" && (
-                  <div className="pedir-pm-box" style={{ borderLeftColor: "#F3BA2F" }}>
-                    <div className="pedir-pm-header">
-                      <span>🟡 Binance Pay (USDT)</span>
-                      <span className="pedir-pm-bank" style={{ color: "#F3BA2F", borderColor: "#F3BA2F" }}>Binance Pay</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleCopiarTexto("371902899", "binance_id")}
-                      className="pedir-btn-copy-all"
-                      style={{ background: "#F3BA2F", color: "#000000" }}
-                    >
-                      <span>{copiado === "binance_id" ? "✅ ¡Binance ID Copiado!" : "📋 Copiar Binance Pay ID (371902899)"}</span>
-                    </button>
-
-                    <div className="pedir-pm-grid">
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Binance Pay ID:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val">371902899</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("371902899", "pay_id")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar ID"
-                          >
-                            {copiado === "pay_id" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Correo Binance:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ fontSize: 11 }}>yecksongonza2002@gmail.com</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("yecksongonza2002@gmail.com", "binance_email")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar correo"
-                          >
-                            {copiado === "binance_email" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Monto a Enviar:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ color: "#F3BA2F" }}>
-                            ${totalCarritoUsd.toFixed(2)} USDT
-                          </strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto(totalCarritoUsd.toFixed(2), "monto_usdt")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar monto"
-                          >
-                            {copiado === "monto_usdt" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="pedir-pm-hint">
-                      💡 Puedes transferir por Binance Pay usando el ID o correo sin comisión.
-                    </p>
-                  </div>
-                )}
-
-                {/* 4. Datos para Zelle */}
-                {metodoPago === "zelle" && (
-                  <div className="pedir-pm-box" style={{ borderLeftColor: "#7414CA" }}>
-                    <div className="pedir-pm-header">
-                      <span>🟣 Pago por Zelle (USD)</span>
-                      <span className="pedir-pm-bank" style={{ color: "#7414CA", borderColor: "#7414CA" }}>Zelle</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleCopiarTexto("yasbetnoguer@hotmail.com", "zelle_email")}
-                      className="pedir-btn-copy-all"
-                      style={{ background: "#7414CA" }}
-                    >
-                      <span>{copiado === "zelle_email" ? "✅ ¡Correo Zelle Copiado!" : "📋 Copiar Correo Zelle"}</span>
-                    </button>
-
-                    <div className="pedir-pm-grid">
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Correo Zelle:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ fontSize: 11 }}>yasbetnoguer@hotmail.com</strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto("yasbetnoguer@hotmail.com", "zelle_mail_mini")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar correo"
-                          >
-                            {copiado === "zelle_mail_mini" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="pedir-pm-item">
-                        <span className="pedir-pm-label">Monto Exacto:</span>
-                        <div className="pedir-pm-val-wrap">
-                          <strong className="pedir-pm-val" style={{ color: "#7414CA" }}>
-                            ${totalCarritoUsd.toFixed(2)} USD
-                          </strong>
-                          <button
-                            type="button"
-                            onClick={() => handleCopiarTexto(totalCarritoUsd.toFixed(2), "monto_zelle")}
-                            className="pedir-btn-mini-copy"
-                            title="Copiar monto"
-                          >
-                            {copiado === "monto_zelle" ? "✓" : "📋"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className="pedir-pm-hint">
-                      💡 Envía tu comprobante de transferencia Zelle al confirmar el pedido.
-                    </p>
-                  </div>
-                )}
-
-                {/* 5. Efectivo USD */}
-                {metodoPago === "efectivo_usd" && (
-                  <div className="pedir-pm-box" style={{ borderLeftColor: "#22c55e" }}>
-                    <div className="pedir-pm-header">
-                      <span>💵 Pago en Efectivo (Dólares)</span>
-                      <span className="pedir-pm-bank" style={{ color: "#22c55e", borderColor: "#22c55e" }}>Efectivo USD</span>
-                    </div>
-                    <p className="pedir-pm-hint" style={{ color: "var(--text)" }}>
-                      Total a pagar: <strong>${totalCarritoUsd.toFixed(2)} USD</strong>. Por favor entrega billetes en buen estado (sin roturas ni manchas). Si requieres vuelto, indícalo abajo en comentarios.
-                    </p>
-                  </div>
-                )}
-
-                {/* 6. Efectivo Bs */}
-                {metodoPago === "efectivo_bs" && (
-                  <div className="pedir-pm-box" style={{ borderLeftColor: "#3b82f6" }}>
-                    <div className="pedir-pm-header">
-                      <span>🇻🇪 Pago en Efectivo (Bolívares)</span>
-                      <span className="pedir-pm-bank" style={{ color: "#3b82f6", borderColor: "#3b82f6" }}>Efectivo Bs</span>
-                    </div>
-                    <p className="pedir-pm-hint" style={{ color: "var(--text)" }}>
-                      Total a pagar: <strong>Bs. {totalCarritoBs.toFixed(2)}</strong>. Por favor ten a mano el monto exacto o indica la denominación de tus billetes en las notas de abajo.
-                    </p>
-                  </div>
-                )}
 
                 {/* Notas generales */}
                 <div className="pedir-form-group">
@@ -1266,7 +956,7 @@ export default function MenuClienteView({
                 disabled={enviando}
                 className="pedir-btn-submit-order"
               >
-                {enviando ? "Enviando Pedido..." : "🚀 Enviar Pedido a Cocina"}
+                {enviando ? "Generando Factura Oficial..." : "🧾 Confirmar y Ver Factura para Pagar"}
               </button>
             </div>
           </div>

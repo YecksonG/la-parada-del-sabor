@@ -400,73 +400,6 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
 
       {/* Contenedor Principal del Ticket */}
       <main className="recibo-container">
-        {/* Callout Indispensable: Enviar Comprobante a Cocina (Solo para métodos digitales con comprobante) */}
-        {["pago_movil", "transferencia", "binance", "zelle"].includes(venta.metodo_pago) && (
-          <div
-            className="no-print"
-            style={{
-              background: "linear-gradient(135deg, #128C7E, #075E54)",
-              borderRadius: 18,
-              padding: "20px 18px",
-              color: "#ffffff",
-              boxShadow: "0 10px 25px rgba(18, 140, 126, 0.35)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                background: "rgba(255, 255, 255, 0.2)",
-                borderRadius: 9999,
-                padding: "4px 14px",
-                width: "fit-content",
-                margin: "0 auto",
-                fontSize: 11,
-                fontWeight: 900,
-                letterSpacing: 0.5,
-              }}
-            >
-              ⚡ PASO INDISPENSABLE
-            </div>
-            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#ffffff" }}>
-              📲 Envía tu comprobante a nuestro WhatsApp
-            </h3>
-            <p style={{ margin: 0, fontSize: 13, opacity: 0.95, lineHeight: 1.4 }}>
-              Para que cocina confirme tu pago y comience a preparar tus arepas calientitas sin demora, envíanos el comprobante por WhatsApp:
-            </p>
-            <a
-              href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                `¡Hola La Parada del Sabor! 👋 Adjunto mi comprobante para la comanda #${venta.numero_comanda.toString().padStart(4, "0")}.\n\n🧾 Factura digital & estado en vivo:\n${reciboUrl}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                background: "#25D366",
-                color: "#ffffff",
-                padding: "14px 20px",
-                borderRadius: 14,
-                fontWeight: 900,
-                fontSize: 15,
-                textDecoration: "none",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.25)",
-                marginTop: 4,
-              }}
-            >
-              <span>💬 Enviar Comprobante al WhatsApp (+58 412-2595386)</span>
-            </a>
-          </div>
-        )}
-
         <div className="recibo-ticket-card">
           {/* Mancha de Salsa Gourmet Realista */}
           <div className="salsa-stain-decor" aria-hidden="true">
@@ -749,131 +682,260 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
           </div>
         </div>
 
-        {/* 1. Resumen de Pago Móvil para el Cliente */}
-        {venta.metodo_pago === "pago_movil" && (
-          <div className="recibo-pm-card no-print">
-            <div className="recibo-pm-title">
-              <span>📱 Datos de Pago Móvil</span>
-              <span className="badge-popular">BFC (0151)</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof navigator !== "undefined" && navigator.clipboard) {
-                  navigator.clipboard.writeText("0151 04244325183 29524904");
-                  setCopiadoLabel("pm");
-                  setTimeout(() => setCopiadoLabel(null), 2500);
-                }
+        {/* ==============================================================================
+            CENTRO DE PAGO Y CONFIRMACIÓN GOURMET (FLUJO LINEAL GUIADO)
+            ============================================================================== */}
+        <div className="no-print" style={{ marginTop: 20 }}>
+          {venta.estado === "pendiente" ? (
+            <div
+              style={{
+                background: "var(--bg-card)",
+                border: "1.5px solid var(--border)",
+                borderRadius: 22,
+                padding: "22px 18px",
+                boxShadow: "0 14px 35px -8px rgba(0,0,0,0.15)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 16,
               }}
-              className="pedir-btn-copy-all"
-              style={{ marginBottom: 12 }}
             >
-              <span>{copiadoLabel === "pm" ? "✅ ¡Datos Copiados para Banco!" : "📋 Copiar Datos (Pegar en tu Banco)"}</span>
-            </button>
+              {/* Encabezado Paso 1: Pagar */}
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 900,
+                      background: "var(--primary-light)",
+                      color: "var(--primary-dark)",
+                      padding: "3px 10px",
+                      borderRadius: 12,
+                      border: "1px solid var(--border)",
+                      letterSpacing: 0.5,
+                    }}
+                  >
+                    PASO 1 DE 2
+                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 900, color: "var(--text)" }}>
+                    💳 Realiza tu Pago
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                  Transfiere el monto exacto mediante los datos oficiales de abajo:
+                </p>
+              </div>
 
-            <div className="recibo-pm-details">
-              <div><span>Banco:</span> <strong>Banco Fondo Común (0151)</strong></div>
-              <div><span>Cédula:</span> <strong>29.524.904</strong></div>
-              <div><span>Teléfono:</span> <strong>0424-4325183</strong></div>
-              <div><span>Monto a Transferir:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
+              {/* 1. Datos de Pago Móvil BFC */}
+              {venta.metodo_pago === "pago_movil" && (
+                <div className="recibo-pm-card" style={{ margin: 0 }}>
+                  <div className="recibo-pm-title">
+                    <span>📱 Datos de Pago Móvil</span>
+                    <span className="badge-popular">BFC (0151)</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        navigator.clipboard.writeText("0151 04244325183 29524904");
+                        setCopiadoLabel("pm");
+                        setTimeout(() => setCopiadoLabel(null), 2500);
+                      }
+                    }}
+                    className="pedir-btn-copy-all"
+                    style={{ marginBottom: 12 }}
+                  >
+                    <span>{copiadoLabel === "pm" ? "✅ ¡Datos Copiados para Banco!" : "📋 Copiar Datos (Pegar en tu Banco)"}</span>
+                  </button>
+
+                  <div className="recibo-pm-details">
+                    <div><span>Banco:</span> <strong>Banco Fondo Común (0151)</strong></div>
+                    <div><span>Cédula:</span> <strong>29.524.904</strong></div>
+                    <div><span>Teléfono:</span> <strong>0424-4325183</strong></div>
+                    <div><span>Monto a Transferir:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. Datos de Transferencia Bancaria BFC */}
+              {venta.metodo_pago === "transferencia" && (
+                <div className="recibo-pm-card" style={{ margin: 0 }}>
+                  <div className="recibo-pm-title">
+                    <span>🏦 Transferencia Bancaria (VES)</span>
+                    <span className="badge-popular">BFC (0151)</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        navigator.clipboard.writeText("01510035451002204840");
+                        setCopiadoLabel("transf");
+                        setTimeout(() => setCopiadoLabel(null), 2500);
+                      }
+                    }}
+                    className="pedir-btn-copy-all"
+                    style={{ marginBottom: 12 }}
+                  >
+                    <span>{copiadoLabel === "transf" ? "✅ ¡Número de Cuenta Copiado!" : "📋 Copiar N° de Cuenta (20 Dígitos)"}</span>
+                  </button>
+
+                  <div className="recibo-pm-details">
+                    <div><span>Banco:</span> <strong>Banco Fondo Común (BFC)</strong></div>
+                    <div><span>Titular:</span> <strong>GONZALEZ NOGUERA YECKSON</strong></div>
+                    <div><span>Cédula:</span> <strong>V-29524904</strong></div>
+                    <div><span>N° Cuenta:</span> <strong style={{ fontSize: 11 }}>01510035451002204840</strong></div>
+                    <div><span>Monto:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Datos de Binance Pay USDT */}
+              {venta.metodo_pago === "binance" && (
+                <div className="recibo-pm-card" style={{ margin: 0, borderLeftColor: "#F3BA2F" }}>
+                  <div className="recibo-pm-title">
+                    <span>🟡 Binance Pay (USDT)</span>
+                    <span className="badge-popular" style={{ background: "#F3BA2F", color: "#1e293b", fontWeight: 800 }}>Binance Pay</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        navigator.clipboard.writeText("371902899");
+                        setCopiadoLabel("binance_id");
+                        setTimeout(() => setCopiadoLabel(null), 2500);
+                      }
+                    }}
+                    className="pedir-btn-copy-all"
+                    style={{ background: "#F3BA2F", color: "#1e293b", fontWeight: 800, marginBottom: 12 }}
+                  >
+                    <span>{copiadoLabel === "binance_id" ? "✅ ¡Binance ID Copiado!" : "📋 Copiar Binance Pay ID (371902899)"}</span>
+                  </button>
+
+                  <div className="recibo-pm-details">
+                    <div><span>Binance Pay ID:</span> <strong>371902899</strong></div>
+                    <div><span>Correo:</span> <strong style={{ fontSize: 11 }}>yecksongonza2002@gmail.com</strong></div>
+                    <div><span>Monto:</span> <strong style={{ color: "#d97706" }}>${Number(venta.total_usd).toFixed(2)} USDT</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Datos de Zelle */}
+              {venta.metodo_pago === "zelle" && (
+                <div className="recibo-pm-card" style={{ margin: 0, borderLeftColor: "#7414CA" }}>
+                  <div className="recibo-pm-title">
+                    <span>🟣 Pago por Zelle (USD)</span>
+                    <span className="badge-popular" style={{ background: "#7414CA" }}>Zelle</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof navigator !== "undefined" && navigator.clipboard) {
+                        navigator.clipboard.writeText("yasbetnoguer@hotmail.com");
+                        setCopiadoLabel("zelle");
+                        setTimeout(() => setCopiadoLabel(null), 2500);
+                      }
+                    }}
+                    className="pedir-btn-copy-all"
+                    style={{ background: "#7414CA", marginBottom: 12 }}
+                  >
+                    <span>{copiadoLabel === "zelle" ? "✅ ¡Correo Zelle Copiado!" : "📋 Copiar Correo Zelle"}</span>
+                  </button>
+
+                  <div className="recibo-pm-details">
+                    <div><span>Correo Zelle:</span> <strong>yasbetnoguer@hotmail.com</strong></div>
+                    <div><span>Monto a Enviar:</span> <strong style={{ color: "#7414CA" }}>${Number(venta.total_usd).toFixed(2)} USD</strong></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Paso 2: Reportar Comprobante por WhatsApp */}
+              {["pago_movil", "transferencia", "binance", "zelle"].includes(venta.metodo_pago) ? (
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 900,
+                          background: "rgba(37, 211, 102, 0.15)",
+                          color: "#16a34a",
+                          padding: "3px 10px",
+                          borderRadius: 12,
+                          border: "1px solid rgba(37, 211, 102, 0.3)",
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        PASO 2 DE 2
+                      </span>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: "var(--text)" }}>
+                        📲 Reporta tu Pago a Cocina
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                      Toca el botón abajo para abrir WhatsApp con tu Comanda #{venta.numero_comanda.toString().padStart(4, "0")} y adjuntar la captura del comprobante:
+                    </p>
+                  </div>
+
+                  <a
+                    href={`https://wa.me/584122595386?text=${encodeURIComponent(
+                      `¡Hola La Parada del Sabor! 🫓 Acabo de registrar mi pedido #${venta.numero_comanda.toString().padStart(4, "0")} por la web ($${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}).\n\nAdjunto mi comprobante de pago.\n\n🔗 Factura digital & estado en vivo:\n${reciboUrl}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+                      color: "#ffffff",
+                      padding: "16px 20px",
+                      borderRadius: 16,
+                      fontWeight: 900,
+                      fontSize: 15,
+                      textDecoration: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 10,
+                      boxShadow: "0 8px 24px rgba(37, 211, 102, 0.35)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <span>💬 Enviar Comprobante al WhatsApp (+58 412-2595386)</span>
+                  </a>
+                </div>
+              ) : (
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, textAlign: "center" }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
+                    💵 ¡Tu orden está registrada en caja! Por favor ten a mano el monto exacto (${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}) al recibir o retirar tu pedido.
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* 2. Resumen de Transferencia Bancaria BFC */}
-        {venta.metodo_pago === "transferencia" && (
-          <div className="recibo-pm-card no-print">
-            <div className="recibo-pm-title">
-              <span>🏦 Transferencia Bancaria (VES)</span>
-              <span className="badge-popular">BFC (0151)</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof navigator !== "undefined" && navigator.clipboard) {
-                  navigator.clipboard.writeText("01510035451002204840");
-                  setCopiadoLabel("transf");
-                  setTimeout(() => setCopiadoLabel(null), 2500);
-                }
+          ) : (
+            <div
+              style={{
+                background: "rgba(34, 197, 94, 0.1)",
+                border: "1.5px solid #22c55e",
+                borderRadius: 20,
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
               }}
-              className="pedir-btn-copy-all"
-              style={{ marginBottom: 12 }}
             >
-              <span>{copiadoLabel === "transf" ? "✅ ¡Número de Cuenta Copiado!" : "📋 Copiar N° de Cuenta (20 Dígitos)"}</span>
-            </button>
-
-            <div className="recibo-pm-details">
-              <div><span>Banco:</span> <strong>Banco Fondo Común (BFC)</strong></div>
-              <div><span>Titular:</span> <strong>GONZALEZ NOGUERA YECKSON</strong></div>
-              <div><span>Cédula:</span> <strong>V-29524904</strong></div>
-              <div><span>N° Cuenta:</span> <strong style={{ fontSize: 11 }}>01510035451002204840</strong></div>
-              <div><span>Monto:</span> <strong style={{ color: "var(--primary)" }}>Bs. {Number(venta.total_bs).toFixed(2)}</strong></div>
+              <span style={{ fontSize: 32 }}>🍳</span>
+              <div>
+                <strong style={{ fontSize: 15, color: "#15803d", display: "block", marginBottom: 2 }}>
+                  ¡Pago Verificado & Pedido en Cocina!
+                </strong>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                  Tu comanda #{venta.numero_comanda.toString().padStart(4, "0")} está siendo preparada con ingredientes frescos. Sigue el avance en tiempo real arriba.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* 3. Resumen de Binance Pay USDT */}
-        {venta.metodo_pago === "binance" && (
-          <div className="recibo-pm-card no-print" style={{ borderLeftColor: "#F3BA2F" }}>
-            <div className="recibo-pm-title">
-              <span>🟡 Binance Pay (USDT)</span>
-              <span className="badge-popular" style={{ background: "#F3BA2F", color: "#1e293b", fontWeight: 800 }}>Binance Pay</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof navigator !== "undefined" && navigator.clipboard) {
-                  navigator.clipboard.writeText("371902899");
-                  setCopiadoLabel("binance_id");
-                  setTimeout(() => setCopiadoLabel(null), 2500);
-                }
-              }}
-              className="pedir-btn-copy-all"
-              style={{ background: "#F3BA2F", color: "#1e293b", fontWeight: 800, marginBottom: 12 }}
-            >
-              <span>{copiadoLabel === "binance_id" ? "✅ ¡Binance ID Copiado!" : "📋 Copiar Binance Pay ID (371902899)"}</span>
-            </button>
-
-            <div className="recibo-pm-details">
-              <div><span>Binance Pay ID:</span> <strong>371902899</strong></div>
-              <div><span>Correo:</span> <strong style={{ fontSize: 11 }}>yecksongonza2002@gmail.com</strong></div>
-              <div><span>Monto:</span> <strong style={{ color: "#d97706" }}>${Number(venta.total_usd).toFixed(2)} USDT</strong></div>
-            </div>
-          </div>
-        )}
-
-        {/* 4. Resumen de Zelle */}
-        {venta.metodo_pago === "zelle" && (
-          <div className="recibo-pm-card no-print" style={{ borderLeftColor: "#7414CA" }}>
-            <div className="recibo-pm-title">
-              <span>🟣 Pago por Zelle (USD)</span>
-              <span className="badge-popular" style={{ background: "#7414CA" }}>Zelle</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof navigator !== "undefined" && navigator.clipboard) {
-                  navigator.clipboard.writeText("yasbetnoguer@hotmail.com");
-                  setCopiadoLabel("zelle");
-                  setTimeout(() => setCopiadoLabel(null), 2500);
-                }
-              }}
-              className="pedir-btn-copy-all"
-              style={{ background: "#7414CA", marginBottom: 12 }}
-            >
-              <span>{copiadoLabel === "zelle" ? "✅ ¡Correo Zelle Copiado!" : "📋 Copiar Correo Zelle"}</span>
-            </button>
-
-            <div className="recibo-pm-details">
-              <div><span>Correo Zelle:</span> <strong>yasbetnoguer@hotmail.com</strong></div>
-              <div><span>Monto a Enviar:</span> <strong style={{ color: "#7414CA" }}>${Number(venta.total_usd).toFixed(2)} USD</strong></div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Botones de Acción al Pie (No se imprimen) */}
         <div className="recibo-share-actions no-print">
