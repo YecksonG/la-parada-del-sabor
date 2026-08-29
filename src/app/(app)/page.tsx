@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import PosClient from "./client-pos";
 import { Producto, Categoria, ExtraModificador, PedidoPendiente } from "@/types/database";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function PosPage() {
   const supabase = await createClient();
 

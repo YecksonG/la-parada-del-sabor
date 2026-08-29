@@ -3,6 +3,9 @@ import TopbarNav from "@/components/topbar-nav";
 import PageTransition from "@/components/page-transition";
 import AutoTasas from "@/components/auto-tasas";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AppLayout({
   children,
 }: {
