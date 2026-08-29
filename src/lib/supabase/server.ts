@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
-export async function createClient() {
+// Cached client creation for the request lifecycle
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -24,4 +26,16 @@ export async function createClient() {
       },
     }
   );
-}
+});
+
+// Cached user fetching for the request lifecycle (prevents duplicate auth hits in layout/page)
+export const getCachedUser = cache(async () => {
+  const supabase = await createClient();
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data.user;
+  } catch (error) {
+    console.error("Error fetching cached user:", error);
+    return null;
+  }
+});

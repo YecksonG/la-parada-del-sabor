@@ -18,7 +18,7 @@ export type GuardarProveedorPayload = {
 
 export async function guardarProveedor(payload: GuardarProveedorPayload) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const notasSerializadas = serializeProveedorInsumos(
@@ -98,7 +98,7 @@ export async function eliminarProveedor(id: string) {
   if (!id) return { ok: false, error: "Identificador no válido." };
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // Eliminar referencias en tabla puente primero si existen

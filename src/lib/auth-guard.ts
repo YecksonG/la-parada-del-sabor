@@ -1,12 +1,9 @@
-import { SupabaseClient } from "@supabase/supabase-js";
+import { getCachedUser } from "@/lib/supabase/server";
 
-export async function requireAuth(supabase: SupabaseClient) {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+export async function requireAuth() {
+  const user = await getCachedUser();
 
-  if (error || !user) {
+  if (!user) {
     return {
       ok: false as const,
       error: "Acceso no autorizado. Inicia sesión en el sistema administrativo.",

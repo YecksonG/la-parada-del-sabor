@@ -39,7 +39,7 @@ export async function crearClienteRapido(payload: {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { data, error } = await supabase
@@ -80,7 +80,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const nombreOperador = auth.user?.email?.split("@")[0] ?? "cajero";
@@ -184,7 +184,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 
 export async function aceptarPedidoWeb(ventaId: string) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // Al pasar a 'preparando', el trigger PostgreSQL `trg_confirmar_pedido_web`
@@ -207,7 +207,7 @@ export async function aceptarPedidoWeb(ventaId: string) {
 
 export async function rechazarPedidoWeb(ventaId: string) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase

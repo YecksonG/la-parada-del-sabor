@@ -42,7 +42,7 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   let insumoId = payload.id;
@@ -150,7 +150,7 @@ export async function ajustarStockInsumo(id: string, nuevoStock: number) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase
@@ -174,7 +174,7 @@ export async function eliminarInsumo(id: string) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { data, error } = await supabase.rpc("fn_eliminar_insumo_seguro", {

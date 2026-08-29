@@ -39,7 +39,7 @@ export type PayloadGasto = {
 
 export async function crearGasto(payload: PayloadGasto) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   if (!payload.descripcion?.trim()) {
@@ -142,7 +142,7 @@ export async function actualizarGasto(id: string, payload: Partial<PayloadGasto>
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   if (payload.categoria && !CATEGORIAS_VALIDAS.includes(payload.categoria)) {
@@ -226,7 +226,7 @@ export async function eliminarGasto(id: string) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase.from("gastos").delete().eq("id", id);
@@ -291,7 +291,7 @@ export async function registrarIngresoInsumo(payload: RegistrarCompraInsumoPaylo
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const ctaOrigen = payload.cuenta_origen || "efectivo_usd";
@@ -412,7 +412,7 @@ export type PayloadCuentaNegocio = {
 
 export async function crearCuentaNegocio(payload: PayloadCuentaNegocio) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   if (!payload.nombre?.trim()) {
@@ -458,7 +458,7 @@ export async function actualizarCuentaNegocio(id: string, payload: Partial<Paylo
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const updateData: any = {
@@ -500,7 +500,7 @@ export async function eliminarCuentaNegocio(id: string) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // Obtener cuenta para validar por ID y por código
@@ -592,7 +592,7 @@ export type PayloadTransferencia = {
 
 export async function crearTransferenciaCuenta(payload: PayloadTransferencia) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   if (!payload.cuenta_origen_id || !UUID_REGEX.test(payload.cuenta_origen_id)) {
@@ -652,7 +652,7 @@ export async function eliminarTransferenciaCuenta(id: string) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase.from("transferencias_cuentas").delete().eq("id", id);

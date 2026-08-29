@@ -32,7 +32,7 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   let prodId = payload.producto_id;
@@ -99,7 +99,7 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
 
 export async function eliminarPlato(producto_id: string) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase.from("productos").delete().eq("id", producto_id);

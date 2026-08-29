@@ -1,6 +1,5 @@
 -- ==============================================================================
--- ACTUALIZACIÓN OFICIAL DE PRECIOS, COMBOS Y RECETAS (ESCANDALLOS EXACTOS)
--- La Parada del Sabor — 28 de Agosto de 2026
+-- ACTUALIZACION OFICIAL DE PRECIOS, COMBOS Y RECETAS (ESCANDALLOS EXACTOS)
 -- ==============================================================================
 
 DO $$
@@ -8,7 +7,6 @@ DECLARE
     v_cat_arepas_id UUID;
     v_cat_combos_id UUID;
 
-    -- IDs de Insumos
     v_ins_harina_id UUID;
     v_ins_pollo_id UUID;
     v_ins_carne_id UUID;
@@ -20,7 +18,6 @@ DECLARE
     v_ins_mayonesa_id UUID;
     v_ins_pepsi_15_id UUID;
 
-    -- IDs de Productos
     v_prod_jamon_queso_id UUID;
     v_prod_reina_id UUID;
     v_prod_catira_id UUID;
@@ -32,11 +29,9 @@ DECLARE
     v_combo_compartir_id UUID;
     v_combo_familiar_id UUID;
 BEGIN
-    -- 1. Obtener Categorías
     SELECT id INTO v_cat_arepas_id FROM public.categorias WHERE nombre ILIKE '%arepa%' LIMIT 1;
     SELECT id INTO v_cat_combos_id FROM public.categorias WHERE nombre ILIKE '%combo%' LIMIT 1;
 
-    -- 2. Insumos
     SELECT id INTO v_ins_harina_id FROM public.insumos WHERE nombre ILIKE '%harina%' LIMIT 1;
     SELECT id INTO v_ins_pollo_id FROM public.insumos WHERE nombre ILIKE '%pechuga%pollo%' OR nombre ILIKE '%pollo%' LIMIT 1;
     SELECT id INTO v_ins_carne_id FROM public.insumos WHERE nombre ILIKE '%carne%res%' OR nombre ILIKE '%carne%' LIMIT 1;
@@ -48,9 +43,7 @@ BEGIN
     SELECT id INTO v_ins_mayonesa_id FROM public.insumos WHERE nombre ILIKE '%mayonesa%' LIMIT 1;
     SELECT id INTO v_ins_pepsi_15_id FROM public.insumos WHERE nombre ILIKE '%pepsi%1.5%' OR nombre ILIKE '%pepsi%' LIMIT 1;
 
-    -- 3. Actualizar / Insertar Arepas Individuales con PVP y Receta Exacta
-
-    -- 3.1 Arepa Jamón y Queso Amarillo ($2.00)
+    -- 1. Arepa Jamon y Queso ($2.00)
     SELECT id INTO v_prod_jamon_queso_id FROM public.productos WHERE nombre ILIKE '%jamón%queso%' OR nombre ILIKE '%jamon%queso%' LIMIT 1;
     IF v_prod_jamon_queso_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -65,7 +58,7 @@ BEGIN
         WHERE id = v_prod_jamon_queso_id;
     END IF;
 
-    -- 3.2 Arepa Reina Pepiada ($2.00)
+    -- 2. Arepa Reina Pepiada ($2.00)
     SELECT id INTO v_prod_reina_id FROM public.productos WHERE nombre ILIKE '%reina pepiada%' LIMIT 1;
     IF v_prod_reina_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -80,7 +73,7 @@ BEGIN
         WHERE id = v_prod_reina_id;
     END IF;
 
-    -- 3.3 Arepa Catira ($2.20)
+    -- 3. Arepa Catira ($2.20)
     SELECT id INTO v_prod_catira_id FROM public.productos WHERE nombre ILIKE '%catira%' LIMIT 1;
     IF v_prod_catira_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -95,7 +88,7 @@ BEGIN
         WHERE id = v_prod_catira_id;
     END IF;
 
-    -- 3.4 Arepa Pelúa ($2.80)
+    -- 4. Arepa Pelua ($2.80)
     SELECT id INTO v_prod_pelua_id FROM public.productos WHERE nombre ILIKE '%pelua%' OR nombre ILIKE '%pelúa%' LIMIT 1;
     IF v_prod_pelua_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -110,7 +103,7 @@ BEGIN
         WHERE id = v_prod_pelua_id;
     END IF;
 
-    -- 3.5 Arepa Especial de Carne Esmechada ($3.50)
+    -- 5. Arepa Especial de Carne ($3.50)
     SELECT id INTO v_prod_esp_carne_id FROM public.productos WHERE nombre ILIKE '%especial%carne%' LIMIT 1;
     IF v_prod_esp_carne_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -125,7 +118,7 @@ BEGIN
         WHERE id = v_prod_esp_carne_id;
     END IF;
 
-    -- 3.6 Arepa Especial de Pollo Esmechado ($2.80)
+    -- 6. Arepa Especial de Pollo ($2.80)
     SELECT id INTO v_prod_esp_pollo_id FROM public.productos WHERE nombre ILIKE '%especial%pollo%' LIMIT 1;
     IF v_prod_esp_pollo_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -140,9 +133,7 @@ BEGIN
         WHERE id = v_prod_esp_pollo_id;
     END IF;
 
-    -- 4. Actualizar / Insertar los 3 Combos Oficiales
-
-    -- 4.1 Combo Personal: 2 Arepas ($4.00)
+    -- 7. Combo Personal ($4.00)
     SELECT id INTO v_combo_personal_id FROM public.productos WHERE nombre ILIKE '%combo%2%' OR nombre ILIKE '%personal%' LIMIT 1;
     IF v_combo_personal_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -157,7 +148,7 @@ BEGIN
         WHERE id = v_combo_personal_id;
     END IF;
 
-    -- 4.2 Combo para Compartir: 4 Arepas ($7.00)
+    -- 8. Combo para Compartir ($7.00)
     SELECT id INTO v_combo_compartir_id FROM public.productos WHERE nombre ILIKE '%combo%4%' OR nombre ILIKE '%compartir%' OR nombre ILIKE '%combo%6%' LIMIT 1;
     IF v_combo_compartir_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -172,7 +163,7 @@ BEGIN
         WHERE id = v_combo_compartir_id;
     END IF;
 
-    -- 4.3 Combo Familiar 10 Arepas ($13.00)
+    -- 9. Combo Familiar ($13.00)
     SELECT id INTO v_combo_familiar_id FROM public.productos WHERE nombre ILIKE '%combo%10%' OR nombre ILIKE '%familiar%' LIMIT 1;
     IF v_combo_familiar_id IS NULL THEN
         INSERT INTO public.productos (nombre, descripcion, precio_usd, categoria_id, activo, imagen_url)
@@ -187,60 +178,51 @@ BEGIN
         WHERE id = v_combo_familiar_id;
     END IF;
 
-    -- 5. REASIGNAR RECETAS Y ESCANDALLOS EXACTOS (recetas_ingredientes)
+    -- 10. Limpiar y Reasignar Recetas e Insumos
     DELETE FROM public.recetas_ingredientes WHERE producto_id IN (
         v_prod_jamon_queso_id, v_prod_reina_id, v_prod_catira_id, v_prod_pelua_id,
         v_prod_esp_carne_id, v_prod_esp_pollo_id,
         v_combo_personal_id, v_combo_compartir_id, v_combo_familiar_id
     );
 
-    -- Receta Jamón y Queso (Masa 80g=27.59g Harina, Mantequilla 7.5g, Jamon 20g, Queso Amarillo 50g)
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_jamon_queso_id, v_ins_harina_id, 27.59); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_jamon_queso_id, v_ins_mantequilla_id, 7.50); END IF;
     IF v_ins_jamon_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_jamon_queso_id, v_ins_jamon_id, 20.00); END IF;
     IF v_ins_q_amarillo_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_jamon_queso_id, v_ins_q_amarillo_id, 50.00); END IF;
 
-    -- Receta Reina Pepiada (Masa 80g=27.59g Harina, Mantequilla 7.5g, Pollo 50g, Aguacate 30g)
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_reina_id, v_ins_harina_id, 27.59); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_reina_id, v_ins_mantequilla_id, 7.50); END IF;
     IF v_ins_pollo_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_reina_id, v_ins_pollo_id, 50.00); END IF;
     IF v_ins_aguacate_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_reina_id, v_ins_aguacate_id, 30.00); END IF;
 
-    -- Receta Catira (Masa 80g=27.59g Harina, Mantequilla 7.5g, Pollo 50g, Queso Amarillo 50g)
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_catira_id, v_ins_harina_id, 27.59); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_catira_id, v_ins_mantequilla_id, 7.50); END IF;
     IF v_ins_pollo_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_catira_id, v_ins_pollo_id, 50.00); END IF;
     IF v_ins_q_amarillo_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_catira_id, v_ins_q_amarillo_id, 50.00); END IF;
 
-    -- Receta Pelúa (Masa 80g=27.59g Harina, Mantequilla 7.5g, Carne 50g, Queso Amarillo 50g)
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_pelua_id, v_ins_harina_id, 27.59); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_pelua_id, v_ins_mantequilla_id, 7.50); END IF;
     IF v_ins_carne_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_pelua_id, v_ins_carne_id, 50.00); END IF;
     IF v_ins_q_amarillo_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_pelua_id, v_ins_q_amarillo_id, 50.00); END IF;
 
-    -- Receta Especial de Carne (Masa 80g=27.59g Harina, Mantequilla 7.5g, Carne 50g, Jamon 10g, Queso Blanco 50g)
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_carne_id, v_ins_harina_id, 27.59); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_carne_id, v_ins_mantequilla_id, 7.50); END IF;
     IF v_ins_carne_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_carne_id, v_ins_carne_id, 50.00); END IF;
     IF v_ins_jamon_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_carne_id, v_ins_jamon_id, 10.00); END IF;
     IF v_ins_q_blanco_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_carne_id, v_ins_q_blanco_id, 50.00); END IF;
 
-    -- Receta Especial de Pollo (Masa 80g=27.59g Harina, Mantequilla 7.5g, Pollo 50g, Jamon 10g, Queso Blanco 50g)
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_pollo_id, v_ins_harina_id, 27.59); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_pollo_id, v_ins_mantequilla_id, 7.50); END IF;
     IF v_ins_pollo_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_pollo_id, v_ins_pollo_id, 50.00); END IF;
     IF v_ins_jamon_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_pollo_id, v_ins_jamon_id, 10.00); END IF;
     IF v_ins_q_blanco_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_prod_esp_pollo_id, v_ins_q_blanco_id, 50.00); END IF;
 
-    -- Receta Combo 2 Arepas
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_combo_personal_id, v_ins_harina_id, 55.17); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_combo_personal_id, v_ins_mantequilla_id, 15.00); END IF;
 
-    -- Receta Combo 4 Arepas
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_combo_compartir_id, v_ins_harina_id, 110.34); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_combo_compartir_id, v_ins_mantequilla_id, 30.00); END IF;
 
-    -- Receta Combo 10 Arepas
     IF v_ins_harina_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_combo_familiar_id, v_ins_harina_id, 275.86); END IF;
     IF v_ins_mantequilla_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_combo_familiar_id, v_ins_mantequilla_id, 75.00); END IF;
     IF v_ins_pepsi_15_id IS NOT NULL THEN INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES (v_combo_familiar_id, v_ins_pepsi_15_id, 1.00); END IF;

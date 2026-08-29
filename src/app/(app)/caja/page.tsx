@@ -5,37 +5,42 @@ import { SesionCaja, Venta } from "@/types/database";
 export default async function CajaPage() {
   const supabase = await createClient();
 
-  // 1. Obtener sesión de caja activa (si hay)
-  const { data: sesionActiva } = await supabase
-    .from("sesiones_caja")
-    .select("*")
-    .eq("estado", "abierta")
-    .order("fecha_apertura", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Ejecutar consultas en paralelo para evitar latencia de cascada (waterfall)
+  const [
+    sesionRes,
+    historialRes,
+    ventasRes,
+    tasaRes
+  ] = await Promise.all([
+    supabase
+      .from("sesiones_caja")
+      .select("*")
+      .eq("estado", "abierta")
+      .order("fecha_apertura", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("sesiones_caja")
+      .select("*")
+      .order("fecha_apertura", { ascending: false })
+      .limit(20),
+    supabase
+      .from("ventas")
+      .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
+      .neq("estado", "cancelada")
+      .order("fecha", { ascending: false }),
+    supabase
+      .from("tasas_cambio")
+      .select("*")
+      .order("fecha", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  ]);
 
-  // 2. Obtener historial de sesiones de caja
-  const { data: historialCajas } = await supabase
-    .from("sesiones_caja")
-    .select("*")
-    .order("fecha_apertura", { ascending: false })
-    .limit(20);
-
-  // 3. Obtener ventas con la misma estructura autoritativa del Dashboard
-  const { data: ventas } = await supabase
-    .from("ventas")
-    .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
-    .neq("estado", "cancelada")
-    .order("fecha", { ascending: false });
-
-  const ventasTurno: Venta[] = (ventas as Venta[]) || [];
-
-  const { data: tasaReciente } = await supabase
-    .from("tasas_cambio")
-    .select("*")
-    .order("fecha", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const sesionActiva = sesionRes.data;
+  const historialCajas = historialRes.data || [];
+  const ventasTurno: Venta[] = (ventasRes.data as Venta[]) || [];
+  const tasaReciente = tasaRes.data;
 
   return (
     <CajaClient

@@ -14,7 +14,7 @@ export type GuardarClientePayload = {
 
 export async function guardarCliente(payload: GuardarClientePayload) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   if (payload.id) {
@@ -56,7 +56,7 @@ export async function eliminarCliente(id: string) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // 1. Desvincular ventas históricas de forma segura con verificación de error

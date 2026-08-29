@@ -27,7 +27,7 @@ export async function abrirSesionCaja(payload: AbrirCajaPayload) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // Verificar que no haya otra caja abierta
@@ -72,7 +72,7 @@ export type CerrarCajaPayload = {
 
 export async function cerrarSesionCaja(payload: CerrarCajaPayload) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const { error } = await supabase

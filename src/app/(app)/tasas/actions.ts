@@ -15,7 +15,7 @@ export type GuardarTasasPayload = {
 
 export async function guardarTasasCompletas(payload: GuardarTasasPayload) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const hoy = new Date().toISOString().split("T")[0];
@@ -88,7 +88,7 @@ export async function fijarTasaActivaFacturacion(payload: {
   tasa_personalizada_bs?: number;
 }) {
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // Obtener tasas del día más reciente

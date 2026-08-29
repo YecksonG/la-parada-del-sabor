@@ -41,7 +41,7 @@ export async function registrarCompraInsumo(payload: RegistrarCompraPayload) {
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // 1. Insertar Cabecera de Compra

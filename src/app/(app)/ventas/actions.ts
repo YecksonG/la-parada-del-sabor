@@ -21,7 +21,7 @@ export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: EstadoVe
   }
 
   const supabase = await createClient();
-  const auth = await requireAuth(supabase);
+  const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
   // 1. Obtener estado actual y verificar existencia
