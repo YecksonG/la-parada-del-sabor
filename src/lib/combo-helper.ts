@@ -33,6 +33,36 @@ export function getComboArepasCount(prod: Producto): number | null {
 }
 
 /**
+ * Resuelve la imagen autoritativa para un producto o combo.
+ */
+export function getProductImage(prod: { nombre: string; imagen_url?: string | null }): string | null {
+  if (
+    prod.imagen_url &&
+    prod.imagen_url.trim() &&
+    !prod.imagen_url.includes("menu-arepas.png") &&
+    !prod.imagen_url.includes("combo-arepas.png")
+  ) {
+    return prod.imagen_url;
+  }
+  const norm = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  // Arepas individuales
+  if (norm.includes("catira")) return "/images/arepas/arepa-catira.jpg";
+  if (norm.includes("especial") && norm.includes("pollo")) return "/images/arepas/arepa-especial-pollo.jpg";
+  if (norm.includes("reina") || norm.includes("pepiada")) return "/images/arepas/arepa-reina-pepiada.jpg";
+  if (norm.includes("jamon") && norm.includes("queso")) return "/images/arepas/arepa-jamon-queso.jpg";
+  if (norm.includes("especial") && (norm.includes("carne") || norm.includes("esmechada"))) return "/images/arepas/arepa-especial-carne.jpg";
+  if (norm.includes("pelua")) return "/images/arepas/arepa-pelua.jpg";
+  
+  // Combos oficiales (2, 4, 10 arepas)
+  if (norm.includes("combo") && (norm.includes("2") || norm.includes("personal"))) return "/images/combos/combo-2-arepas.jpg";
+  if (norm.includes("combo") && (norm.includes("4") || norm.includes("compartir"))) return "/images/combos/combo-4-arepas.jpg";
+  if (norm.includes("combo") && (norm.includes("10") || norm.includes("familiar"))) return "/images/combos/combo-10-arepas.jpg";
+
+  return null;
+}
+
+/**
  * Serializa la selección de sabores en un formato legible para tickets y cocina.
  * Trunca a 145 caracteres máximo para proteger los campos VARCHAR(150) de base de datos.
  */

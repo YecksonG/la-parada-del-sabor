@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import { Producto } from "@/types/database";
-import { SABORES_AREPAS_COMBO, serializarSaboresCombo } from "@/lib/combo-helper";
+import { SABORES_AREPAS_COMBO, serializarSaboresCombo, getProductImage } from "@/lib/combo-helper";
 import { sounds } from "@/lib/sound-effects";
 
 interface ModalPersonalizarComboProps {
@@ -110,7 +111,17 @@ export default function ModalPersonalizarCombo({
         {/* Header del Modal */}
         <div className="combo-modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span className="combo-flavor-icon" aria-hidden="true">{producto.icono || "🍱"}</span>
+            {getProductImage(producto) ? (
+              <Image
+                src={getProductImage(producto)!}
+                alt={producto.nombre}
+                width={48}
+                height={48}
+                style={{ borderRadius: 10, objectFit: "cover", border: "1px solid var(--border)" }}
+              />
+            ) : (
+              <span className="combo-flavor-icon" aria-hidden="true">{producto.icono || "🍱"}</span>
+            )}
             <div>
               <h2 id="combo-modal-title" style={{ fontSize: 17, fontWeight: 900, color: "var(--text)", margin: 0 }}>
                 Elige los Sabores del Combo

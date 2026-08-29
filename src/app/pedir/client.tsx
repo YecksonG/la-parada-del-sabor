@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import { Categoria, Producto, ExtraModificador, ZonaDelivery } from "@/types/database";
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
-import { getComboArepasCount } from "@/lib/combo-helper";
+import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
 
 interface MenuClienteViewProps {
@@ -25,25 +25,6 @@ type CarritoItemWeb = {
   notas_item?: string;
   extras: ExtraModificador[];
 };
-
-export function getProductImage(prod: { nombre: string; imagen_url?: string | null }): string | null {
-  if (
-    prod.imagen_url &&
-    prod.imagen_url.trim() &&
-    !prod.imagen_url.includes("menu-arepas.png") &&
-    !prod.imagen_url.includes("combo-arepas.png")
-  ) {
-    return prod.imagen_url;
-  }
-  const norm = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (norm.includes("catira")) return "/images/arepas/arepa-catira.jpg";
-  if (norm.includes("especial") && norm.includes("pollo")) return "/images/arepas/arepa-especial-pollo.jpg";
-  if (norm.includes("reina") || norm.includes("pepiada")) return "/images/arepas/arepa-reina-pepiada.jpg";
-  if (norm.includes("jamon") && norm.includes("queso")) return "/images/arepas/arepa-jamon-queso.jpg";
-  if (norm.includes("especial") && (norm.includes("carne") || norm.includes("esmechada"))) return "/images/arepas/arepa-especial-carne.jpg";
-  if (norm.includes("pelua")) return "/images/arepas/arepa-pelua.jpg";
-  return null;
-}
 
 export default function MenuClienteView({
   categorias,
