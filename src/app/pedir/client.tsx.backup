@@ -9,7 +9,6 @@ import { Categoria, Producto, ExtraModificador, ZonaDelivery } from "@/types/dat
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
 import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
-import { MascotaAvatar } from "@/components/mascota-avatar";
 
 interface MenuClienteViewProps {
   categorias: Categoria[];
@@ -437,7 +436,14 @@ export default function MenuClienteView({
             role="button"
             tabIndex={0}
           >
-            <MascotaAvatar size={42} className="pedir-hero-logo-img" />
+            <Image
+              src="/images/logo-badge.png"
+              alt="Logo La Parada del Sabor"
+              width={42}
+              height={42}
+              className="pedir-hero-logo-img"
+              priority
+            />
             <div>
               <span className="pedir-brand-title">La Parada del Sabor</span>
               <span className="pedir-brand-subtitle">Arepas Tradicionales & Más</span>
@@ -668,77 +674,59 @@ export default function MenuClienteView({
             {/* Cuerpo desplazable */}
             <div className="pedir-drawer-body-scroll">
               {/* Lista de Items en Carrito */}
-              {carrito.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "28px 16px 20px" }}>
-                  <Image
-                    src="/mascota/stickers/02_triste_agotado.png"
-                    alt="Carrito Vacío"
-                    width={120}
-                    height={120}
-                    style={{ margin: "0 auto 12px", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))" }}
-                  />
-                  <h3 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 6px" }}>
-                    ¡Tu carrito está vacío!
-                  </h3>
-                  <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: 0 }}>
-                    Agrega unas ricas arepas o combos para armar tu pedido.
-                  </p>
-                </div>
-              ) : (
-                <div className="pedir-cart-items-list">
-                  {carrito.map((item) => {
-                    const precioTotal =
-                      (Number(item.producto.precio_usd || 0) +
-                        item.extras.reduce((acc, e) => acc + Number(e.precio_extra_usd || 0), 0)) *
-                      item.cantidad;
+              <div className="pedir-cart-items-list">
+                {carrito.map((item) => {
+                  const precioTotal =
+                    (Number(item.producto.precio_usd || 0) +
+                      item.extras.reduce((acc, e) => acc + Number(e.precio_extra_usd || 0), 0)) *
+                    item.cantidad;
 
-                    return (
-                      <div key={item.tempId} className="pedir-cart-item-row">
-                        <div className="pedir-cart-item-info">
-                          <div className="pedir-cart-item-name-row">
-                            <span className="pedir-cart-item-icon">{item.producto.icono || "🫓"}</span>
-                            <span className="pedir-cart-item-name">{item.producto.nombre}</span>
-                          </div>
-                          {item.extras.length > 0 && (
-                            <div className="pedir-cart-item-extras">
-                              + {item.extras.map((e) => e.nombre).join(", ")}
-                            </div>
-                          )}
-                          {item.notas_item && (
-                            <div className="pedir-cart-item-notes">📝 {item.notas_item}</div>
-                          )}
-                          <div className="pedir-cart-item-price-wrap">
-                            <span className="pedir-cart-item-price-usd">${precioTotal.toFixed(2)} USD</span>
-                            <span className="pedir-cart-item-price-sep">•</span>
-                            <span className="pedir-cart-item-price-bs">Bs. {(precioTotal * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
+                  return (
+                    <div key={item.tempId} className="pedir-cart-item-row">
+                      <div className="pedir-cart-item-info">
+                        <div className="pedir-cart-item-name-row">
+                          <span className="pedir-cart-item-icon">{item.producto.icono || "🫓"}</span>
+                          <span className="pedir-cart-item-name">{item.producto.nombre}</span>
                         </div>
-
-                        {/* Controles de Cantidad en Carrito */}
-                        <div className="pedir-qty-box">
-                          <button
-                            type="button"
-                            onClick={() => handleModificarCantidad(item.tempId, -1)}
-                            className="pedir-qty-btn pedir-qty-btn-minus"
-                            aria-label={`Restar una unidad de ${item.producto.nombre}`}
-                          >
-                            −
-                          </button>
-                          <span className="pedir-qty-val">{item.cantidad}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleModificarCantidad(item.tempId, 1)}
-                            className="pedir-qty-btn pedir-qty-btn-plus"
-                            aria-label={`Sumar una unidad de ${item.producto.nombre}`}
-                          >
-                            +
-                          </button>
+                        {item.extras.length > 0 && (
+                          <div className="pedir-cart-item-extras">
+                            + {item.extras.map((e) => e.nombre).join(", ")}
+                          </div>
+                        )}
+                        {item.notas_item && (
+                          <div className="pedir-cart-item-notes">📝 {item.notas_item}</div>
+                        )}
+                        <div className="pedir-cart-item-price-wrap">
+                          <span className="pedir-cart-item-price-usd">${precioTotal.toFixed(2)} USD</span>
+                          <span className="pedir-cart-item-price-sep">•</span>
+                          <span className="pedir-cart-item-price-bs">Bs. {(precioTotal * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+
+                      {/* Controles de Cantidad en Carrito */}
+                      <div className="pedir-qty-box">
+                        <button
+                          type="button"
+                          onClick={() => handleModificarCantidad(item.tempId, -1)}
+                          className="pedir-qty-btn pedir-qty-btn-minus"
+                          aria-label={`Restar una unidad de ${item.producto.nombre}`}
+                        >
+                          −
+                        </button>
+                        <span className="pedir-qty-val">{item.cantidad}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleModificarCantidad(item.tempId, 1)}
+                          className="pedir-qty-btn pedir-qty-btn-plus"
+                          aria-label={`Sumar una unidad de ${item.producto.nombre}`}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* Formulario de Datos del Cliente */}
               <form id="pedir-checkout-form-id" onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
