@@ -26,6 +26,25 @@ type CarritoItemWeb = {
   extras: ExtraModificador[];
 };
 
+export function getProductImage(prod: { nombre: string; imagen_url?: string | null }): string | null {
+  if (
+    prod.imagen_url &&
+    prod.imagen_url.trim() &&
+    !prod.imagen_url.includes("menu-arepas.png") &&
+    !prod.imagen_url.includes("combo-arepas.png")
+  ) {
+    return prod.imagen_url;
+  }
+  const norm = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (norm.includes("catira")) return "/images/arepas/arepa-catira.jpg";
+  if (norm.includes("especial") && norm.includes("pollo")) return "/images/arepas/arepa-especial-pollo.jpg";
+  if (norm.includes("reina") || norm.includes("pepiada")) return "/images/arepas/arepa-reina-pepiada.jpg";
+  if (norm.includes("jamon") && norm.includes("queso")) return "/images/arepas/arepa-jamon-queso.jpg";
+  if (norm.includes("especial") && (norm.includes("carne") || norm.includes("esmechada"))) return "/images/arepas/arepa-especial-carne.jpg";
+  if (norm.includes("pelua")) return "/images/arepas/arepa-pelua.jpg";
+  return null;
+}
+
 export default function MenuClienteView({
   categorias,
   productos,
@@ -39,10 +58,11 @@ export default function MenuClienteView({
   const [carrito, setCarrito] = useState<CarritoItemWeb[]>([]);
   const [drawerCheckout, setDrawerCheckout] = useState(false);
   const [comboModalData, setComboModalData] = useState<{ producto: Producto; totalArepas: number } | null>(null);
+  const [modalFotoZoom, setModalFotoZoom] = useState<Producto | null>(null);
 
-  // Bloquear scroll de la página de fondo cuando el drawer de checkout está abierto
+  // Bloquear scroll de la página de fondo cuando algún modal o drawer está abierto
   useEffect(() => {
-    if (drawerCheckout) {
+    if (drawerCheckout || modalFotoZoom) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -50,7 +70,7 @@ export default function MenuClienteView({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [drawerCheckout]);
+  }, [drawerCheckout, modalFotoZoom]);
 
   // Formulario Checkout
   const [nombreCliente, setNombreCliente] = useState("");
@@ -512,12 +532,35 @@ export default function MenuClienteView({
                 .filter((item) => item.producto.id === prod.id)
                 .reduce((acc, item) => acc + item.cantidad, 0);
               const isCombo = getComboArepasCount(prod) !== null;
+              const imgUrl = getProductImage(prod);
 
               return (
                 <div key={prod.id} className="pedir-product-card">
                   <div className="pedir-product-card-body">
-                    <div className="pedir-product-icon-wrap">
-                      <span className="pedir-product-glyph">{prod.icono || "🫓"}</span>
+                    <div
+                      className={`pedir-product-icon-wrap ${imgUrl ? "has-image" : ""}`}
+                      onClick={() => {
+                        if (imgUrl) setModalFotoZoom(prod);
+                      }}
+                      role={imgUrl ? "button" : undefined}
+                      tabIndex={imgUrl ? 0 : undefined}
+                      aria-label={imgUrl ? `Ver foto ampliada de ${prod.nombre}` : undefined}
+                      title={imgUrl ? "Toca para agrandar foto" : undefined}
+                    >
+                      {imgUrl ? (
+                        <div className="pedir-product-image-container">
+                          <Image
+                            src={imgUrl}
+                            alt={prod.nombre}
+                            width={76}
+                            height={76}
+                            className="pedir-product-thumbnail-img"
+                          />
+                          <span className="pedir-zoom-badge" aria-hidden="true">🔍</span>
+                        </div>
+                      ) : (
+                        <span className="pedir-product-glyph">{prod.icono || "🫓"}</span>
+                      )}
                     </div>
                     <div className="pedir-product-details">
                       <div className="pedir-product-head">
@@ -1055,6 +1098,84 @@ export default function MenuClienteView({
           onConfirmar={handleConfirmarCombo}
           onCerrar={() => setComboModalData(null)}
         />
+      )}
+
+      {/* Modal Lightbox Zoom de Imagen de Producto */}
+      {modalFotoZoom && (
+        <div className="modal-overlay" onClick={() => setModalFotoZoom(null)}>
+          <div
+            className="pedir-modal-zoom-card"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Foto de ${modalFotoZoom.nombre}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="pedir-modal-zoom-close"
+              onClick={() => setModalFotoZoom(null)}
+              aria-label="Cerrar imagen"
+            >
+              ✕
+            </button>
+
+            {getProductImage(modalFotoZoom) && (
+              <div className="pedir-modal-zoom-img-wrap">
+                <Image
+                  src={getProductImage(modalFotoZoom)!}
+                  alt={modalFotoZoom.nombre}
+                  width={600}
+                  height={600}
+                  className="pedir-modal-zoom-img"
+                  priority
+                />
+              </div>
+            )}
+
+            <div className="pedir-modal-zoom-info">
+              <div className="pedir-modal-zoom-header">
+                <div>
+                  <h3 className="pedir-modal-zoom-title">{modalFotoZoom.nombre}</h3>
+                  {modalFotoZoom.popular && <span className="pedir-badge-popular">🔥 Más Pedida</span>}
+                </div>
+                <div className="pedir-modal-zoom-prices">
+                  <span className="pedir-price-usd">${Number(modalFotoZoom.precio_usd || 0).toFixed(2)} USD</span>
+                  <span className="pedir-price-bs">Bs. {(Number(modalFotoZoom.precio_usd || 0) * tasaBcv).toFixed(2)}</span>
+                </div>
+              </div>
+
+              {modalFotoZoom.descripcion && (
+                <p className="pedir-modal-zoom-desc">{modalFotoZoom.descripcion}</p>
+              )}
+
+              <div className="pedir-modal-zoom-actions">
+                {getComboArepasCount(modalFotoZoom) !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalFotoZoom(null);
+                      handleAgregarProductoDirecto(modalFotoZoom);
+                    }}
+                    className="pedir-btn-confirm-order"
+                  >
+                    🍱 Personalizar Sabores del Combo
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleAgregarProductoDirecto(modalFotoZoom);
+                      setModalFotoZoom(null);
+                    }}
+                    className="pedir-btn-confirm-order"
+                  >
+                    + Agregar a mi Pedido
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
