@@ -17,3 +17,17 @@ opencode run "Auditoría de código para [descripción]. Revisar consistencia de
 **Siempre que una funcionalidad, corrección o cambio requiera ejecutar código SQL en Supabase (migraciones, triggers, funciones RPC, RLS, tablas o columnas nuevas):**
 1. **DEBE destacarse al inicio del mensaje con un bloque de alerta de máxima visibilidad:** `🚨 ACCIÓN REQUERIDA EN SUPABASE (SQL EDITOR) — PRIORIDAD 10/10`.
 2. **DEBE incluirse directamente el script SQL completo y listo para copiar/pegar y ejecutar en el SQL Editor de Supabase.** No ocultar ni delegar este aviso entre explicaciones técnicas extensas.
+
+### 4. Integración Estricta con Obsidian (Segundo Cerebro)
+**Toda documentación, aprendizaje o registro arquitectónico guardado en el vault de Obsidian (`~/ObsidianVault/`) DEBE cumplir obligatoriamente con el frontmatter exacto y enlaces bidireccionales.** No se permite usar formatos genéricos por pérdida de contexto.
+1. **Formato YAML obligatorio:**
+```yaml
+---
+tags: [tag1, tag2]
+tipo: aprendizaje
+fecha: YYYY-MM-DD
+proyecto: "La-Parada-del-Sabor"
+estado: activo
+---
+```
+2. **Wikilink de conexión:** Toda nota vinculada a este proyecto debe incluir obligatoriamente la línea `**Proyecto:** [[La-Parada-del-Sabor]]` en el cuerpo del documento para integrarse al grafo.
