@@ -24,7 +24,10 @@ DECLARE
     v_ins_ceb_morada_id UUID;
     v_ins_lechuga_id UUID;
     v_ins_pepsi_15_id UUID;
+
+    -- Empaques
     v_ins_papel_id UUID;
+    v_ins_bolsa_10kg_id UUID;
     v_ins_caja_peq_id UUID;
     v_ins_caja_gde_id UUID;
     v_ins_servilleta_id UUID;
@@ -131,11 +134,16 @@ BEGIN
     ON CONFLICT (nombre) DO UPDATE SET costo_unitario_usd = 0.00099, categoria_insumo = 'Vegetales', activo = true
     RETURNING id INTO v_ins_lechuga_id;
 
-    -- Empaques
+    -- Empaques Oficiales (Facturas Kariosca / Distribuidor)
     INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
     VALUES ('Papel Antigraso Breakfast', 'und', 500.0, 50.0, 0.02000, 'Empaques', true)
     ON CONFLICT (nombre) DO UPDATE SET costo_unitario_usd = 0.02000, categoria_insumo = 'Empaques', activo = true
     RETURNING id INTO v_ins_papel_id;
+
+    INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
+    VALUES ('Bolsas Plásticas 10kg', 'und', 500.0, 50.0, 0.02000, 'Empaques', true)
+    ON CONFLICT (nombre) DO UPDATE SET costo_unitario_usd = 0.02000, categoria_insumo = 'Empaques', activo = true
+    RETURNING id INTO v_ins_bolsa_10kg_id;
 
     INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
     VALUES ('Servilletas Europapel', 'und', 1000.0, 100.0, 0.00600, 'Empaques', true)
@@ -224,7 +232,7 @@ BEGIN
         v_prod_pepsi_15_id
     );
 
-    -- 7. Insertar Escandallos Exactos y Corregidos por Gramaje Real y Dosificación de Salsas (9ml + 9ml)
+    -- 7. Insertar Escandallos Exactos para Arepas Individuales (Llevan Bolsa 10kg + Papel Antigraso + Servilleta)
 
     -- A. Arepa Jamón y Queso Amarillo ($2.00)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
@@ -233,6 +241,7 @@ BEGIN
         (v_prod_jamon_queso_id, v_ins_jamon_id, 30.00),
         (v_prod_jamon_queso_id, v_ins_q_amarillo_id, 35.00),
         (v_prod_jamon_queso_id, v_ins_papel_id, 1.00),
+        (v_prod_jamon_queso_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_jamon_queso_id, v_ins_servilleta_id, 1.00);
 
     -- B. Arepa Catira ($2.20) -> Pollo Mechado Real + Queso Amarillo
@@ -242,6 +251,7 @@ BEGIN
         (v_prod_catira_id, v_ins_guiso_pollo_id, 50.00),
         (v_prod_catira_id, v_ins_q_amarillo_id, 35.00),
         (v_prod_catira_id, v_ins_papel_id, 1.00),
+        (v_prod_catira_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_catira_id, v_ins_servilleta_id, 1.00);
 
     -- C. Arepa Pelúa ($2.80) -> Carne Mechada Real + Queso Amarillo
@@ -251,6 +261,7 @@ BEGIN
         (v_prod_pelua_id, v_ins_guiso_carne_id, 50.00),
         (v_prod_pelua_id, v_ins_q_amarillo_id, 35.00),
         (v_prod_pelua_id, v_ins_papel_id, 1.00),
+        (v_prod_pelua_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_pelua_id, v_ins_servilleta_id, 1.00);
 
     -- D. Arepa Reina Pepiada ($2.00) -> Relleno Reina Pepiada (Pollo + Aguacate + Mayonesa)
@@ -259,9 +270,10 @@ BEGIN
         (v_prod_reina_id, v_ins_mantequilla_id, 5.00),
         (v_prod_reina_id, v_ins_reina_pepiada_id, 75.00),
         (v_prod_reina_id, v_ins_papel_id, 1.00),
+        (v_prod_reina_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_reina_id, v_ins_servilleta_id, 1.00);
 
-    -- E. Arepa Especial de Pollo Esmechado ($2.80) -> 9ml Big Mac + 9ml Perejil (Papel Antigraso)
+    -- E. Arepa Especial de Pollo Esmechado ($2.80) -> 9ml Big Mac + 9ml Perejil (Papel + Bolsa)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
         (v_prod_esp_pollo_id, v_ins_harina_id, 27.59),
         (v_prod_esp_pollo_id, v_ins_mantequilla_id, 5.00),
@@ -274,9 +286,10 @@ BEGIN
         (v_prod_esp_pollo_id, v_ins_salsa_bigmac_id, 9.00),
         (v_prod_esp_pollo_id, v_ins_salsa_perejil_id, 9.00),
         (v_prod_esp_pollo_id, v_ins_papel_id, 1.00),
+        (v_prod_esp_pollo_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_esp_pollo_id, v_ins_servilleta_id, 2.00);
 
-    -- F. Arepa Especial de Carne Esmechada ($3.50) -> 9ml Big Mac + 9ml Ajo (Papel Antigraso)
+    -- F. Arepa Especial de Carne Esmechada ($3.50) -> 9ml Big Mac + 9ml Ajo (Papel + Bolsa)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
         (v_prod_esp_carne_id, v_ins_harina_id, 27.59),
         (v_prod_esp_carne_id, v_ins_mantequilla_id, 5.00),
@@ -289,36 +302,29 @@ BEGIN
         (v_prod_esp_carne_id, v_ins_salsa_bigmac_id, 9.00),
         (v_prod_esp_carne_id, v_ins_salsa_ajo_id, 9.00),
         (v_prod_esp_carne_id, v_ins_papel_id, 1.00),
+        (v_prod_esp_carne_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_esp_carne_id, v_ins_servilleta_id, 2.00);
+
+
+    -- 8. RECETAS DE COMBOS (SOLO EMPAQUES DEL COMBO: CAJAS Y BOLSAS)
+    -- Los guisos y masas se descuentan dinámicamente según las arepitas seleccionadas por el cliente.
 
     -- G. Combo Personal (2 Arepitas) ($4.00)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
-        (v_prod_combo_personal_id, v_ins_harina_id, 34.48),
-        (v_prod_combo_personal_id, v_ins_mantequilla_id, 5.00),
-        (v_prod_combo_personal_id, v_ins_guiso_pollo_id, 30.00),
-        (v_prod_combo_personal_id, v_ins_guiso_carne_id, 30.00),
-        (v_prod_combo_personal_id, v_ins_q_amarillo_id, 20.00),
+        (v_prod_combo_personal_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_combo_personal_id, v_ins_papel_id, 2.00),
         (v_prod_combo_personal_id, v_ins_servilleta_id, 2.00);
 
-    -- H. Combo para Compartir (4 Arepitas) ($7.00)
+    -- H. Combo para Compartir (4 Arepitas) ($7.00) -> 1 Caja Pequeña Descartable + 1 Bolsa 10kg
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
-        (v_prod_combo_compartir_id, v_ins_harina_id, 68.96),
-        (v_prod_combo_compartir_id, v_ins_mantequilla_id, 10.00),
-        (v_prod_combo_compartir_id, v_ins_guiso_pollo_id, 60.00),
-        (v_prod_combo_compartir_id, v_ins_guiso_carne_id, 60.00),
-        (v_prod_combo_compartir_id, v_ins_q_amarillo_id, 40.00),
         (v_prod_combo_compartir_id, v_ins_caja_peq_id, 1.00),
+        (v_prod_combo_compartir_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_combo_compartir_id, v_ins_servilleta_id, 4.00);
 
-    -- I. Combo Familiar (10 Arepitas) ($13.00)
+    -- I. Combo Familiar (10 Arepitas) ($13.00) -> 1 Caja Grande Descartable + 1 Bolsa 10kg
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
-        (v_prod_combo_familiar_id, v_ins_harina_id, 172.41),
-        (v_prod_combo_familiar_id, v_ins_mantequilla_id, 25.00),
-        (v_prod_combo_familiar_id, v_ins_guiso_pollo_id, 150.00),
-        (v_prod_combo_familiar_id, v_ins_guiso_carne_id, 150.00),
-        (v_prod_combo_familiar_id, v_ins_q_amarillo_id, 100.00),
         (v_prod_combo_familiar_id, v_ins_caja_gde_id, 1.00),
+        (v_prod_combo_familiar_id, v_ins_bolsa_10kg_id, 1.00),
         (v_prod_combo_familiar_id, v_ins_servilleta_id, 6.00);
 
     -- J. Refresco Pepsi 1.5 L Individual ($1.50)

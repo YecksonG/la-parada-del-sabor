@@ -90,24 +90,16 @@ export async function updateSession(request: NextRequest) {
       clearTimeout(timeoutId);
     }
 
-    if (!user && !isPublicRoute) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
-
+    // 6. Si el usuario está autenticado y entra a /login, redirigir al panel principal
     if (user && isLoginPage) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
   } catch {
-    // Si la llamada de auth falla o hace timeout en Edge, redirigir a /login en rutas protegidas
-    if (!isPublicRoute) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
+    // Si hay un timeout o error transitorio en Edge, NO expulsar agresivamente al usuario si tiene cookies.
+    // Dejar que Server Components (layout.tsx) manejen la validación de forma confiable en Node.js runtime.
+    return supabaseResponse;
   }
 
   return supabaseResponse;
