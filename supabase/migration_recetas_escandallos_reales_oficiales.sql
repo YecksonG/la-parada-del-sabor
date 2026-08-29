@@ -20,8 +20,6 @@ DECLARE
     v_ins_jamon_id UUID;
     v_ins_mantequilla_id UUID;
     v_ins_mayonesa_id UUID;
-    v_ins_mostaza_id UUID;
-    v_ins_ketchup_id UUID;
     v_ins_tomate_id UUID;
     v_ins_ceb_morada_id UUID;
     v_ins_lechuga_id UUID;
@@ -30,12 +28,15 @@ DECLARE
     v_ins_caja_peq_id UUID;
     v_ins_caja_gde_id UUID;
     v_ins_servilleta_id UUID;
-    v_ins_vaso_id UUID;
 
-    -- Insumos Pre-elaborados (Mise en Place / Guisos y Rellenos Preparados)
+    -- Insumos Pre-elaborados (Mise en Place / Guisos y Salsas Preparadas)
     v_ins_guiso_pollo_id UUID;
     v_ins_guiso_carne_id UUID;
     v_ins_reina_pepiada_id UUID;
+    v_ins_salsa_bigmac_id UUID;
+    v_ins_salsa_ajo_id UUID;
+    v_ins_salsa_perejil_id UUID;
+    v_ins_licuado_verde_id UUID;
 
     -- Productos Finales
     v_prod_jamon_queso_id UUID;
@@ -54,7 +55,7 @@ BEGIN
     SELECT id INTO v_cat_combos_id FROM public.categorias WHERE nombre ILIKE '%combo%' LIMIT 1;
     SELECT id INTO v_cat_bebidas_id FROM public.categorias WHERE nombre ILIKE '%bebida%' LIMIT 1;
 
-    -- 2. Limpieza de Insumos Erróneos (cubitos o caldos asignados erróneamente)
+    -- 2. Limpieza de Insumos Erróneos (cubitos o caldos asignados erróneamente en recetas)
     DELETE FROM public.recetas_ingredientes 
     WHERE insumo_id IN (SELECT id FROM public.insumos WHERE nombre ILIKE '%cubito%' OR nombre ILIKE '%caldo de pollo%');
 
@@ -157,7 +158,7 @@ BEGIN
     RETURNING id INTO v_ins_pepsi_15_id;
 
 
-    -- 4. Insumos Pre-elaborados (Mise en Place / Guisos y Rellenos de Cocina)
+    -- 4. Insumos Pre-elaborados (Mise en Place / Guisos y Salsas de Cocina)
     
     -- Guiso de Pollo Mechado ($0.00500/g = $0.25 por porción de 50g)
     INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
@@ -176,6 +177,30 @@ BEGIN
     VALUES ('Relleno Reina Pepiada', 'g', 2000.0, 500.0, 0.00530, 'Pre-elaborados', true)
     ON CONFLICT (nombre) DO UPDATE SET costo_unitario_usd = 0.00530, categoria_insumo = 'Pre-elaborados', activo = true
     RETURNING id INTO v_ins_reina_pepiada_id;
+
+    -- Salsa Big Mac (Especial) ($0.00650/ml = $0.0585 por porción de 9 ml / Pote 360ml)
+    INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
+    VALUES ('Salsa Big Mac (Especial)', 'ml', 1440.0, 360.0, 0.00650, 'Pre-elaborados', true)
+    ON CONFLICT (nombre) DO UPDATE SET unidad_medida = 'ml', costo_unitario_usd = 0.00650, categoria_insumo = 'Pre-elaborados', activo = true
+    RETURNING id INTO v_ins_salsa_bigmac_id;
+
+    -- Salsa de Ajo Criolla (con Papa y Cilantro) ($0.00420/ml = $0.0378 por porción de 9 ml / Pote 360ml)
+    INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
+    VALUES ('Salsa de Ajo Criolla', 'ml', 1440.0, 360.0, 0.00420, 'Pre-elaborados', true)
+    ON CONFLICT (nombre) DO UPDATE SET unidad_medida = 'ml', costo_unitario_usd = 0.00420, categoria_insumo = 'Pre-elaborados', activo = true
+    RETURNING id INTO v_ins_salsa_ajo_id;
+
+    -- Salsa de Perejil & Limón ($0.00450/ml = $0.0405 por porción de 9 ml / Pote 360ml)
+    INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
+    VALUES ('Salsa de Perejil & Limón', 'ml', 1440.0, 360.0, 0.00450, 'Pre-elaborados', true)
+    ON CONFLICT (nombre) DO UPDATE SET unidad_medida = 'ml', costo_unitario_usd = 0.00450, categoria_insumo = 'Pre-elaborados', activo = true
+    RETURNING id INTO v_ins_salsa_perejil_id;
+
+    -- Licuado Verde (Base Sofrito)
+    INSERT INTO public.insumos (nombre, unidad_medida, stock_actual, stock_minimo, costo_unitario_usd, categoria_insumo, activo)
+    VALUES ('Licuado Verde (Base Sofrito)', 'ml', 2000.0, 500.0, 0.00280, 'Pre-elaborados', true)
+    ON CONFLICT (nombre) DO UPDATE SET unidad_medida = 'ml', costo_unitario_usd = 0.00280, categoria_insumo = 'Pre-elaborados', activo = true
+    RETURNING id INTO v_ins_licuado_verde_id;
 
 
     -- 5. Obtener IDs de Productos
@@ -199,7 +224,7 @@ BEGIN
         v_prod_pepsi_15_id
     );
 
-    -- 7. Insertar Escandallos Exactos y Corregidos por Gramaje Real (Harina PAN 27.59g para 80g de masa)
+    -- 7. Insertar Escandallos Exactos y Corregidos por Gramaje Real y Dosificación de Salsas (9ml + 9ml)
 
     -- A. Arepa Jamón y Queso Amarillo ($2.00)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
@@ -236,7 +261,7 @@ BEGIN
         (v_prod_reina_id, v_ins_papel_id, 1.00),
         (v_prod_reina_id, v_ins_servilleta_id, 1.00);
 
-    -- E. Arepa Especial de Pollo Esmechado ($2.80)
+    -- E. Arepa Especial de Pollo Esmechado ($2.80) -> 9ml Big Mac + 9ml Perejil
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
         (v_prod_esp_pollo_id, v_ins_harina_id, 27.59),
         (v_prod_esp_pollo_id, v_ins_mantequilla_id, 5.00),
@@ -246,10 +271,12 @@ BEGIN
         (v_prod_esp_pollo_id, v_ins_tomate_id, 20.00),
         (v_prod_esp_pollo_id, v_ins_ceb_morada_id, 10.00),
         (v_prod_esp_pollo_id, v_ins_lechuga_id, 15.00),
+        (v_prod_esp_pollo_id, v_ins_salsa_bigmac_id, 9.00),
+        (v_prod_esp_pollo_id, v_ins_salsa_perejil_id, 9.00),
         (v_prod_esp_pollo_id, v_ins_caja_peq_id, 1.00),
         (v_prod_esp_pollo_id, v_ins_servilleta_id, 2.00);
 
-    -- F. Arepa Especial de Carne Esmechada ($3.50)
+    -- F. Arepa Especial de Carne Esmechada ($3.50) -> 9ml Big Mac + 9ml Ajo
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
         (v_prod_esp_carne_id, v_ins_harina_id, 27.59),
         (v_prod_esp_carne_id, v_ins_mantequilla_id, 5.00),
@@ -259,12 +286,14 @@ BEGIN
         (v_prod_esp_carne_id, v_ins_tomate_id, 20.00),
         (v_prod_esp_carne_id, v_ins_ceb_morada_id, 10.00),
         (v_prod_esp_carne_id, v_ins_lechuga_id, 15.00),
+        (v_prod_esp_carne_id, v_ins_salsa_bigmac_id, 9.00),
+        (v_prod_esp_carne_id, v_ins_salsa_ajo_id, 9.00),
         (v_prod_esp_carne_id, v_ins_caja_peq_id, 1.00),
         (v_prod_esp_carne_id, v_ins_servilleta_id, 2.00);
 
     -- G. Combo Personal (2 Arepitas) ($4.00)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
-        (v_prod_combo_personal_id, v_ins_harina_id, 34.48), -- 2 arepitas de 50g bola = 17.24g harina c/u
+        (v_prod_combo_personal_id, v_ins_harina_id, 34.48),
         (v_prod_combo_personal_id, v_ins_mantequilla_id, 5.00),
         (v_prod_combo_personal_id, v_ins_guiso_pollo_id, 30.00),
         (v_prod_combo_personal_id, v_ins_guiso_carne_id, 30.00),
@@ -274,7 +303,7 @@ BEGIN
 
     -- H. Combo para Compartir (4 Arepitas) ($7.00)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
-        (v_prod_combo_compartir_id, v_ins_harina_id, 68.96), -- 4 arepitas de 50g bola = 17.24g harina c/u
+        (v_prod_combo_compartir_id, v_ins_harina_id, 68.96),
         (v_prod_combo_compartir_id, v_ins_mantequilla_id, 10.00),
         (v_prod_combo_compartir_id, v_ins_guiso_pollo_id, 60.00),
         (v_prod_combo_compartir_id, v_ins_guiso_carne_id, 60.00),
@@ -284,7 +313,7 @@ BEGIN
 
     -- I. Combo Familiar (10 Arepitas) ($13.00)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
-        (v_prod_combo_familiar_id, v_ins_harina_id, 172.41), -- 10 arepitas de 50g bola
+        (v_prod_combo_familiar_id, v_ins_harina_id, 172.41),
         (v_prod_combo_familiar_id, v_ins_mantequilla_id, 25.00),
         (v_prod_combo_familiar_id, v_ins_guiso_pollo_id, 150.00),
         (v_prod_combo_familiar_id, v_ins_guiso_carne_id, 150.00),
