@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
-  // 0. Si no es GET ni HEAD (ej. POST de Server Actions), no interferir con redirects
+  // 0. Si no es GET ni HEAD (ej. POST de Server Actions / APIs), bypass inmediato
   if (request.method !== "GET" && request.method !== "HEAD") {
     return NextResponse.next({ request });
   }
@@ -17,30 +17,25 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/images") ||
     pathname.startsWith("/icon.png");
 
-  // 1. Detección rápida de cookies de autenticación de Supabase (sb-*-auth-token)
+  // 1. Todas las rutas públicas (incluyendo /login) pasan de inmediato en 0ms sin llamadas de red ni redirects
+  if (isPublicRoute) {
+    return NextResponse.next({ request });
+  }
+
+  // 2. Detección rápida de cookies de autenticación de Supabase (sb-*-auth-token)
   const allCookies = request.cookies.getAll();
   const hasAuthCookie = allCookies.some(
     (c) => c.name.startsWith("sb-") && c.name.includes("-auth-token")
   );
 
-  // 2. Si es ruta pública y no es login, bypass inmediato en 0ms
-  if (isPublicRoute && !isLoginPage) {
-    return NextResponse.next({ request });
-  }
-
-  // 3. Si no hay cookies de auth y la ruta es privada, redirigir a /login en 0ms (sin llamadas de red)
-  if (!hasAuthCookie && !isPublicRoute) {
+  // 3. Si no hay cookies de auth y la ruta es privada, redirigir a /login en 0ms
+  if (!hasAuthCookie) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // 4. Si está en /login y no tiene cookies de auth, servir /login de inmediato en 0ms
-  if (isLoginPage && !hasAuthCookie) {
-    return NextResponse.next({ request });
-  }
-
-  // 5. Inicializar cliente SSR para refrescar tokens
+  // 4. Si hay cookies de auth, inicializar cliente SSR para refrescar tokens de forma pasiva
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -68,7 +63,7 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // 6. Validación de usuario con Timeout estricto de 2000ms para evitar MIDDLEWARE_INVOCATION_TIMEOUT
+  // 5. Refrescar sesión con timeout de seguridad (sin redirigir en caso de timeout, layout.tsx lo maneja)
   try {
     const getUserPromise = supabase.auth.getUser();
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -81,24 +76,13 @@ export async function updateSession(request: NextRequest) {
       }
     );
 
-    let user;
     try {
-      const result = await Promise.race([getUserPromise, timeoutPromise]);
-      user = result.data.user;
+      await Promise.race([getUserPromise, timeoutPromise]);
     } finally {
-      // Limpiar el timer para evitar timers colgados cuando getUser() gana la carrera
       clearTimeout(timeoutId);
     }
-
-    // 6. Si el usuario está autenticado y entra a /login, redirigir al panel principal
-    if (user && isLoginPage) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return NextResponse.redirect(url);
-    }
   } catch {
-    // Si hay un timeout o error transitorio en Edge, NO expulsar agresivamente al usuario si tiene cookies.
-    // Dejar que Server Components (layout.tsx) manejen la validación de forma confiable en Node.js runtime.
+    // Si hay timeout o error en Edge, continuar hacia Server Components sin romper la navegación
     return supabaseResponse;
   }
 
