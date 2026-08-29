@@ -46,6 +46,19 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   // Categorías de Gestión Agrupadas
   const categoriasNav: NavCategory[] = [
     {
+      id: "web",
+      label: "Canal Digital",
+      icon: "🌐",
+      items: [
+        {
+          href: "/pedir",
+          label: "Menú Online de Clientes",
+          icon: "🌐",
+          desc: "Portal de autoservicio para pedidos web",
+        },
+      ],
+    },
+    {
       id: "cocina",
       label: "Cocina & Stock",
       icon: "🌾",

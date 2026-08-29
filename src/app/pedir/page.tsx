@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import MenuClienteView from "./client";
 import { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: "Menú Digital & Pedidos Online | La Parada del Sabor",
   description: "Arma tu pedido de arepas, rellenos y bebidas tradicionales con entrega a domicilio o retiro.",
