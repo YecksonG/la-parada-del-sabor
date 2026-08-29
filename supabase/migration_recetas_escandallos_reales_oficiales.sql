@@ -261,7 +261,7 @@ BEGIN
         (v_prod_reina_id, v_ins_papel_id, 1.00),
         (v_prod_reina_id, v_ins_servilleta_id, 1.00);
 
-    -- E. Arepa Especial de Pollo Esmechado ($2.80) -> 9ml Big Mac + 9ml Perejil
+    -- E. Arepa Especial de Pollo Esmechado ($2.80) -> 9ml Big Mac + 9ml Perejil (Papel Antigraso)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
         (v_prod_esp_pollo_id, v_ins_harina_id, 27.59),
         (v_prod_esp_pollo_id, v_ins_mantequilla_id, 5.00),
@@ -273,10 +273,10 @@ BEGIN
         (v_prod_esp_pollo_id, v_ins_lechuga_id, 15.00),
         (v_prod_esp_pollo_id, v_ins_salsa_bigmac_id, 9.00),
         (v_prod_esp_pollo_id, v_ins_salsa_perejil_id, 9.00),
-        (v_prod_esp_pollo_id, v_ins_caja_peq_id, 1.00),
+        (v_prod_esp_pollo_id, v_ins_papel_id, 1.00),
         (v_prod_esp_pollo_id, v_ins_servilleta_id, 2.00);
 
-    -- F. Arepa Especial de Carne Esmechada ($3.50) -> 9ml Big Mac + 9ml Ajo
+    -- F. Arepa Especial de Carne Esmechada ($3.50) -> 9ml Big Mac + 9ml Ajo (Papel Antigraso)
     INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad) VALUES
         (v_prod_esp_carne_id, v_ins_harina_id, 27.59),
         (v_prod_esp_carne_id, v_ins_mantequilla_id, 5.00),
@@ -288,7 +288,7 @@ BEGIN
         (v_prod_esp_carne_id, v_ins_lechuga_id, 15.00),
         (v_prod_esp_carne_id, v_ins_salsa_bigmac_id, 9.00),
         (v_prod_esp_carne_id, v_ins_salsa_ajo_id, 9.00),
-        (v_prod_esp_carne_id, v_ins_caja_peq_id, 1.00),
+        (v_prod_esp_carne_id, v_ins_papel_id, 1.00),
         (v_prod_esp_carne_id, v_ins_servilleta_id, 2.00);
 
     -- G. Combo Personal (2 Arepitas) ($4.00)
