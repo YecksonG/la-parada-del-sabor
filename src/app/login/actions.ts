@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 
 export type LoginState = {
   error: string | null;
@@ -97,6 +98,7 @@ export async function login(
   }
 
   await limpiarLoginExitoso(supabase, rateLimitKey);
+  revalidatePath("/", "layout");
   redirect("/");
 }
 

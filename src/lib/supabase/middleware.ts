@@ -2,6 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  // 0. Si no es GET ni HEAD (ej. POST de Server Actions), no interferir con redirects
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return NextResponse.next({ request });
+  }
+
   const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname.startsWith("/login");
   const isPublicRoute =
