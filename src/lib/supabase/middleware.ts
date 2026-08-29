@@ -2,6 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isLoginPage = pathname.startsWith("/login");
+  const isPublicRoute =
+    isLoginPage ||
+    pathname.startsWith("/recibo") ||
+    pathname.startsWith("/pedir") ||
+    pathname.startsWith("/api/public") ||
+    pathname.startsWith("/images") ||
+    pathname.startsWith("/icon.png");
+
+  // Optimización ultra-rápida: Rutas públicas no bloquean en supabase.auth.getUser()
+  if (isPublicRoute && !isLoginPage) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -32,14 +47,6 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-  const isLoginPage = pathname.startsWith("/login");
-  const isPublicRoute =
-    isLoginPage ||
-    pathname.startsWith("/recibo") ||
-    pathname.startsWith("/pedir") ||
-    pathname.startsWith("/api/public");
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
