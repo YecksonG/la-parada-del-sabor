@@ -8,52 +8,56 @@ export const revalidate = 0;
 export default async function PosPage() {
   const supabase = await createClient();
 
-  // 1. Obtener categorías activas
-  const { data: categorias } = await supabase
-    .from("categorias")
-    .select("*")
-    .eq("activo", true)
-    .order("orden", { ascending: true });
+  // Ejecutar todas las consultas en paralelo con Promise.all
+  const [
+    catRes,
+    prodRes,
+    extRes,
+    tasaRes,
+    pedidosRes,
+    clientesRes,
+  ] = await Promise.all([
+    supabase
+      .from("categorias")
+      .select("*")
+      .eq("activo", true)
+      .order("orden", { ascending: true }),
+    supabase
+      .from("productos")
+      .select("*, ingredientes:recetas_ingredientes(*, insumo:insumos(*))")
+      .eq("activo", true)
+      .order("nombre", { ascending: true }),
+    supabase
+      .from("extras_modificadores")
+      .select("*, insumo:insumos(*)")
+      .eq("activo", true),
+    supabase
+      .from("tasas_cambio")
+      .select("bcv_usd_bs, tasa_usd_bs")
+      .order("fecha", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("ventas")
+      .select(`
+        *,
+        cliente:clientes(*),
+        items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))
+      `)
+      .eq("estado", "pendiente")
+      .order("fecha", { ascending: false }),
+    supabase
+      .from("clientes")
+      .select("*")
+      .order("nombre", { ascending: true }),
+  ]);
 
-  // 2. Obtener productos con ingredientes de receta
-  const { data: productos } = await supabase
-    .from("productos")
-    .select("*, ingredientes:recetas_ingredientes(*, insumo:insumos(*))")
-    .eq("activo", true)
-    .order("nombre", { ascending: true });
-
-  // 3. Obtener extras y modificadores
-  const { data: extras } = await supabase
-    .from("extras_modificadores")
-    .select("*, insumo:insumos(*)")
-    .eq("activo", true);
-
-  // 4. Obtener tasa BCV
-  const { data: tasaReciente } = await supabase
-    .from("tasas_cambio")
-    .select("bcv_usd_bs, tasa_usd_bs")
-    .order("fecha", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const bcvTasa = Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 0;
-
-  // 5. Obtener pedidos web pendientes por confirmar
-  const { data: pedidosPendientes } = await supabase
-    .from("ventas")
-    .select(`
-      *,
-      cliente:clientes(*),
-      items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))
-    `)
-    .eq("estado", "pendiente")
-    .order("fecha", { ascending: false });
-
-  // 6. Obtener clientes para selección rápida en POS
-  const { data: clientes } = await supabase
-    .from("clientes")
-    .select("*")
-    .order("nombre", { ascending: true });
+  const categorias = catRes.data || [];
+  const productos = prodRes.data || [];
+  const extras = extRes.data || [];
+  const bcvTasa = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 0;
+  const pedidosPendientes = pedidosRes.data || [];
+  const clientes = clientesRes.data || [];
 
   return (
     <PosClient
@@ -61,7 +65,7 @@ export default async function PosPage() {
       productos={(productos as Producto[]) || []}
       extras={(extras as ExtraModificador[]) || []}
       tasaBcv={bcvTasa}
-      pedidosPendientes={((pedidosPendientes as PedidoPendiente[]) || [])}
+      pedidosPendientes={(pedidosPendientes as PedidoPendiente[]) || []}
       clientesIniciales={(clientes as any[]) || []}
     />
   );

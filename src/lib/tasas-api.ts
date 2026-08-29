@@ -15,7 +15,7 @@ async function obtenerJson(url: string): Promise<Record<string, unknown> | null>
   try {
     const res = await fetch(url, {
       cache: "no-store",
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return null;
     return (await res.json()) as Record<string, unknown>;
