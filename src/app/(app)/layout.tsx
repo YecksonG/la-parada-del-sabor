@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import TopbarNav from "@/components/topbar-nav";
 import PageTransition from "@/components/page-transition";
 import AutoTasas from "@/components/auto-tasas";
@@ -16,7 +17,11 @@ export default async function AppLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const nombre = user?.email?.split("@")[0] ?? "operador";
+  if (!user) {
+    redirect("/login");
+  }
+
+  const nombre = user.email?.split("@")[0] ?? "operador";
 
   // Obtener última tasa BCV
   const { data: tasaReciente } = await supabase
