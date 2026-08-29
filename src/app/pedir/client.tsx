@@ -72,6 +72,17 @@ export default function MenuClienteView({
     };
   }, [drawerCheckout, modalFotoZoom]);
 
+  // Cerrar lightbox con tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && modalFotoZoom) {
+        setModalFotoZoom(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modalFotoZoom]);
+
   // Formulario Checkout
   const [nombreCliente, setNombreCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
@@ -541,6 +552,12 @@ export default function MenuClienteView({
                       className={`pedir-product-icon-wrap ${imgUrl ? "has-image" : ""}`}
                       onClick={() => {
                         if (imgUrl) setModalFotoZoom(prod);
+                      }}
+                      onKeyDown={(e) => {
+                        if (imgUrl && (e.key === "Enter" || e.key === " ")) {
+                          e.preventDefault();
+                          setModalFotoZoom(prod);
+                        }
                       }}
                       role={imgUrl ? "button" : undefined}
                       tabIndex={imgUrl ? 0 : undefined}
