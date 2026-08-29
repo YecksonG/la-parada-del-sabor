@@ -11,6 +11,7 @@ export const SABORES_AREPAS_COMBO: SaborArepa[] = [
   { id: "reina_pepiada", nombre: "Reina Pepiada", desc: "Pollo con aguacate y mayonesa", icono: "🥑" },
   { id: "pelua", nombre: "Pelúa", desc: "Carne mechada + Queso amarillo", icono: "🧀" },
   { id: "catira", nombre: "Catira", desc: "Pollo mechado + Queso amarillo", icono: "🍗" },
+  { id: "jamon_queso", nombre: "Jamón y Queso", desc: "Jamón de pavo + Queso amarillo", icono: "🥓" },
   { id: "sifrina", nombre: "Sifrina", desc: "Reina pepiada + Queso amarillo", icono: "👑" },
   { id: "queso_amarillo", nombre: "Queso Amarillo", desc: "Queso amarillo rallado", icono: "🧀" },
   { id: "queso_blanco", nombre: "Queso Blanco", desc: "Queso blanco de res", icono: "🫓" },
@@ -26,7 +27,8 @@ export function getComboArepasCount(prod: Producto): number | null {
   const nombre = prod.nombre.toLowerCase();
   if (/\b10\s*arep/i.test(nombre) || /\bcombo\s*10\b/i.test(nombre) || /\bfamiliar\s*10\b/i.test(nombre)) return 10;
   if (/\b6\s*arep/i.test(nombre) || /\bcombo\s*6\b/i.test(nombre)) return 6;
-  if (/\b2\s*arep/i.test(nombre) || /\bcombo\s*2\b/i.test(nombre)) return 2;
+  if (/\b4\s*arep/i.test(nombre) || /\bcombo\s*4\b/i.test(nombre) || /\bcompartir\b/i.test(nombre)) return 4;
+  if (/\b2\s*arep/i.test(nombre) || /\bcombo\s*2\b/i.test(nombre) || /\bpersonal\b/i.test(nombre)) return 2;
   return null;
 }
 
