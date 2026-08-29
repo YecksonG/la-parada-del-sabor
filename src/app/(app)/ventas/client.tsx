@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import { Venta } from "@/types/database";
 import { cambiarEstadoVenta } from "./actions";
 
@@ -77,10 +78,16 @@ export default function VentasClient({ ventas }: VentasClientProps) {
       {/* Lista de Comandas */}
       <div className="comandas-grid">
         {ventasFiltradas.length === 0 ? (
-          <div className="recetas-empty-box">
-            <span style={{ fontSize: 48 }}>📋</span>
-            <h3>No hay comandas con este filtro</h3>
-            <p>Las ventas realizadas desde el POS y la web aparecerán aquí al instante.</p>
+          <div className="recetas-empty-box" style={{ textAlign: "center", padding: "36px 20px" }}>
+            <Image
+              src="/mascota/stickers/07_pulgar_arriba_confirmado.png"
+              alt="Cocina al Día"
+              width={90}
+              height={90}
+              style={{ margin: "0 auto 12px", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.1))", objectFit: "contain" }}
+            />
+            <h3 style={{ margin: "0 0 6px" }}>¡Cocina al Día!</h3>
+            <p style={{ margin: 0, color: "var(--text-muted)" }}>No hay comandas pendientes con este filtro. Las nuevas órdenes aparecerán aquí al instante.</p>
           </div>
         ) : (
           ventasFiltradas.map((v) => {

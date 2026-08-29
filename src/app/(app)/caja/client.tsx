@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { SesionCaja, Venta } from "@/types/database";
 import { abrirSesionCaja, cerrarSesionCaja } from "./actions";
@@ -631,8 +632,18 @@ export default function CajaClient({
       {modalAbrir && (
         <div className="modal-overlay">
           <div className="modal-recipe-card" style={{ maxWidth: 440 }}>
-            <div className="modal-recipe-header">
-              <h2>🔓 Apertura de Turno de Caja</h2>
+            <div className="modal-recipe-header" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Image
+                src="/mascota/stickers/07_pulgar_arriba_confirmado.png"
+                alt="Apertura"
+                width={50}
+                height={50}
+                style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.15))", objectFit: "contain" }}
+              />
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0, fontSize: 18 }}>🔓 Apertura de Turno</h2>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>¡Vamos con todo el sabor de la jornada!</p>
+              </div>
               <button type="button" onClick={() => setModalAbrir(false)} className="btn-modal-close">✕</button>
             </div>
 
@@ -741,25 +752,36 @@ export default function CajaClient({
               {/* Indicador de Diferencia */}
               <div
                 style={{
-                  padding: "10px 14px",
-                  borderRadius: 12,
+                  padding: "12px 14px",
+                  borderRadius: 14,
                   background: Math.abs(diferenciaUsd) < 0.01 ? "var(--green-light)" : "var(--accent-light)",
                   border: `1px solid ${Math.abs(diferenciaUsd) < 0.01 ? "var(--green)" : "var(--accent)"}`,
                   display: "flex",
-                  justifyContent: "space-between",
                   alignItems: "center",
-                  fontSize: 13,
-                  fontWeight: 800,
+                  gap: 12,
                 }}
               >
-                <span>Diferencia de Caja:</span>
-                <span>
-                  {Math.abs(diferenciaUsd) < 0.01
-                    ? "🎯 Cuadre Perfecto ($0.00)"
-                    : diferenciaUsd > 0
-                    ? `🟢 Sobrante: +$${diferenciaUsd.toFixed(2)} USD`
-                    : `🔴 Faltante: -$${Math.abs(diferenciaUsd).toFixed(2)} USD`}
-                </span>
+                <Image
+                  src={
+                    Math.abs(diferenciaUsd) < 0.01
+                      ? "/mascota/stickers/01_celebracion_exito.png"
+                      : "/mascota/stickers/06_pensativa_duda.png"
+                  }
+                  alt="Diferencia Arqueo"
+                  width={52}
+                  height={52}
+                  style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.12))", flexShrink: 0, objectFit: "contain" }}
+                />
+                <div style={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, fontWeight: 800 }}>
+                  <span>Diferencia de Caja:</span>
+                  <span>
+                    {Math.abs(diferenciaUsd) < 0.01
+                      ? "🎯 Cuadre Perfecto ($0.00)"
+                      : diferenciaUsd > 0
+                      ? `🟢 Sobrante: +$${diferenciaUsd.toFixed(2)} USD`
+                      : `🔴 Faltante: -$${Math.abs(diferenciaUsd).toFixed(2)} USD`}
+                  </span>
+                </div>
               </div>
 
               <div className="form-field">

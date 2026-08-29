@@ -5,7 +5,6 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import ThemeToggle from "@/components/theme-toggle";
-import { MascotaAvatar } from "@/components/mascota-avatar";
 import { cerrarSesion } from "@/app/login/actions";
 import { sounds } from "@/lib/sound-effects";
 
@@ -204,7 +203,14 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
           </button>
 
           <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
-            <MascotaAvatar size={34} />
+            <Image
+              src="/images/logo-badge.png"
+              alt="Logo La Parada del Sabor"
+              width={34}
+              height={34}
+              className="brand-logo-img"
+              priority
+            />
             <div className="brand-text">
               <span className="brand-name-main">La Parada </span>
               <span className="brand-name-accent">del Sabor</span>
@@ -350,7 +356,13 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
             {/* Header del Drawer Móvil */}
             <div className="mobile-drawer-header">
               <div className="mobile-drawer-brand">
-                <MascotaAvatar size={36} />
+                <Image
+                  src="/images/logo-badge.png"
+                  alt="Logo"
+                  width={36}
+                  height={36}
+                  className="brand-logo-img"
+                />
                 <div>
                   <h3 className="mobile-drawer-title">La Parada del Sabor</h3>
                   <span className="mobile-drawer-subtitle">Panel Administrativo</span>

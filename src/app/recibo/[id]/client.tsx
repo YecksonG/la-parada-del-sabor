@@ -302,6 +302,23 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
   };
   const metodoPago = METODOS_PAGO_LABEL[venta.metodo_pago] || venta.metodo_pago;
 
+  const stickerEstado = useMemo(() => {
+    switch (venta.estado) {
+      case "completada":
+        return "/mascota/stickers/01_celebracion_exito.png";
+      case "lista":
+        return "/mascota/stickers/09_ojos_corazon_favorito.png";
+      case "preparando":
+        return "/mascota/stickers/03_delicioso_amor.png";
+      case "pendiente":
+        return "/mascota/stickers/07_pulgar_arriba_confirmado.png";
+      case "cancelada":
+        return "/mascota/stickers/08_facepalm_error.png";
+      default:
+        return "/mascota/stickers/07_pulgar_arriba_confirmado.png";
+    }
+  }, [venta.estado]);
+
   const [modalFeedback, setModalFeedback] = useState(false);
   const [calificacion, setCalificacion] = useState<number>(5);
   const [saborComida, setSaborComida] = useState("🔥 ¡Exquisito!");
@@ -568,8 +585,14 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               )}
             </div>
 
-            <div className="recibo-status-head">
-              <span className="recibo-status-icon">{estadoInfo.icon}</span>
+            <div className="recibo-status-head" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <Image
+                src={stickerEstado}
+                alt="Estado de Orden"
+                width={56}
+                height={56}
+                style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.12))", flexShrink: 0, objectFit: "contain" }}
+              />
               <div>
                 <span className="recibo-status-label" style={{ color: estadoInfo.color }}>
                   ESTADO: {estadoInfo.label.toUpperCase()}

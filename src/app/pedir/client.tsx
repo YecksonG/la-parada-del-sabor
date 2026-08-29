@@ -9,7 +9,6 @@ import { Categoria, Producto, ExtraModificador, ZonaDelivery } from "@/types/dat
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
 import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
-import { MascotaAvatar } from "@/components/mascota-avatar";
 
 interface MenuClienteViewProps {
   categorias: Categoria[];
@@ -437,7 +436,14 @@ export default function MenuClienteView({
             role="button"
             tabIndex={0}
           >
-            <MascotaAvatar size={42} className="pedir-hero-logo-img" />
+            <Image
+              src="/images/logo-badge.png"
+              alt="Logo La Parada del Sabor"
+              width={42}
+              height={42}
+              className="pedir-hero-logo-img"
+              priority
+            />
             <div>
               <span className="pedir-brand-title">La Parada del Sabor</span>
               <span className="pedir-brand-subtitle">Arepas Tradicionales & Más</span>
@@ -675,7 +681,7 @@ export default function MenuClienteView({
                     alt="Carrito Vacío"
                     width={120}
                     height={120}
-                    style={{ margin: "0 auto 12px", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))" }}
+                    style={{ margin: "0 auto 12px", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))", objectFit: "contain" }}
                   />
                   <h3 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 6px" }}>
                     ¡Tu carrito está vacío!
@@ -1048,7 +1054,13 @@ export default function MenuClienteView({
             aria-describedby="modal-limite-desc"
           >
             <div className="pedir-modal-limite-header">
-              <div className="pedir-modal-limite-icon" aria-hidden="true">👨‍🍳</div>
+              <Image
+                src="/mascota/stickers/06_pensativa_duda.png"
+                alt="Pensativa"
+                width={64}
+                height={64}
+                style={{ filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.15))", objectFit: "contain" }}
+              />
               <h3 id="modal-limite-title" className="pedir-modal-limite-title">
                 ¡Estamos procesando tus pedidos!
               </h3>

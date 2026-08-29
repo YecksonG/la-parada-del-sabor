@@ -345,7 +345,16 @@ export default function DashboardClient({
 
           <div className="dashboard-rank-list">
             {finanzas.topPlatos.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: 13 }}>No hay ventas en este periodo.</p>
+              <div style={{ textAlign: "center", padding: "24px 10px" }}>
+                <Image
+                  src="/mascota/stickers/05_dormida_cerrado.png"
+                  alt="Sin ventas"
+                  width={64}
+                  height={64}
+                  style={{ margin: "0 auto 8px", filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))", objectFit: "contain" }}
+                />
+                <p style={{ color: "var(--text-muted)", fontSize: 13, margin: 0 }}>No hay ventas registradas en este período.</p>
+              </div>
             ) : (
               finanzas.topPlatos.map((plato, idx) => {
                 const maxVentas = finanzas.topPlatos[0]?.cantidad || 1;

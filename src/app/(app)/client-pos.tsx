@@ -584,10 +584,16 @@ export default function PosClient({
         {/* Lista de Items en la Comanda */}
         <div className="cart-items-scroll">
           {carrito.length === 0 ? (
-            <div className="cart-empty-state">
-              <span className="cart-empty-icon">🫓</span>
-              <p>Comanda vacía</p>
-              <small>Toca cualquier arepa o producto para armar el pedido</small>
+            <div className="cart-empty-state" style={{ textAlign: "center", padding: "24px 12px" }}>
+              <Image
+                src="/mascota/stickers/05_dormida_cerrado.png"
+                alt="Comanda en Espera"
+                width={80}
+                height={80}
+                style={{ margin: "0 auto 8px", filter: "drop-shadow(0 4px 10px rgba(0,0,0,0.1))", objectFit: "contain" }}
+              />
+              <p style={{ fontWeight: 800, margin: "0 0 4px" }}>Comanda en Espera</p>
+              <small style={{ color: "var(--text-muted)" }}>Selecciona productos o combos para armar la orden</small>
             </div>
           ) : (
             carrito.map((item, index) => {
@@ -746,11 +752,11 @@ export default function PosClient({
           <div className="modal-ticket-card">
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
               <Image
-                src="/images/logo-badge.png"
-                alt="Logo La Parada del Sabor"
-                width={70}
-                height={70}
-                style={{ borderRadius: "50%" }}
+                src="/mascota/stickers/01_celebracion_exito.png"
+                alt="Comanda Exitosa"
+                width={80}
+                height={80}
+                style={{ filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))", objectFit: "contain" }}
               />
             </div>
             <div className="ticket-header">
