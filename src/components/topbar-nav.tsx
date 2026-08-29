@@ -159,194 +159,286 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     setActiveDropdown((prev) => (prev === id ? null : id));
   };
 
+  // Bloquear scroll de la página cuando el menú móvil está abierto
+  useEffect(() => {
+    if (menuAbierto) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [menuAbierto]);
+
   return (
-    <header className="topbar">
-      <div className="topbar-left">
-        {/* Botón Móvil Hamburguesa */}
-        <button
-          type="button"
-          className="mobile-hamburger-btn"
-          onClick={() => {
-            sounds.playPop();
-            setMenuAbierto(!menuAbierto);
-          }}
-          aria-label="Abrir menú de navegación"
-          aria-expanded={menuAbierto}
-        >
-          {menuAbierto ? "✕" : "☰"}
-        </button>
+    <>
+      <header className="topbar">
+        <div className="topbar-left">
+          {/* Botón Móvil Hamburguesa */}
+          <button
+            type="button"
+            className="mobile-hamburger-btn"
+            onClick={() => {
+              sounds.playPop();
+              setMenuAbierto(!menuAbierto);
+            }}
+            aria-label="Abrir menú de navegación"
+            aria-expanded={menuAbierto}
+          >
+            {menuAbierto ? "✕" : "☰"}
+          </button>
 
-        <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
-          <Image
-            src="/images/logo-badge.png"
-            alt="Logo La Parada del Sabor"
-            width={36}
-            height={36}
-            className="brand-logo-img"
-            priority
-          />
-          <div className="brand-text">
-            <span className="brand-name-main">La Parada </span>
-            <span className="brand-name-accent">del Sabor</span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Navegación Principal Categorizada */}
-      <nav ref={navRef} className={`topbar-nav ${menuAbierto ? "nav-open" : ""}`}>
-        {/* Grupo Móvil: Operaciones */}
-        <div className="mobile-nav-group-title">
-          ⚡ Operaciones
+          <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
+            <Image
+              src="/images/logo-badge.png"
+              alt="Logo La Parada del Sabor"
+              width={34}
+              height={34}
+              className="brand-logo-img"
+              priority
+            />
+            <div className="brand-text">
+              <span className="brand-name-main">La Parada </span>
+              <span className="brand-name-accent">del Sabor</span>
+            </div>
+          </Link>
         </div>
 
-        {/* Enlaces directos (POS, Comandas, Caja) */}
-        {enlacesDirectos.map((enlace) => {
-          const activo = pathname === enlace.href;
-          return (
-            <Link
-              key={enlace.href}
-              href={enlace.href}
-              onClick={() => sounds.playPop()}
-              className={`nav-link ${activo ? "nav-link-active" : ""}`}
-            >
-              <span className="nav-icon">{enlace.icon}</span>
-              <span>{enlace.label}</span>
-            </Link>
-          );
-        })}
+        {/* Navegación Desktop Categorizada */}
+        <nav ref={navRef} className="topbar-nav desktop-nav-only">
+          {/* Enlaces directos (POS, Comandas, Caja) */}
+          {enlacesDirectos.map((enlace) => {
+            const activo = pathname === enlace.href;
+            return (
+              <Link
+                key={enlace.href}
+                href={enlace.href}
+                onClick={() => sounds.playPop()}
+                className={`nav-link ${activo ? "nav-link-active" : ""}`}
+              >
+                <span className="nav-icon">{enlace.icon}</span>
+                <span>{enlace.label}</span>
+              </Link>
+            );
+          })}
 
-        {/* Categorías con Desplegable */}
-        {categoriasNav.map((cat) => {
-          const isCategoryActive = cat.items.some((item) => pathname === item.href);
-          const isOpen = activeDropdown === cat.id;
+          {/* Categorías con Desplegable */}
+          {categoriasNav.map((cat) => {
+            const isCategoryActive = cat.items.some((item) => pathname === item.href);
+            const isOpen = activeDropdown === cat.id;
 
-          return (
-            <div key={cat.id} className="nav-dropdown-wrapper">
-              {/* En Móvil: Título del grupo */}
-              <div className="mobile-nav-group-title">
-                {cat.icon} {cat.label}
+            return (
+              <div key={cat.id} className="nav-dropdown-wrapper">
+                <button
+                  type="button"
+                  className={`nav-dropdown-trigger ${isCategoryActive ? "active" : ""}`}
+                  onClick={() => toggleDropdown(cat.id)}
+                  aria-haspopup="menu"
+                  aria-expanded={isOpen}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.label}</span>
+                  <span className={`nav-dropdown-chevron ${isOpen ? "open" : ""}`}>▼</span>
+                </button>
+
+                {isOpen && (
+                  <div className="nav-dropdown-menu" role="menu">
+                    {cat.items.map((item) => {
+                      const isItemActive = pathname === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => {
+                            sounds.playPop();
+                            setActiveDropdown(null);
+                          }}
+                          className={`nav-dropdown-item ${isItemActive ? "active" : ""}`}
+                          role="menuitem"
+                        >
+                          <span className="nav-dropdown-item-icon">{item.icon}</span>
+                          <div className="nav-dropdown-item-info">
+                            <span className="nav-dropdown-item-title">{item.label}</span>
+                            <span className="nav-dropdown-item-desc">{item.desc}</span>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+            );
+          })}
+        </nav>
 
-              {/* Botón Trigger en Desktop */}
+        <div className="topbar-right">
+          {/* Tasa BCV */}
+          {bcvTasa && (
+            <Link href="/tasas" className="bcv-pill" title="Tasa oficial BCV (clic para ver tasas)">
+              <span className="bcv-dot"></span>
+              <span className="bcv-label">BCV:</span>
+              <span className="bcv-value">{bcvTasa.toFixed(2)} Bs</span>
+            </Link>
+          )}
+
+          {/* Botón de Sonidos Lúdicos */}
+          <button
+            type="button"
+            onClick={handleToggleSound}
+            className="theme-toggle-btn"
+            title={soundEnabled ? "Sonidos gourmet activados" : "Sonidos silenciados"}
+            aria-label={soundEnabled ? "Silenciar sonidos gourmet" : "Activar sonidos gourmet"}
+          >
+            {soundEnabled ? "🔔" : "🔕"}
+          </button>
+
+          <ThemeToggle />
+
+          {/* Menú de Usuario */}
+          <div className="user-menu-wrapper" ref={userMenuRef}>
+            <button
+              type="button"
+              className="user-avatar-btn"
+              onClick={() => setDropdownUsuario(!dropdownUsuario)}
+              title={`Sesión iniciada como ${nombre}`}
+              aria-expanded={dropdownUsuario}
+            >
+              <span className="user-avatar-initial">{inicial}</span>
+            </button>
+
+            {dropdownUsuario && (
+              <div className="user-dropdown-menu">
+                <div className="dropdown-header">
+                  <span className="dropdown-user-name">{nombre}</span>
+                  <span className="dropdown-user-role">Operador Gastronómico</span>
+                </div>
+                <div className="dropdown-divider"></div>
+                <Link href="/dashboard" className="nav-link" style={{ padding: "8px 10px" }}>
+                  📊 Ver Dashboard
+                </Link>
+                <Link href="/caja" className="nav-link" style={{ padding: "8px 10px" }}>
+                  💰 Control de Caja
+                </Link>
+                <div className="dropdown-divider"></div>
+                <form action={cerrarSesion}>
+                  <button type="submit" className="dropdown-logout-btn">
+                    <span>🚪</span> Cerrar Sesión
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* DRAWER MÓVIL SLIDE-OVER CON BACKDROP COMPLETO */}
+      {menuAbierto && (
+        <div className="mobile-drawer-overlay" onClick={() => setMenuAbierto(false)}>
+          <aside
+            className="mobile-drawer-panel"
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Menú principal de navegación"
+          >
+            {/* Header del Drawer Móvil */}
+            <div className="mobile-drawer-header">
+              <div className="mobile-drawer-brand">
+                <Image
+                  src="/images/logo-badge.png"
+                  alt="Logo"
+                  width={36}
+                  height={36}
+                  className="brand-logo-img"
+                />
+                <div>
+                  <h3 className="mobile-drawer-title">La Parada del Sabor</h3>
+                  <span className="mobile-drawer-subtitle">Panel Administrativo</span>
+                </div>
+              </div>
               <button
                 type="button"
-                className={`nav-dropdown-trigger ${isCategoryActive ? "active" : ""}`}
-                onClick={() => toggleDropdown(cat.id)}
-                aria-haspopup="menu"
-                aria-expanded={isOpen}
+                className="mobile-drawer-close-btn"
+                onClick={() => setMenuAbierto(false)}
+                aria-label="Cerrar menú"
               >
-                <span>{cat.icon}</span>
-                <span>{cat.label}</span>
-                <span className={`nav-dropdown-chevron ${isOpen ? "open" : ""}`}>▼</span>
+                ✕
               </button>
+            </div>
 
-              {/* Menú Desplegable en Desktop */}
-              {isOpen && (
-                <div className="nav-dropdown-menu" role="menu">
+            {/* Contenido de Enlaces Agrupados */}
+            <div className="mobile-drawer-body">
+              {/* Sección 1: Operaciones */}
+              <div className="mobile-drawer-group">
+                <div className="mobile-drawer-group-label">⚡ Operaciones</div>
+                {enlacesDirectos.map((enlace) => {
+                  const activo = pathname === enlace.href;
+                  return (
+                    <Link
+                      key={enlace.href}
+                      href={enlace.href}
+                      onClick={() => {
+                        sounds.playPop();
+                        setMenuAbierto(false);
+                      }}
+                      className={`mobile-drawer-link ${activo ? "active" : ""}`}
+                    >
+                      <span className="mobile-drawer-link-icon">{enlace.icon}</span>
+                      <span className="mobile-drawer-link-text">{enlace.label}</span>
+                      {activo && <span className="mobile-drawer-link-active-dot">●</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {/* Secciones Categorizadas */}
+              {categoriasNav.map((cat) => (
+                <div key={cat.id} className="mobile-drawer-group">
+                  <div className="mobile-drawer-group-label">
+                    {cat.icon} {cat.label}
+                  </div>
                   {cat.items.map((item) => {
-                    const isItemActive = pathname === item.href;
+                    const activo = pathname === item.href;
                     return (
                       <Link
                         key={item.href}
                         href={item.href}
                         onClick={() => {
                           sounds.playPop();
-                          setActiveDropdown(null);
+                          setMenuAbierto(false);
                         }}
-                        className={`nav-dropdown-item ${isItemActive ? "active" : ""}`}
-                        role="menuitem"
+                        className={`mobile-drawer-link ${activo ? "active" : ""}`}
                       >
-                        <span className="nav-dropdown-item-icon">{item.icon}</span>
-                        <div className="nav-dropdown-item-info">
-                          <span className="nav-dropdown-item-title">{item.label}</span>
-                          <span className="nav-dropdown-item-desc">{item.desc}</span>
+                        <span className="mobile-drawer-link-icon">{item.icon}</span>
+                        <div className="mobile-drawer-link-content">
+                          <span className="mobile-drawer-link-text">{item.label}</span>
+                          <span className="mobile-drawer-link-desc">{item.desc}</span>
                         </div>
+                        {activo && <span className="mobile-drawer-link-active-dot">●</span>}
                       </Link>
                     );
                   })}
                 </div>
-              )}
-
-              {/* En Móvil: Mostrar items directamente */}
-              <div className="mobile-nav-subitems">
-                {cat.items.map((item) => {
-                  const isItemActive = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => sounds.playPop()}
-                      className={`nav-link ${isItemActive ? "nav-link-active" : ""}`}
-                    >
-                      <span className="nav-icon">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+              ))}
             </div>
-          );
-        })}
-      </nav>
 
-      <div className="topbar-right">
-        {/* Tasa BCV */}
-        {bcvTasa && (
-          <Link href="/tasas" className="bcv-pill" title="Tasa oficial BCV (clic para ver las 4 tasas)">
-            <span className="bcv-dot"></span>
-            <span className="bcv-label">BCV:</span>
-            <span className="bcv-value">{bcvTasa.toFixed(2)} Bs</span>
-          </Link>
-        )}
-
-        {/* Botón de Sonidos Lúdicos */}
-        <button
-          type="button"
-          onClick={handleToggleSound}
-          className="theme-toggle-btn"
-          title={soundEnabled ? "Sonidos gourmet activados" : "Sonidos silenciados"}
-          aria-label={soundEnabled ? "Silenciar sonidos gourmet" : "Activar sonidos gourmet"}
-        >
-          {soundEnabled ? "🔔" : "🔕"}
-        </button>
-
-        <ThemeToggle />
-
-        {/* Menú de Usuario */}
-        <div className="user-menu-wrapper" ref={userMenuRef}>
-          <button
-            type="button"
-            className="user-avatar-btn"
-            onClick={() => setDropdownUsuario(!dropdownUsuario)}
-            title={`Sesión iniciada como ${nombre}`}
-            aria-expanded={dropdownUsuario}
-          >
-            <span className="user-avatar-initial">{inicial}</span>
-          </button>
-
-          {dropdownUsuario && (
-            <div className="user-dropdown-menu">
-              <div className="dropdown-header">
-                <span className="dropdown-user-name">{nombre}</span>
-                <span className="dropdown-user-role">Operador Gastronómico</span>
+            {/* Footer del Drawer Móvil */}
+            <div className="mobile-drawer-footer">
+              <div className="mobile-drawer-user-info">
+                <div className="mobile-drawer-user-avatar">{inicial}</div>
+                <div className="mobile-drawer-user-details">
+                  <span className="mobile-drawer-user-name">{nombre}</span>
+                  <span className="mobile-drawer-user-badge">Operador Activo</span>
+                </div>
               </div>
-              <div className="dropdown-divider"></div>
-              <Link href="/dashboard" className="nav-link" style={{ padding: "6px 8px" }}>
-                📊 Ver Métricas y Reportes
-              </Link>
-              <Link href="/caja" className="nav-link" style={{ padding: "6px 8px" }}>
-                💰 Control de Caja & Arqueo
-              </Link>
-              <div className="dropdown-divider"></div>
-              <form action={cerrarSesion}>
-                <button type="submit" className="dropdown-logout-btn">
+              <form action={cerrarSesion} style={{ width: "100%" }}>
+                <button type="submit" className="mobile-drawer-logout-btn">
                   <span>🚪</span> Cerrar Sesión
                 </button>
               </form>
             </div>
-          )}
+          </aside>
         </div>
-      </div>
-    </header>
+      )}
+    </>
   );
 }
