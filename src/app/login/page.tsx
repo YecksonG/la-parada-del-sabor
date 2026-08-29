@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useId, useTransition } from "react";
+import { useState, useEffect, useId } from "react";
 import Image from "next/image";
 import ThemeToggle from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
+import { loginWithRateLimit, registrarLoginExitoso } from "./actions";
 
 export default function LoginPage() {
   const [emailInput, setEmailInput] = useState("");
@@ -19,32 +20,16 @@ export default function LoginPage() {
   const emailId = useId();
   const passwordId = useId();
 
-  // Cargar bloqueo guardado en localStorage
-  useEffect(() => {
-    try {
-      const savedBloqueo = localStorage.getItem("parada_login_lock");
-      if (savedBloqueo) {
-        const tiempoRestante = Math.ceil((parseInt(savedBloqueo, 10) - Date.now()) / 1000);
-        if (tiempoRestante > 0) {
-          setSegundosBloqueo(tiempoRestante);
-          setIntentosFallidos(5);
-        } else {
-          localStorage.removeItem("parada_login_lock");
-        }
-      }
-    } catch {}
-  }, []);
+  // Ya no usamos el bloqueo de localStorage por seguridad, 
+  // la base de datos es la fuente de la verdad para el Rate Limit.
 
-  // Temporizador de cuenta regresiva de bloqueo
+  // Temporizador de cuenta regresiva de bloqueo visual
   useEffect(() => {
     if (segundosBloqueo <= 0) return;
 
     const interval = setInterval(() => {
       setSegundosBloqueo((prev) => {
         if (prev <= 1) {
-          try {
-            localStorage.removeItem("parada_login_lock");
-          } catch {}
           setIntentosFallidos(0);
           return 0;
         }
@@ -72,6 +57,24 @@ export default function LoginPage() {
     setCargando(true);
 
     try {
+      // 1. Validar Rate Limit de forma segura en el servidor
+      const rateCheck = await loginWithRateLimit(emailInput, passwordInput);
+      
+      if (rateCheck.error) {
+        setErrorMsg(rateCheck.error);
+        setSacudir(true);
+        setTimeout(() => setSacudir(false), 500);
+        
+        // Bloquear interfaz si la BD dice que estamos bloqueados
+        if (rateCheck.error.includes("bloqueado")) {
+          // Extraer minutos (simplificado, la DB es la que bloquea de todas formas)
+          setSegundosBloqueo(15 * 60); 
+        }
+        setCargando(false);
+        return;
+      }
+
+      // 2. Ejecutar Login Real
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
         email: emailInput.trim().toLowerCase(),
@@ -82,23 +85,15 @@ export default function LoginPage() {
         setErrorMsg("Credenciales incorrectas. Verifica tu correo y contraseña.");
         setSacudir(true);
         setTimeout(() => setSacudir(false), 500);
-
-        const nuevosIntentos = intentosFallidos + 1;
-        setIntentosFallidos(nuevosIntentos);
-
-        if (nuevosIntentos >= 5) {
-          const lockUntil = Date.now() + 60 * 1000;
-          try {
-            localStorage.setItem("parada_login_lock", lockUntil.toString());
-          } catch {}
-          setSegundosBloqueo(60);
-        }
         setCargando(false);
         return;
       }
 
       if (data?.session) {
-        // Redirección directa con navegación completa para asegurar lectura de cookies
+        // Limpiar intentos en servidor
+        if (rateCheck.rateLimitKey) {
+          await registrarLoginExitoso(rateCheck.rateLimitKey);
+        }
         window.location.href = "/";
       } else {
         setCargando(false);

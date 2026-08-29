@@ -102,6 +102,42 @@ export async function login(
   redirect("/");
 }
 
+export async function loginWithRateLimit(emailRaw: string, passwordRaw: string) {
+  const email = emailRaw?.trim().toLowerCase();
+  const password = passwordRaw;
+
+  if (!email || !password) {
+    return { error: "Por favor ingresa tu correo y contraseña." };
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email) || email.length > 100) {
+    return { error: "Formato de correo electrónico no válido." };
+  }
+
+  const reqHeaders = await headers();
+  const ip = reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const rateLimitKey = `${ip}_${email}`;
+
+  const supabase = await createClient();
+
+  const rateCheck = await verificarRateLimitLogin(supabase, rateLimitKey);
+  if (!rateCheck.permitido) {
+    return {
+      error: `Demasiados intentos fallidos. Por seguridad tu acceso ha sido bloqueado por ${rateCheck.minutosRestantes} minutos.`,
+    };
+  }
+
+  // NO hacemos signInWithPassword aquí para evitar el bug de Server Actions
+  // Solamente validamos el rate limit. El login real se hará en el cliente.
+  return { ok: true, rateLimitKey };
+}
+
+export async function registrarLoginExitoso(rateLimitKey: string) {
+  const supabase = await createClient();
+  await limpiarLoginExitoso(supabase, rateLimitKey);
+}
+
 export async function cerrarSesion() {
   const supabase = await createClient();
   await supabase.auth.signOut();

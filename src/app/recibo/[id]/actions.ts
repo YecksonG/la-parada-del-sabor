@@ -16,65 +16,9 @@ export async function obtenerEstadoRecibo(id: string) {
     p_venta_id: id,
   });
 
-  if (!rpcError && rpcData?.id) {
-    return { ok: true, venta: rpcData };
+  if (rpcError || !rpcData?.id) {
+    return { ok: false, error: rpcError?.message || "No se encontró el comprobante." };
   }
 
-  // 2. Fallback por consulta estructurada
-  const { data: directData, error: directError } = await supabase
-    .from("ventas")
-    .select(`
-      id,
-      numero_comanda,
-      fecha,
-      total_usd,
-      total_bs,
-      tasa_bcv,
-      metodo_pago,
-      tipo_entrega,
-      delivery_zona_nombre,
-      delivery_monto_usd,
-      delivery_monto_bs,
-      direccion_delivery,
-      estado,
-      notas_comanda,
-      creado_por,
-      cliente:clientes (
-        id,
-        nombre,
-        telefono,
-        direccion_delivery
-      ),
-      items:ventas_items (
-        id,
-        producto_id,
-        cantidad,
-        precio_unitario_usd,
-        subtotal_usd,
-        notas_item,
-        producto:productos (
-          id,
-          nombre,
-          icono
-        ),
-        extras:ventas_items_extras (
-          id,
-          cantidad,
-          precio_unitario_usd,
-          subtotal_usd,
-          extra:extras_modificadores (
-            id,
-            nombre
-          )
-        )
-      )
-    `)
-    .eq("id", id)
-    .single();
-
-  if (directError || !directData) {
-    return { ok: false, error: directError?.message || "No se encontró el comprobante." };
-  }
-
-  return { ok: true, venta: directData };
+  return { ok: true, venta: rpcData };
 }

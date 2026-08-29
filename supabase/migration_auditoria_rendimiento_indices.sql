@@ -15,17 +15,13 @@ CREATE INDEX IF NOT EXISTS idx_ventas_items_venta_id ON public.ventas_items (ven
 CREATE INDEX IF NOT EXISTS idx_ventas_items_producto_id ON public.ventas_items (producto_id);
 
 -- Índice en ventas_items_extras
-CREATE INDEX IF NOT EXISTS idx_ventas_items_extras_item_id ON public.ventas_items_extras (item_id);
+CREATE INDEX IF NOT EXISTS idx_ventas_items_extras_venta_item_id ON public.ventas_items_extras (venta_item_id);
 
 -- Índice en recetas_ingredientes para acelerar el cálculo del escandallo
 CREATE INDEX IF NOT EXISTS idx_recetas_producto_id ON public.recetas_ingredientes (producto_id);
 CREATE INDEX IF NOT EXISTS idx_recetas_insumo_id ON public.recetas_ingredientes (insumo_id);
 
--- Índice en gastos (usado frecuentemente en /caja)
-CREATE INDEX IF NOT EXISTS idx_gastos_fecha ON public.gastos (fecha DESC);
-
--- Índice en login_attempts (Optimiza el rate limiting)
-CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_email ON public.login_attempts (ip_address, email);
+-- (Los índices de gastos y login ya existen en sus respectivas migraciones o usan nombres de columna distintos)
 
 -- 2. 🛡️ REVISIÓN DE SEGURIDAD EN FUNCIONES (Prevenir Inyecciones / Search Path)
 -- Asegurar que fn_check_login_rate_limit y fn_cleanup_login_attempts tengan search_path = public
