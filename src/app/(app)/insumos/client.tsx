@@ -43,12 +43,13 @@ export default function InsumosClient({
   };
 
   // Form states
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
   const [nombre, setNombre] = useState("");
   const [unidadMedida, setUnidadMedida] = useState<UnidadMedida>("g");
   const [stockActual, setStockActual] = useState<number>(1000);
   const [stockMinimo, setStockMinimo] = useState<number>(200);
   const [costoUnitario, setCostoUnitario] = useState<number>(0.005);
-  const [categoriaInsumo, setCategoriaInsumo] = useState("Carnes");
+  const [categoriaInsumo, setCategoriaInsumo] = useState("Pre-elaborados");
   const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState<string[]>([]);
 
   const abrirCrear = () => {
@@ -59,7 +60,7 @@ export default function InsumosClient({
     setStockActual(1000);
     setStockMinimo(200);
     setCostoUnitario(0.005);
-    setCategoriaInsumo("Carnes");
+    setCategoriaInsumo("Pre-elaborados");
     setProveedoresSeleccionados([]);
     setModalAbierto(true);
   };
@@ -97,13 +98,34 @@ export default function InsumosClient({
     setModalAjusteAbierto(true);
   };
 
+  const CATEGORIAS_LISTA = [
+    "Pre-elaborados",
+    "Carnes",
+    "Masas",
+    "Quesos",
+    "Lácteos",
+    "Vegetales",
+    "Salsas",
+    "Bebidas",
+    "Empaques",
+    "General",
+  ];
+
   const insumosFiltrados = useMemo(() => {
-    return insumos.filter(
-      (ins) =>
+    return insumos.filter((ins) => {
+      const catInsumo = ins.categoria_insumo?.toLowerCase() || "general";
+      const coincideBusqueda =
         ins.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        ins.categoria_insumo.toLowerCase().includes(busqueda.toLowerCase())
-    );
-  }, [insumos, busqueda]);
+        catInsumo.includes(busqueda.toLowerCase());
+
+      const coincideCategoria =
+        categoriaFiltro === "todas" ||
+        catInsumo === categoriaFiltro.toLowerCase() ||
+        (categoriaFiltro === "Empaques" && catInsumo === "empaque");
+
+      return coincideBusqueda && coincideCategoria;
+    });
+  }, [insumos, busqueda, categoriaFiltro]);
 
   // Valor total del inventario en despensa
   const valorTotalInventario = useMemo(() => {
@@ -231,6 +253,45 @@ export default function InsumosClient({
         )}
       </div>
 
+      {/* Pestañas / Filtros Rápidos por Categoría */}
+      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 10, marginBottom: 12 }}>
+        <button
+          type="button"
+          onClick={() => { sounds.playPop(); setCategoriaFiltro("todas"); }}
+          className={`view-mode-btn ${categoriaFiltro === "todas" ? "active" : ""}`}
+          style={{ padding: "6px 14px", borderRadius: "999px", fontSize: 13, whiteSpace: "nowrap" }}
+        >
+          🌐 Todos ({insumos.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => { sounds.playPop(); setCategoriaFiltro("Pre-elaborados"); }}
+          className={`view-mode-btn ${categoriaFiltro === "Pre-elaborados" ? "active" : ""}`}
+          style={{ 
+            padding: "6px 14px", 
+            borderRadius: "999px", 
+            fontSize: 13, 
+            whiteSpace: "nowrap",
+            background: categoriaFiltro === "Pre-elaborados" ? "var(--primary)" : "rgba(249, 115, 22, 0.12)",
+            color: categoriaFiltro === "Pre-elaborados" ? "#fff" : "var(--primary)",
+            borderColor: "var(--primary)"
+          }}
+        >
+          🍳 Pre-elaborados / Guisos
+        </button>
+        {["Carnes", "Masas", "Quesos", "Lácteos", "Vegetales", "Salsas", "Bebidas", "Empaques"].map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => { sounds.playPop(); setCategoriaFiltro(cat); }}
+            className={`view-mode-btn ${categoriaFiltro === cat ? "active" : ""}`}
+            style={{ padding: "6px 14px", borderRadius: "999px", fontSize: 13, whiteSpace: "nowrap" }}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
       {insumosFiltrados.length === 0 ? (
         <div className="recetas-empty-box">
           <span style={{ fontSize: 48 }}>📦</span>
@@ -277,7 +338,9 @@ export default function InsumosClient({
               <div key={ins.id} className="insumo-card">
                 {/* Fila Superior: Categoría y Botón Discreto de Editar */}
                 <div className="insumo-card-topbar">
-                  <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
+                  <span className={`insumo-cat-tag ${ins.categoria_insumo.toLowerCase().includes("pre-elaborado") ? "tag-pre-elaborado" : ""}`}>
+                    {ins.categoria_insumo.toLowerCase().includes("pre-elaborado") ? "🍳 " : ""}{ins.categoria_insumo}
+                  </span>
                   <button
                     type="button"
                     onClick={() => abrirEditar(ins)}
@@ -576,7 +639,7 @@ export default function InsumosClient({
                     onChange={(e) => setCategoriaInsumo(e.target.value)}
                     className="form-input"
                   >
-                    {["Carnes", "Masas", "Quesos", "Vegetales", "Salsas", "Bebidas", "Empaque", "General"].map((c) => (
+                    {CATEGORIAS_LISTA.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
