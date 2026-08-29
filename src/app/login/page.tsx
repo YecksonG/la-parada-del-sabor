@@ -1,29 +1,25 @@
 "use client";
 
-import { useActionState, useState, useEffect, useId, useRef } from "react";
+import { useState, useEffect, useId, useTransition } from "react";
 import Image from "next/image";
-import { login, LoginState } from "./actions";
 import ThemeToggle from "@/components/theme-toggle";
-
-const initialState: LoginState = {
-  error: null,
-};
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(login, initialState);
-  const [mostrarPassword, setMostrarPassword] = useState(false);
   const [emailInput, setEmailInput] = useState("");
   const [passwordInput, setPasswordInput] = useState("");
+  const [mostrarPassword, setMostrarPassword] = useState(false);
   const [capsLockActivo, setCapsLockActivo] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
   const [intentosFallidos, setIntentosFallidos] = useState(0);
   const [segundosBloqueo, setSegundosBloqueo] = useState(0);
   const [sacudir, setSacudir] = useState(false);
 
   const emailId = useId();
   const passwordId = useId();
-  const lastStateRef = useRef<LoginState>(initialState);
 
-  // Cargar bloqueo guardado
+  // Cargar bloqueo guardado en localStorage
   useEffect(() => {
     try {
       const savedBloqueo = localStorage.getItem("parada_login_lock");
@@ -39,7 +35,7 @@ export default function LoginPage() {
     } catch {}
   }, []);
 
-  // Temporizador de cuenta regresiva
+  // Temporizador de cuenta regresiva de bloqueo
   useEffect(() => {
     if (segundosBloqueo <= 0) return;
 
@@ -59,28 +55,6 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, [segundosBloqueo]);
 
-  // Manejar errores
-  useEffect(() => {
-    if (state !== lastStateRef.current && state?.error) {
-      lastStateRef.current = state;
-      setSacudir(true);
-      const timerShake = setTimeout(() => setSacudir(false), 500);
-
-      const nuevosIntentos = intentosFallidos + 1;
-      setIntentosFallidos(nuevosIntentos);
-
-      if (nuevosIntentos >= 5) {
-        const lockUntil = Date.now() + 60 * 1000;
-        try {
-          localStorage.setItem("parada_login_lock", lockUntil.toString());
-        } catch {}
-        setSegundosBloqueo(60);
-      }
-
-      return () => clearTimeout(timerShake);
-    }
-  }, [state, intentosFallidos]);
-
   const handleKeyCheck = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.getModifierState) {
       setCapsLockActivo(e.getModifierState("CapsLock"));
@@ -89,6 +63,52 @@ export default function LoginPage() {
 
   const estaBloqueado = segundosBloqueo > 0;
   const emailValido = emailInput.length === 0 || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (estaBloqueado || cargando || !emailInput || !passwordInput) return;
+
+    setErrorMsg(null);
+    setCargando(true);
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: emailInput.trim().toLowerCase(),
+        password: passwordInput,
+      });
+
+      if (error) {
+        setErrorMsg("Credenciales incorrectas. Verifica tu correo y contraseña.");
+        setSacudir(true);
+        setTimeout(() => setSacudir(false), 500);
+
+        const nuevosIntentos = intentosFallidos + 1;
+        setIntentosFallidos(nuevosIntentos);
+
+        if (nuevosIntentos >= 5) {
+          const lockUntil = Date.now() + 60 * 1000;
+          try {
+            localStorage.setItem("parada_login_lock", lockUntil.toString());
+          } catch {}
+          setSegundosBloqueo(60);
+        }
+        setCargando(false);
+        return;
+      }
+
+      if (data?.session) {
+        // Redirección directa con navegación completa para asegurar lectura de cookies
+        window.location.href = "/";
+      } else {
+        setCargando(false);
+      }
+    } catch (err: unknown) {
+      console.error("Error en autenticación:", err);
+      setErrorMsg("Error de conexión al autenticar. Intenta nuevamente.");
+      setCargando(false);
+    }
+  };
 
   return (
     <main className="login-main">
@@ -160,15 +180,15 @@ export default function LoginPage() {
           </div>
         )}
 
-        {state?.error && !estaBloqueado && (
+        {errorMsg && !estaBloqueado && (
           <div className="login-error-box" role="alert" aria-live="assertive">
             <span className="login-error-icon">✕</span>
-            <span>{state.error}</span>
+            <span>{errorMsg}</span>
           </div>
         )}
 
         {/* Formulario */}
-        <form action={formAction} className="login-form">
+        <form onSubmit={handleSubmit} className="login-form">
           <div className="login-field">
             <div className="login-field-header">
               <label htmlFor={emailId}>Correo electrónico</label>
@@ -187,7 +207,7 @@ export default function LoginPage() {
                 placeholder="operador@laparadadelsabor.com"
                 autoComplete="email"
                 required
-                disabled={estaBloqueado || pending}
+                disabled={estaBloqueado || cargando}
                 className={`login-input ${!emailValido ? "input-invalid" : ""}`}
               />
             </div>
@@ -213,7 +233,7 @@ export default function LoginPage() {
                 placeholder="••••••••••••"
                 autoComplete="current-password"
                 required
-                disabled={estaBloqueado || pending}
+                disabled={estaBloqueado || cargando}
                 className="login-input login-input-password"
               />
               <button
@@ -231,10 +251,10 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={estaBloqueado || pending || !emailValido || emailInput.length === 0 || passwordInput.length === 0}
+            disabled={estaBloqueado || cargando || !emailValido || emailInput.length === 0 || passwordInput.length === 0}
             className="login-submit-btn"
           >
-            {pending ? (
+            {cargando ? (
               <span className="submit-loading-text">
                 <span className="login-spinner"></span>
                 Autenticando operador...
