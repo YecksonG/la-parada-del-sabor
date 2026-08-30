@@ -1,3 +1,8 @@
+## 🟡 MEDIOS / BAJOS
+
+### 6. CORS y cabeceras
+`next.config.ts` ya tiene los headers correctos (HSTS, X-Frame-Options DENY, nosniff). Falta **CSP** (aunque el sitio es esencialmente estático + Supabase, el inline script de tema en `layout.tsx:22` obligaría a `'unsafe-inline'`). Recomendable en Supabase: limitar CORS de la API al dominio de Vercel (hoy, con anon key pública, cualquier sitio puede llamar RPCs/REST). No expone datos adicionales más allá del catálogo (público por diseño) salvo por el hallazgo #1.
+
 ### 7. No es PWA
 No existe `manifest.json` ni service worker en `public/` (el middleware excluye `manifest.json` que no existe), y `package.json` no tiene `next-pwa`/`@ducanh2912/next-pwa`. La app solo es responsive.
 
@@ -194,8 +199,3 @@ END $$;
 ```
 
 ### Cambios de código pendientes (post-SQL)
-1. **Login** (`login/actions.ts` + `login/page.tsx`): usar un cliente `service_role` (añadir `SUPABASE_SERVICE_ROLE_KEY` a `.env.local` y Vercel) solo para el `fn_clear_login_attempts`/`fn_check_login_rate_limit` — el bloqueo del script #2 sin esto rompería el borrado de intentos). Opcionalmente hash del email en el identificador.
-2. **Realtime**: con las tablas en la publicación y RLS de `authenticated USING(true)` los módulos admin (`caja`) sí recibirán eventos; para `/recibo` el canal anon seguirá silencioso por RLS — el polling 3.5 s ya compensa. No abras `anon_read_ventas`.
-3. **PWA (#7)**: decidir si se implementa (dependencia + manifest + service worker) o se retira la mención "PWA".
-
-¿Quieres que aplique el fix de login con `service_role` y deje el SQL listo para tu SQL Editor, y que prepare commit + `vercel --prod`? (La regla AGENTS.md exige desplegar tras auditoría limpia.)

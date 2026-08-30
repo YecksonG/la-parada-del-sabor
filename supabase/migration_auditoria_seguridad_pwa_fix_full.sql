@@ -1,20 +1,7 @@
-### 7. No es PWA
-No existe `manifest.json` ni service worker en `public/` (el middleware excluye `manifest.json` que no existe), y `package.json` no tiene `next-pwa`/`@ducanh2912/next-pwa`. La app solo es responsive.
+SELECT tablename, policyname, cmd, qual FROM pg_policies WHERE schemaname='public' AND policyname LIKE 'anon_%ventas%';
 
-### 8. Pequeños puntos de endurecimiento
-- `login/actions.ts:78` y `page.tsx:79` — la clave de rate-limit es `IP_email`; haz hash del email (Protección contra enumeración). Depende de `x-forwarded-for` como primera entrada (correcto en Vercel).
-- `login/page.tsx:84-90` — el login real ocurre en cliente; si falla, el contador ya fue incrementado por `fn_check_login_rate_limit` (correcto), pero considera registrar el fallo explícitamente para que el throttling no dependa solo del pre-check.
-- `cerrarSesionCaja` (`caja/actions.ts`) confía en totales calculados en cliente — aceptable para POS interno (todo `authenticated` tiene `USING(true)` de todos modos).
-- `página /recibo` devuelve teléfono/domicilio del cliente a quien conozca el UUID — por diseño (tracking), bajo riesgo.
-- Sanitización: correcta — no hay `dangerouslySetInnerHTML` de datos de usuario (solo script estático de tema), React escapa el resto. `.env*.local` correctamente en `.gitignore`.
+RETURN jsonb_build_object('ok', false, 'error', 'Error al procesar el pedido: ' || SQLERRM);
 
----
-
-## 🚨 ACCIÓN REQUERIDA EN SUPABASE (SQL EDITOR) — PRIORIDAD 10/10
-
-Script listo para ejecutar (corrige #1, #2, #3 y #4):
-
-```sql
 -- ============================================================
 -- AUDITORÍA 2026-08-29: CORRECCIONES DE SEGURIDAD DEFINITIVAS
 -- ============================================================
@@ -191,11 +178,4 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.sesiones_caja;
     END IF;
 END $$;
-```
 
-### Cambios de código pendientes (post-SQL)
-1. **Login** (`login/actions.ts` + `login/page.tsx`): usar un cliente `service_role` (añadir `SUPABASE_SERVICE_ROLE_KEY` a `.env.local` y Vercel) solo para el `fn_clear_login_attempts`/`fn_check_login_rate_limit` — el bloqueo del script #2 sin esto rompería el borrado de intentos). Opcionalmente hash del email en el identificador.
-2. **Realtime**: con las tablas en la publicación y RLS de `authenticated USING(true)` los módulos admin (`caja`) sí recibirán eventos; para `/recibo` el canal anon seguirá silencioso por RLS — el polling 3.5 s ya compensa. No abras `anon_read_ventas`.
-3. **PWA (#7)**: decidir si se implementa (dependencia + manifest + service worker) o se retira la mención "PWA".
-
-¿Quieres que aplique el fix de login con `service_role` y deje el SQL listo para tu SQL Editor, y que prepare commit + `vercel --prod`? (La regla AGENTS.md exige desplegar tras auditoría limpia.)

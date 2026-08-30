@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -14,12 +15,25 @@ const MAX_INTENTOS = 5;
 const VENTANA_MINUTOS = 15;
 const BLOQUEO_MINUTOS = 15;
 
+function createAdminClient() {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("Falta SUPABASE_SERVICE_ROLE_KEY en el entorno. Bypass de rate limit.");
+    return null;
+  }
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
+
 async function verificarRateLimitLogin(
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
   identificador: string
 ): Promise<{ permitido: boolean; minutosRestantes?: number }> {
   try {
-    const { data, error } = await supabase.rpc("fn_check_login_rate_limit", {
+    const adminSupabase = createAdminClient();
+    if (!adminSupabase) return { permitido: true }; // Fallback temporal
+
+    const { data, error } = await adminSupabase.rpc("fn_check_login_rate_limit", {
       p_identifier: identificador,
       p_max_intentos: MAX_INTENTOS,
       p_ventana_minutos: VENTANA_MINUTOS,
@@ -41,11 +55,13 @@ async function verificarRateLimitLogin(
 }
 
 async function limpiarLoginExitoso(
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
   identificador: string
 ) {
   try {
-    await supabase.rpc("fn_clear_login_attempts", {
+    const adminSupabase = createAdminClient();
+    if (!adminSupabase) return;
+
+    await adminSupabase.rpc("fn_clear_login_attempts", {
       p_identifier: identificador,
     });
   } catch {
@@ -79,7 +95,7 @@ export async function login(
 
   const supabase = await createClient();
 
-  const rateCheck = await verificarRateLimitLogin(supabase, rateLimitKey);
+  const rateCheck = await verificarRateLimitLogin(rateLimitKey);
   if (!rateCheck.permitido) {
     return {
       error: `Demasiados intentos fallidos. Por seguridad tu acceso ha sido bloqueado por ${rateCheck.minutosRestantes} minutos.`,
@@ -97,7 +113,7 @@ export async function login(
     };
   }
 
-  await limpiarLoginExitoso(supabase, rateLimitKey);
+  await limpiarLoginExitoso(rateLimitKey);
   revalidatePath("/", "layout");
   redirect("/");
 }
@@ -119,9 +135,7 @@ export async function loginWithRateLimit(emailRaw: string, passwordRaw: string) 
   const ip = reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   const rateLimitKey = `${ip}_${email}`;
 
-  const supabase = await createClient();
-
-  const rateCheck = await verificarRateLimitLogin(supabase, rateLimitKey);
+  const rateCheck = await verificarRateLimitLogin(rateLimitKey);
   if (!rateCheck.permitido) {
     return {
       error: `Demasiados intentos fallidos. Por seguridad tu acceso ha sido bloqueado por ${rateCheck.minutosRestantes} minutos.`,
@@ -134,8 +148,7 @@ export async function loginWithRateLimit(emailRaw: string, passwordRaw: string) 
 }
 
 export async function registrarLoginExitoso(rateLimitKey: string) {
-  const supabase = await createClient();
-  await limpiarLoginExitoso(supabase, rateLimitKey);
+  await limpiarLoginExitoso(rateLimitKey);
 }
 
 export async function cerrarSesion() {
