@@ -303,6 +303,9 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
   const metodoPago = METODOS_PAGO_LABEL[venta.metodo_pago] || venta.metodo_pago;
 
   const stickerEstado = useMemo(() => {
+    if (esDelivery && venta.estado === "lista") {
+      return "/mascota/stickers/10_delivery_en_camino.png";
+    }
     switch (venta.estado) {
       case "completada":
         return "/mascota/stickers/01_celebracion_exito.png";
@@ -317,7 +320,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
       default:
         return "/mascota/stickers/07_pulgar_arriba_confirmado.png";
     }
-  }, [venta.estado]);
+  }, [venta.estado, esDelivery]);
 
   const [modalFeedback, setModalFeedback] = useState(false);
   const [calificacion, setCalificacion] = useState<number>(5);

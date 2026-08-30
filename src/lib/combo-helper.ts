@@ -59,6 +59,9 @@ export function getProductImage(prod: { nombre: string; imagen_url?: string | nu
   if (norm.includes("combo") && (norm.includes("4") || norm.includes("compartir"))) return "/images/combos/combo-4-arepas.jpg";
   if (norm.includes("combo") && (norm.includes("10") || norm.includes("familiar"))) return "/images/combos/combo-10-arepas.jpg";
 
+  // Bebidas
+  if (norm.includes("pepsi")) return "/images/bebidas/pepsi-1-5l.jpg";
+
   return null;
 }
 
