@@ -12,7 +12,7 @@ import {
   CartItemExtra,
 } from "./pos-actions";
 import { sounds } from "@/lib/sound-effects";
-import { getComboArepasCount } from "@/lib/combo-helper";
+import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
 
 interface PosClientProps {
@@ -415,7 +415,16 @@ export default function PosClient({
                 className="pos-product-card"
               >
                 <div className="product-card-top">
-                  <span className="product-emoji">{prod.icono || "🫓"}</span>
+                  {(() => {
+                    const imgUrl = getProductImage(prod);
+                    return imgUrl ? (
+                      <div style={{ position: "relative", width: "48px", height: "48px", borderRadius: "10px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
+                        <Image src={imgUrl} alt={prod.nombre} fill sizes="48px" style={{ objectFit: "cover" }} />
+                      </div>
+                    ) : (
+                      <span className="product-emoji">{prod.icono || "🫓"}</span>
+                    );
+                  })()}
                   {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
                 </div>
 
@@ -448,7 +457,16 @@ export default function PosClient({
                 className="pos-product-row-card"
               >
                 <div className="pos-row-left">
-                  <span className="product-emoji" style={{ fontSize: 28 }}>{prod.icono || "🫓"}</span>
+                  {(() => {
+                    const imgUrl = getProductImage(prod);
+                    return imgUrl ? (
+                      <div style={{ position: "relative", width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                        <Image src={imgUrl} alt={prod.nombre} fill sizes="36px" style={{ objectFit: "cover" }} />
+                      </div>
+                    ) : (
+                      <span className="product-emoji" style={{ fontSize: 28 }}>{prod.icono || "🫓"}</span>
+                    );
+                  })()}
                   <div style={{ textAlign: "left" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <strong className="product-title" style={{ fontSize: 15 }}>{prod.nombre}</strong>

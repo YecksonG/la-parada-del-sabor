@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Producto, Insumo, Categoria } from "@/types/database";
 import { guardarPlatoYReceta, eliminarPlato } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import Image from "next/image";
+import { getProductImage } from "@/lib/combo-helper";
 
 const EMOJI_CATEGORIAS = [
   {
@@ -394,7 +396,16 @@ export default function RecetasClient({
                   title="Ver ficha técnica completa"
                 >
                   <div className="receta-card-identity">
-                    <span className="receta-icon">{prod.icono || "🫓"}</span>
+                    {(() => {
+                      const imgUrl = getProductImage(prod);
+                      return imgUrl ? (
+                        <div style={{ position: "relative", width: "40px", height: "40px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                          <Image src={imgUrl} alt={prod.nombre} fill sizes="40px" style={{ objectFit: "cover" }} />
+                        </div>
+                      ) : (
+                        <span className="receta-icon">{prod.icono || "🫓"}</span>
+                      );
+                    })()}
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                         <h3 className="receta-name" style={{ margin: 0 }}>{prod.nombre}</h3>
@@ -543,7 +554,16 @@ export default function RecetasClient({
                       title="Ver ficha técnica completa"
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span style={{ fontSize: 24, flexShrink: 0 }}>{prod.icono || "🫓"}</span>
+                        {(() => {
+                          const imgUrl = getProductImage(prod);
+                          return imgUrl ? (
+                            <div style={{ position: "relative", width: "32px", height: "32px", borderRadius: "6px", overflow: "hidden", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+                              <Image src={imgUrl} alt={prod.nombre} fill sizes="32px" style={{ objectFit: "cover" }} />
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 24, flexShrink: 0 }}>{prod.icono || "🫓"}</span>
+                          );
+                        })()}
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                             <strong style={{ fontSize: 14, color: "var(--text)" }}>{prod.nombre}</strong>
@@ -672,7 +692,16 @@ export default function RecetasClient({
             <div className="product-detail-hero">
               <div className="product-detail-info">
                 <div className="product-detail-avatar">
-                  {detalleProducto.icono || "🫓"}
+                  {(() => {
+                    const imgUrl = getProductImage(detalleProducto);
+                    return imgUrl ? (
+                      <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: "inherit", overflow: "hidden" }}>
+                        <Image src={imgUrl} alt={detalleProducto.nombre} fill sizes="80px" style={{ objectFit: "cover" }} />
+                      </div>
+                    ) : (
+                      <>{detalleProducto.icono || "🫓"}</>
+                    );
+                  })()}
                 </div>
                 <div className="product-detail-meta">
                   <h2>{detalleProducto.nombre}</h2>
