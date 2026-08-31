@@ -36,8 +36,8 @@ const PAISES_TELEFONO: PaisTelefono[] = [
     iso: "VE",
     nombre: "Venezuela",
     bandera: "🇻🇪",
-    placeholder: "424-4325183",
-    ejemplo: "424-4325183",
+    placeholder: "414-8456789",
+    ejemplo: "414-8456789",
     mascara: (raw: string) => {
       let digits = raw.replace(/\D/g, "");
       if (digits.startsWith("0")) digits = digits.slice(1);
@@ -618,7 +618,7 @@ export default function MenuClienteView({
       return;
     }
     if (codigoPais === "+58" && telDigits.length !== 10) {
-      setErrorMsg("El número de Venezuela debe tener 10 dígitos (Ej: 424-4325183).");
+      setErrorMsg("El número de Venezuela debe tener 10 dígitos (Ej: 414-8456789).");
       return;
     }
     if (telDigits.length < 7) {
@@ -680,7 +680,7 @@ export default function MenuClienteView({
       return;
     }
     if (codigoPais === "+58" && telDigits.length !== 10) {
-      setErrorMsg("El número de Venezuela debe tener 10 dígitos (Ej: 424-4325183).");
+      setErrorMsg("El número de Venezuela debe tener 10 dígitos (Ej: 414-8456789).");
       setPasoCheckout(1);
       return;
     }
@@ -1365,7 +1365,7 @@ export default function MenuClienteView({
                           </span>
                         </div>
                         <div className="pedir-btn-gps-hero-badge" aria-hidden="true" style={{ background: gpsOk ? "var(--green)" : "var(--accent)" }}>
-                          {cargandoGps ? "Buscando..." : gpsOk ? "ACTIVO ✓" : "OBLIGATORIO *"}
+                          {cargandoGps ? "Buscando..." : gpsOk ? "ACTIVO ✓" : "OBLIGATORIO"}
                         </div>
                       </button>
 
