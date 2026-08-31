@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="100%" height="100%">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@900&amp;display=swap');
+      .t-black { font-family: 'Montserrat', sans-serif; font-size: 64px; fill: #1c1917; font-weight: 900; }
+      .t-yellow { font-family: 'Montserrat', sans-serif; font-size: 64px; fill: #f59e0b; font-weight: 900; }
+    </style>
+  </defs>
+  <text x="20" y="85" class="t-black">LA PARADA</text>
+  <text x="20" y="155" class="t-yellow">DEL SABOR</text>
+  <g transform="translate(430, 30)">
+    <circle cx="70" cy="70" r="70" fill="#f59e0b" />
+    <path d="M40 30 L40 110 M60 30 L60 110 M80 30 L80 110 M100 30 L100 110" stroke="#1c1917" stroke-width="12" stroke-linecap="round" />
+  </g>
+</svg>

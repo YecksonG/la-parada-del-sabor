@@ -14,7 +14,7 @@ export function MascotaAvatar({
   size = 36,
   className = "brand-logo-img",
   autoWink = true,
-  priority = true,
+  priority = false,
 }: MascotaAvatarProps) {
   const [isWinking, setIsWinking] = useState(false);
   const winkTimeoutRef = useRef<NodeJS.Timeout | null>(null);

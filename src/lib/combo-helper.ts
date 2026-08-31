@@ -1,23 +1,22 @@
 import { Producto } from "@/types/database";
 
-export interface SaborArepa {
+export interface RellenoArepa {
   id: string;
   nombre: string;
   desc: string;
   icono: string;
 }
 
-export const SABORES_AREPAS_COMBO: SaborArepa[] = [
-  { id: "reina_pepiada", nombre: "Reina Pepiada", desc: "Pollo con aguacate y mayonesa", icono: "🥑" },
-  { id: "pelua", nombre: "Pelúa", desc: "Carne mechada + Queso amarillo", icono: "🧀" },
-  { id: "catira", nombre: "Catira", desc: "Pollo mechado + Queso amarillo", icono: "🍗" },
-  { id: "jamon_queso", nombre: "Jamón y Queso", desc: "Jamón de pavo + Queso amarillo", icono: "🥓" },
-  { id: "sifrina", nombre: "Sifrina", desc: "Reina pepiada + Queso amarillo", icono: "👑" },
-  { id: "queso_amarillo", nombre: "Queso Amarillo", desc: "Queso amarillo rallado", icono: "🧀" },
-  { id: "queso_blanco", nombre: "Queso Blanco", desc: "Queso blanco de res", icono: "🫓" },
-  { id: "carne_mechada", nombre: "Carne Mechada", desc: "Guiso criollo de carne mechada", icono: "🥩" },
-  { id: "pollo_mechado", nombre: "Pollo Mechado", desc: "Guiso criollo de pechuga", icono: "🍲" },
+export type SaborArepa = RellenoArepa;
+
+export const RELLENOS_AREPAS_COMBO: RellenoArepa[] = [
+  { id: "catira", nombre: "Arepa Catira", desc: "Pollo mechado + Queso amarillo", icono: "🍗" },
+  { id: "jamon_queso_amarillo", nombre: "Arepa Jamón y Queso Amarillo", desc: "Jamón + Queso amarillo rallado", icono: "🥓" },
+  { id: "pelua", nombre: "Arepa Pelúa", desc: "Carne mechada + Queso amarillo", icono: "🧀" },
+  { id: "reina_pepiada", nombre: "Arepa Reina Pepiada", desc: "Pollo desmechado con aguacate y mayonesa", icono: "🥑" },
 ];
+
+export const SABORES_AREPAS_COMBO = RELLENOS_AREPAS_COMBO;
 
 /**
  * Determina cuántas arepas contiene un combo dado su nombre o descripción usando límites de palabra precisos.
@@ -66,23 +65,23 @@ export function getProductImage(prod: { nombre: string; imagen_url?: string | nu
 }
 
 /**
- * Serializa la selección de sabores en un formato legible para tickets y cocina.
+ * Serializa la selección de rellenos en un formato legible para comandas y cocina.
  * Trunca a 145 caracteres máximo para proteger los campos VARCHAR(150) de base de datos.
  */
-export function serializarSaboresCombo(
-  saboresSeleccionados: Record<string, number>,
+export function serializarRellenosCombo(
+  rellenosSeleccionados: Record<string, number>,
   notaAdicional?: string
 ): string {
   const lineas: string[] = [];
   
-  for (const sabor of SABORES_AREPAS_COMBO) {
-    const cant = saboresSeleccionados[sabor.id] || 0;
+  for (const relleno of RELLENOS_AREPAS_COMBO) {
+    const cant = rellenosSeleccionados[relleno.id] || 0;
     if (cant > 0) {
-      lineas.push(`${cant}x ${sabor.nombre}`);
+      lineas.push(`${cant}x ${relleno.nombre}`);
     }
   }
 
-  let res = `Sabores: ${lineas.join(", ")}`;
+  let res = `Rellenos: ${lineas.join(", ")}`;
   if (notaAdicional?.trim()) {
     const obsLimpia = notaAdicional.trim().slice(0, 60);
     res += ` — Obs: ${obsLimpia}`;
@@ -90,3 +89,5 @@ export function serializarSaboresCombo(
 
   return res.slice(0, 145);
 }
+
+export const serializarSaboresCombo = serializarRellenosCombo;

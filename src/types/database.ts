@@ -216,6 +216,7 @@ export type PedidoPendiente = {
   fecha: string;
   total_usd: number;
   total_bs: number;
+  metodo_pago?: MetodoPago | null;
   tipo_entrega: TipoEntrega;
   notas_comanda?: string | null;
   estado: EstadoVenta;

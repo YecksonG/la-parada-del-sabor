@@ -22,6 +22,9 @@ export default function DashboardClient({
   const [periodo, setPeriodo] = useState<"hoy" | "semana" | "mes" | "todo">("mes");
   const [modalGraficasHistoricas, setModalGraficasHistoricas] = useState(false);
   const [agrupacionGrafica, setAgrupacionGrafica] = useState<"semana" | "mes">("semana");
+  const [semanaDeliveryKey, setSemanaDeliveryKey] = useState<string>("");
+  const [busquedaDelivery, setBusquedaDelivery] = useState<string>("");
+  const [copiadoDelivery, setCopiadoDelivery] = useState(false);
 
   // Filtrar ventas por periodo
   const ventasFiltradas = useMemo(() => {
@@ -164,9 +167,16 @@ export default function DashboardClient({
       });
     });
 
-    const gananciaNetaUsd = totalFacturadoUsd - costoInsumosUsd;
+    const totalDeliveryUsd = ventasFiltradas.reduce(
+      (acc, v) => acc + (v.tipo_entrega === "delivery" ? Number(v.delivery_monto_usd || 0) : 0),
+      0
+    );
+    const totalDeliveryViajes = ventasFiltradas.filter((v) => v.tipo_entrega === "delivery").length;
+    const ventasNetasComidaUsd = Math.max(0, totalFacturadoUsd - totalDeliveryUsd);
+
+    const gananciaNetaUsd = ventasNetasComidaUsd - costoInsumosUsd;
     const margenGlobalPct =
-      totalFacturadoUsd > 0 ? ((gananciaNetaUsd / totalFacturadoUsd) * 100).toFixed(1) : "0.0";
+      ventasNetasComidaUsd > 0 ? ((gananciaNetaUsd / ventasNetasComidaUsd) * 100).toFixed(1) : "0.0";
 
     const topPlatos = Object.entries(rankingPlatos)
       .map(([nombre, data]) => ({ nombre, ...data }))
@@ -181,6 +191,9 @@ export default function DashboardClient({
     return {
       totalFacturadoUsd,
       totalFacturadoBs,
+      totalDeliveryUsd,
+      totalDeliveryViajes,
+      ventasNetasComidaUsd,
       costoInsumosUsd,
       gananciaNetaUsd,
       margenGlobalPct,
@@ -190,6 +203,100 @@ export default function DashboardClient({
       ticketPromedio: ventasFiltradas.length > 0 ? totalFacturadoUsd / ventasFiltradas.length : 0,
     };
   }, [ventasFiltradas, tasaBcv, productos, insumos]);
+
+  // Auditoría y Conciliación Semanal de Delivery con la Empresa Aliada
+  const metricasDeliverySemanales = useMemo(() => {
+    const semanasMap: Record<string, {
+      key: string;
+      label: string;
+      inicioDate: Date;
+      finDate: Date;
+      totalViajes: number;
+      totalDeliveryUsd: number;
+      totalDeliveryBs: number;
+      totalComidaUsd: number;
+      porNivel: Record<string, { count: number; totalUsd: number }>;
+      comandas: Venta[];
+    }> = {};
+
+    ventas.forEach((v) => {
+      if (v.estado === "cancelada" || v.tipo_entrega !== "delivery") return;
+
+      const fecha = new Date(v.fecha);
+      const day = fecha.getDay();
+      const diff = fecha.getDate() - day + (day === 0 ? -6 : 1); // Lunes
+      const lunes = new Date(fecha);
+      lunes.setDate(diff);
+      lunes.setHours(0, 0, 0, 0);
+
+      const domingo = new Date(lunes);
+      domingo.setDate(lunes.getDate() + 6);
+      domingo.setHours(23, 59, 59, 999);
+
+      const key = lunes.toISOString().split("T")[0];
+      const mesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      const label = `Semana del ${lunes.getDate()} ${mesNombres[lunes.getMonth()]} al ${domingo.getDate()} ${mesNombres[domingo.getMonth()]} ${domingo.getFullYear()}`;
+
+      if (!semanasMap[key]) {
+        semanasMap[key] = {
+          key,
+          label,
+          inicioDate: lunes,
+          finDate: domingo,
+          totalViajes: 0,
+          totalDeliveryUsd: 0,
+          totalDeliveryBs: 0,
+          totalComidaUsd: 0,
+          porNivel: {},
+          comandas: [],
+        };
+      }
+
+      const dUsd = Number(v.delivery_monto_usd || 0);
+      const tasa = Number(v.tasa_bcv || tasaBcv || 1);
+      const dBs = Number(v.delivery_monto_bs || (dUsd * tasa));
+      const comidaUsd = Math.max(0, (Number(v.total_usd) || 0) - dUsd);
+      const nivel = v.delivery_zona_nombre || "Tarifa Estándar";
+
+      semanasMap[key].totalViajes += 1;
+      semanasMap[key].totalDeliveryUsd += dUsd;
+      semanasMap[key].totalDeliveryBs += dBs;
+      semanasMap[key].totalComidaUsd += comidaUsd;
+
+      if (!semanasMap[key].porNivel[nivel]) {
+        semanasMap[key].porNivel[nivel] = { count: 0, totalUsd: 0 };
+      }
+      semanasMap[key].porNivel[nivel].count += 1;
+      semanasMap[key].porNivel[nivel].totalUsd += dUsd;
+
+      semanasMap[key].comandas.push(v);
+    });
+
+    const lista = Object.values(semanasMap).sort((a, b) => b.inicioDate.getTime() - a.inicioDate.getTime());
+    return lista;
+  }, [ventas, tasaBcv]);
+
+  // Semana de delivery activa para auditoría
+  const semanaDeliveryActiva = useMemo(() => {
+    if (metricasDeliverySemanales.length === 0) return null;
+    if (!semanaDeliveryKey) return metricasDeliverySemanales[0];
+    return metricasDeliverySemanales.find((s) => s.key === semanaDeliveryKey) || metricasDeliverySemanales[0];
+  }, [metricasDeliverySemanales, semanaDeliveryKey]);
+
+  // Comandas filtradas por buscador de delivery
+  const comandasDeliveryFiltradas = useMemo(() => {
+    if (!semanaDeliveryActiva) return [];
+    if (!busquedaDelivery.trim()) return semanaDeliveryActiva.comandas;
+    const q = busquedaDelivery.toLowerCase().trim();
+    return semanaDeliveryActiva.comandas.filter(
+      (v) =>
+        v.numero_comanda.toString().includes(q) ||
+        (v.cliente?.nombre && v.cliente.nombre.toLowerCase().includes(q)) ||
+        (v.cliente?.telefono && v.cliente.telefono.includes(q)) ||
+        (v.delivery_zona_nombre && v.delivery_zona_nombre.toLowerCase().includes(q)) ||
+        (v.direccion_delivery && v.direccion_delivery.toLowerCase().includes(q))
+    );
+  }, [semanaDeliveryActiva, busquedaDelivery]);
 
   // Métricas de Clientes
   const metricasClientes = useMemo(() => {
@@ -540,6 +647,218 @@ export default function DashboardClient({
             </span>
           </div>
         </div>
+      </div>
+
+      {/* SECCIÓN DEDICADA: AUDITORÍA Y CONCILIACIÓN SEMANAL DE DELIVERY */}
+      <div className="receta-card" style={{ marginTop: 20 }}>
+        <div className="receta-card-header" style={{ flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h3 className="receta-name" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              🛵 Conciliación & Cuentas por Pagar Semanales (Empresa de Delivery)
+            </h3>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)" }}>
+              Cotejo dominical de viajes y cálculo exacto a liquidar a la empresa de transporte los lunes.
+            </p>
+          </div>
+
+          {/* Selector de Semanas */}
+          {metricasDeliverySemanales.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)" }}>Semana:</label>
+              <select
+                value={semanaDeliveryActiva?.key || ""}
+                onChange={(e) => setSemanaDeliveryKey(e.target.value)}
+                style={{
+                  background: "var(--bg-card)",
+                  color: "var(--text)",
+                  border: "1px solid var(--border)",
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                {metricasDeliverySemanales.map((sem) => (
+                  <option key={sem.key} value={sem.key}>
+                    {sem.label} ({sem.totalViajes} viajes • ${sem.totalDeliveryUsd.toFixed(2)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {!semanaDeliveryActiva || semanaDeliveryActiva.totalViajes === 0 ? (
+          <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 36, display: "block", marginBottom: 8 }}>🛵</span>
+            <strong style={{ fontSize: 14, color: "var(--text)" }}>Sin envíos de delivery registrados</strong>
+            <p style={{ fontSize: 12, margin: "4px 0 0" }}>
+              Cuando se registren pedidos con delivery en la web o POS, aparecerán agrupados semana por semana aquí.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {/* Tarjetas de Resumen de la Semana Seleccionada */}
+            <div className="receta-metrics-row" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginTop: 12 }}>
+              <div className="metric-box" style={{ borderLeft: "4px solid var(--primary)", background: "rgba(248, 197, 66, 0.05)" }}>
+                <span className="metric-label">🛵 Total por Pagar a la Empresa:</span>
+                <strong className="metric-val" style={{ fontSize: 22, color: "var(--primary-dark)" }}>
+                  ${semanaDeliveryActiva.totalDeliveryUsd.toFixed(2)} USD
+                </strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 700 }}>
+                  ≈ {semanaDeliveryActiva.totalDeliveryBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs (BCV)
+                </span>
+              </div>
+
+              <div className="metric-box" style={{ borderLeft: "4px solid #06b6d4" }}>
+                <span className="metric-label">📦 Envíos / Viajes Realizados:</span>
+                <strong className="metric-val" style={{ fontSize: 22, color: "#06b6d4" }}>
+                  {semanaDeliveryActiva.totalViajes} Viajes
+                </strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                  Tarifa Promedio: ${(semanaDeliveryActiva.totalDeliveryUsd / semanaDeliveryActiva.totalViajes).toFixed(2)} / viaje
+                </span>
+              </div>
+
+              <div className="metric-box" style={{ borderLeft: "4px solid var(--green)" }}>
+                <span className="metric-label">🍽️ Venta de Comida Asociada:</span>
+                <strong className="metric-val text-green" style={{ fontSize: 22 }}>
+                  ${semanaDeliveryActiva.totalComidaUsd.toFixed(2)} USD
+                </strong>
+                <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                  Ingreso neto del restaurante por estos pedidos
+                </span>
+              </div>
+            </div>
+
+            {/* Desglose por Nivel de Tarifa */}
+            <div style={{ marginTop: 16 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: 8 }}>
+                📍 Desglose de Tarifas Cobradas por Nivel ({Object.keys(semanaDeliveryActiva.porNivel).length} Niveles Activos):
+              </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {Object.entries(semanaDeliveryActiva.porNivel).map(([nivel, datos]) => (
+                  <div
+                    key={nivel}
+                    style={{
+                      background: "var(--bg-subtle)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 10,
+                      padding: "8px 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span style={{ fontWeight: 800, color: "var(--text)" }}>{nivel}:</span>
+                    <span style={{ background: "var(--primary-light)", color: "var(--primary-dark)", padding: "2px 6px", borderRadius: 6, fontWeight: 800 }}>
+                      {datos.count} {datos.count === 1 ? "viaje" : "viajes"}
+                    </span>
+                    <strong style={{ color: "var(--primary-dark)" }}>${datos.totalUsd.toFixed(2)} USD</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Buscador & Herramientas de Cotejo Dominical */}
+            <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ position: "relative", minWidth: 260, flex: 1 }}>
+                <input
+                  type="text"
+                  value={busquedaDelivery}
+                  onChange={(e) => setBusquedaDelivery(e.target.value)}
+                  placeholder="🔍 Buscar por comanda, cliente, sector o dirección..."
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-card)",
+                    color: "var(--text)",
+                    fontSize: 12.5,
+                  }}
+                />
+              </div>
+
+              {/* Botón Copiar Reporte WhatsApp */}
+              <button
+                type="button"
+                onClick={() => {
+                  const texto = `📋 *Liquidación Semanal de Delivery — La Parada del Sabor*\n🗓️ *${semanaDeliveryActiva.label}*\n\n🛵 *Total Viajes:* ${semanaDeliveryActiva.totalViajes}\n💰 *Monto a Transferir:* $${semanaDeliveryActiva.totalDeliveryUsd.toFixed(2)} USD (Bs. ${semanaDeliveryActiva.totalDeliveryBs.toFixed(2)})\n\n📍 *Desglose por Niveles:*\n${Object.entries(semanaDeliveryActiva.porNivel).map(([n, d]) => `• ${n}: ${d.count} viajes ($${d.totalUsd.toFixed(2)})`).join("\n")}\n\n✅ Reporte auditado desde el sistema de comandas.`;
+                  navigator.clipboard.writeText(texto);
+                  setCopiadoDelivery(true);
+                  setTimeout(() => setCopiadoDelivery(false), 2500);
+                }}
+                className="btn btn-outline"
+                style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                {copiadoDelivery ? "✅ ¡Reporte Copiado!" : "📋 Copiar Resumen para WhatsApp de la Empresa"}
+              </button>
+            </div>
+
+            {/* Tabla de Comandas para Cotejo */}
+            <div style={{ marginTop: 12, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
+                <thead>
+                  <tr style={{ background: "var(--bg-subtle)", borderBottom: "2px solid var(--border)" }}>
+                    <th style={{ padding: "8px 10px" }}>Comanda</th>
+                    <th style={{ padding: "8px 10px" }}>Fecha / Hora</th>
+                    <th style={{ padding: "8px 10px" }}>Cliente</th>
+                    <th style={{ padding: "8px 10px" }}>Nivel / Zona</th>
+                    <th style={{ padding: "8px 10px" }}>Dirección</th>
+                    <th style={{ padding: "8px 10px", textAlign: "right" }}>Costo Delivery</th>
+                    <th style={{ padding: "8px 10px", textAlign: "right" }}>Total Pedido</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comandasDeliveryFiltradas.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: "16px", textAlign: "center", color: "var(--text-muted)" }}>
+                        No se encontraron comandas con el filtro indicado.
+                      </td>
+                    </tr>
+                  ) : (
+                    comandasDeliveryFiltradas.map((v) => (
+                      <tr key={v.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                        <td style={{ padding: "8px 10px", fontWeight: 800, color: "var(--primary-dark)" }}>
+                          #{v.numero_comanda.toString().padStart(4, "0")}
+                        </td>
+                        <td style={{ padding: "8px 10px", color: "var(--text-muted)" }}>
+                          {new Date(v.fecha).toLocaleDateString([], { day: "2-digit", month: "2-digit" })}{" "}
+                          {new Date(v.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <strong>{v.cliente?.nombre || "Cliente"}</strong>
+                          {v.cliente?.telefono && (
+                            <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>
+                              {v.cliente.telefono}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          <span style={{ background: "rgba(248, 197, 66, 0.15)", color: "var(--primary-dark)", padding: "2px 6px", borderRadius: 4, fontWeight: 800, fontSize: 11 }}>
+                            {v.delivery_zona_nombre || "Zona Delivery"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "8px 10px", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={v.direccion_delivery || ""}>
+                          {v.direccion_delivery || "—"}
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 800, color: "var(--primary-dark)" }}>
+                          ${Number(v.delivery_monto_usd || 0).toFixed(2)}
+                        </td>
+                        <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700 }}>
+                          ${Number(v.total_usd || 0).toFixed(2)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal de Gráficas Continuas Históricas (Semana a Semana / Mes a Mes) */}

@@ -38,8 +38,16 @@ export default function SplashScreen() {
             alt="La Parada del Sabor"
             width={120}
             height={120}
-            className="splash-arepa-img"
-            priority
+            className="splash-arepa-img logo-light-only"
+            loading="eager"
+          />
+          <Image
+            src="/images/isotipo_arepa_dark.png"
+            alt="La Parada del Sabor"
+            width={120}
+            height={120}
+            className="splash-arepa-img logo-dark-only"
+            loading="eager"
           />
           <div className="splash-glow-ring"></div>
         </div>

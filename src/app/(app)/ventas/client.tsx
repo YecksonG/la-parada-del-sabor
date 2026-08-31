@@ -36,6 +36,44 @@ export default function VentasClient({ ventas }: VentasClientProps) {
     }
   };
 
+  const handleEnviarWhatsAppDelivery = (v: Venta) => {
+    const matchMapas = v.direccion_delivery?.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/);
+    const mapsLink = matchMapas ? matchMapas[0] : "";
+    const direccionLimpia = v.direccion_delivery
+      ?.replace(/📍 Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, "")
+      .trim() || "Sin detalles adicionales";
+
+    const itemsTexto = (v.items || [])
+      .map((it: any) => `  • ${it.cantidad}x ${it.producto?.nombre || "Producto"}${it.notas_item ? ` (${it.notas_item})` : ""}`)
+      .join("\n");
+
+    const esPagado = v.estado === "completada" || v.metodo_pago === "pago_movil" || v.metodo_pago === "binance" || v.metodo_pago === "zelle";
+    const estadoPago = esPagado
+      ? "✅ YA PAGADO (No cobrar)"
+      : `💵 COBRAR AL CLIENTE: $${Number(v.total_usd).toFixed(2)} USD / Bs. ${Number(v.total_bs).toFixed(2)}`;
+
+    const mensaje = `🛵 *ENTREGA DE COMIDA — LA PARADA DEL SABOR*
+🧾 *Pedido:* #${v.numero_comanda || v.id.slice(0, 6)}
+👤 *Cliente:* ${v.cliente?.nombre || "Cliente"}
+📱 *Teléfono:* ${v.cliente?.telefono || "No especificado"}
+📍 *Sector:* ${v.delivery_zona_nombre || "Delivery"}
+
+🏠 *Dirección / Referencia:*
+${direccionLimpia}
+
+🗺️ *Ubicación GPS (Google Maps):*
+${mapsLink || "No adjuntó enlace satelital"}
+
+📋 *Contenido:*
+${itemsTexto}
+
+💰 *Estado de Pago:*
+${estadoPago}`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, "_blank");
+  };
+
   const conteoPendientes = useMemo(() => {
     return ventas.filter((v) => v.estado === "pendiente").length;
   }, [ventas]);
@@ -201,6 +239,74 @@ export default function VentasClient({ ventas }: VentasClientProps) {
                       </div>
                     ))}
                   </div>
+
+                  {/* Detalle de Delivery y Dirección */}
+                  {v.tipo_entrega === "delivery" && (
+                    <div style={{ background: "rgba(248, 197, 66, 0.12)", border: "1px solid rgba(248, 197, 66, 0.35)", borderRadius: 8, padding: "8px 10px", marginTop: 8, marginBottom: 4 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                        <strong style={{ fontSize: 11.5, color: "var(--text)" }}>
+                          🛵 {v.delivery_zona_nombre || "Delivery"}
+                        </strong>
+                        <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--primary-dark)" }}>
+                          +${Number(v.delivery_monto_usd || 0).toFixed(2)} USD
+                        </span>
+                      </div>
+                      {v.direccion_delivery && (
+                        <p style={{ margin: "0 0 6px", fontSize: 11.5, color: "var(--text)", lineHeight: 1.3 }}>
+                          📍 {v.direccion_delivery}
+                        </p>
+                      )}
+
+                      {/* Botones de Acción para el Repartidor */}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleEnviarWhatsAppDelivery(v)}
+                          style={{
+                            flex: 1,
+                            minWidth: 140,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            background: "#25D366",
+                            color: "#ffffff",
+                            border: "none",
+                            fontSize: 11.5,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                            boxShadow: "0 2px 6px rgba(37, 211, 102, 0.3)",
+                          }}
+                        >
+                          📲 Enviar al Delivery (WhatsApp)
+                        </button>
+                        {v.direccion_delivery?.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/) && (
+                          <a
+                            href={v.direccion_delivery.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/)?.[0]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 8,
+                              background: "var(--bg-card)",
+                              color: "var(--text)",
+                              border: "1px solid var(--border)",
+                              fontSize: 11.5,
+                              fontWeight: 800,
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            🗺️ Mapa
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {v.notas_comanda && (
                     <div className="comanda-notes-box">

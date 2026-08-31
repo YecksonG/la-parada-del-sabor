@@ -258,6 +258,46 @@ export default function PosClient({
     }
   };
 
+  const handleEnviarWhatsAppDeliveryPOS = (p: PedidoPendiente) => {
+    const direccion = p.cliente?.direccion_delivery || "";
+    const matchMapas = direccion.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/);
+    const mapsLink = matchMapas ? matchMapas[0] : "";
+    const direccionLimpia = direccion
+      .replace(/📍 Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, "")
+      .trim() || "Sin detalles adicionales";
+
+    const itemsTexto = (p.items || [])
+      .map((it: any) => `  • ${it.cantidad}x ${it.producto?.nombre || "Producto"}${it.notas_item ? ` (${it.notas_item})` : ""}`)
+      .join("\n");
+
+    const metodoPago = p.metodo_pago;
+    const esPagado = p.estado === "completada" || metodoPago === "pago_movil" || metodoPago === "binance" || metodoPago === "zelle";
+    const estadoPago = esPagado
+      ? "✅ YA PAGADO (No cobrar)"
+      : `💵 COBRAR AL CLIENTE: $${Number(p.total_usd).toFixed(2)} USD / Bs. ${Number(p.total_bs).toFixed(2)}`;
+
+    const mensaje = `🛵 *ENTREGA DE COMIDA — LA PARADA DEL SABOR*
+🧾 *Pedido:* #${p.numero_comanda || p.id.slice(0, 6)}
+👤 *Cliente:* ${p.cliente?.nombre || "Cliente"}
+📱 *Teléfono:* ${p.cliente?.telefono || "No especificado"}
+📍 *Modalidad:* Delivery a Domicilio
+
+🏠 *Dirección / Referencia:*
+${direccionLimpia}
+
+🗺️ *Ubicación GPS (Google Maps):*
+${mapsLink || "No adjuntó enlace satelital"}
+
+📋 *Contenido:*
+${itemsTexto}
+
+💰 *Estado de Pago:*
+${estadoPago}`;
+
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, "_blank");
+  };
+
   // Enviar Comanda a Cocina
   const handleEnviarComanda = async () => {
     if (carrito.length === 0 || procesando) return;
@@ -1209,9 +1249,55 @@ export default function PosClient({
                       </div>
 
                       {p.cliente?.direccion_delivery && p.tipo_entrega === "delivery" && (
-                        <p style={{ fontSize: 11, color: "var(--text-muted)", margin: 0 }}>
-                          📍 Dirección: {p.cliente.direccion_delivery}
-                        </p>
+                        <div style={{ background: "rgba(248, 197, 66, 0.12)", border: "1px solid rgba(248, 197, 66, 0.35)", borderRadius: 8, padding: "6px 8px" }}>
+                          <p style={{ fontSize: 11, color: "var(--text)", margin: "0 0 6px", lineHeight: 1.3 }}>
+                            📍 Dirección: {p.cliente.direccion_delivery}
+                          </p>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleEnviarWhatsAppDeliveryPOS(p)}
+                              style={{
+                                flex: 1,
+                                padding: "5px 8px",
+                                borderRadius: 6,
+                                background: "#25D366",
+                                color: "#ffffff",
+                                border: "none",
+                                fontSize: 11,
+                                fontWeight: 800,
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 4,
+                              }}
+                            >
+                              📲 Enviar al Delivery
+                            </button>
+                            {p.cliente.direccion_delivery.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/) && (
+                              <a
+                                href={p.cliente.direccion_delivery.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/)?.[0]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  padding: "5px 8px",
+                                  borderRadius: 6,
+                                  background: "var(--bg-card)",
+                                  color: "var(--text)",
+                                  border: "1px solid var(--border)",
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  textDecoration: "none",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                }}
+                              >
+                                🗺️ Mapa
+                              </a>
+                            )}
+                          </div>
+                        </div>
                       )}
 
                       {/* Items del pedido */}

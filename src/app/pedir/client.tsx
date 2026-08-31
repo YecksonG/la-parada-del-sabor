@@ -10,6 +10,7 @@ import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
 import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
 import SplashScreen from "@/components/splash-screen";
+import ModalSeleccionarZonaDelivery from "@/components/modal-seleccionar-zona-delivery";
 
 interface MenuClienteViewProps {
   categorias: Categoria[];
@@ -18,6 +19,158 @@ interface MenuClienteViewProps {
   zonasDelivery?: ZonaDelivery[];
   tasaBcv: number;
 }
+
+interface PaisTelefono {
+  codigo: string;
+  iso: string;
+  nombre: string;
+  bandera: string;
+  placeholder: string;
+  ejemplo: string;
+  mascara: (raw: string) => string;
+}
+
+const PAISES_TELEFONO: PaisTelefono[] = [
+  {
+    codigo: "+58",
+    iso: "VE",
+    nombre: "Venezuela",
+    bandera: "🇻🇪",
+    placeholder: "424-4325183",
+    ejemplo: "424-4325183",
+    mascara: (raw: string) => {
+      let digits = raw.replace(/\D/g, "");
+      if (digits.startsWith("0")) digits = digits.slice(1);
+      digits = digits.slice(0, 10);
+      if (digits.length <= 3) return digits;
+      return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    },
+  },
+  {
+    codigo: "+57",
+    iso: "CO",
+    nombre: "Colombia",
+    bandera: "🇨🇴",
+    placeholder: "300-1234567",
+    ejemplo: "300-1234567",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 10);
+      if (digits.length <= 3) return digits;
+      return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    },
+  },
+  {
+    codigo: "+1",
+    iso: "US",
+    nombre: "Estados Unidos",
+    bandera: "🇺🇸",
+    placeholder: "305-123-4567",
+    ejemplo: "305-123-4567",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 10);
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    },
+  },
+  {
+    codigo: "+34",
+    iso: "ES",
+    nombre: "España",
+    bandera: "🇪🇸",
+    placeholder: "612-345-678",
+    ejemplo: "612-345-678",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 9);
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    },
+  },
+  {
+    codigo: "+56",
+    iso: "CL",
+    nombre: "Chile",
+    bandera: "🇨🇱",
+    placeholder: "9-1234-5678",
+    ejemplo: "9-1234-5678",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 9);
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 1)}-${digits.slice(1)}`;
+      return `${digits.slice(0, 1)}-${digits.slice(1, 5)}-${digits.slice(5)}`;
+    },
+  },
+  {
+    codigo: "+507",
+    iso: "PA",
+    nombre: "Panamá",
+    bandera: "🇵🇦",
+    placeholder: "6123-4567",
+    ejemplo: "6123-4567",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 8);
+      if (digits.length <= 4) return digits;
+      return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    },
+  },
+  {
+    codigo: "+51",
+    iso: "PE",
+    nombre: "Perú",
+    bandera: "🇵🇪",
+    placeholder: "912-345-678",
+    ejemplo: "912-345-678",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 9);
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+      return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    },
+  },
+  {
+    codigo: "+55",
+    iso: "BR",
+    nombre: "Brasil",
+    bandera: "🇧🇷",
+    placeholder: "11-91234-5678",
+    ejemplo: "11-91234-5678",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 11);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 7)}-${digits.slice(7)}`;
+    },
+  },
+  {
+    codigo: "+54",
+    iso: "AR",
+    nombre: "Argentina",
+    bandera: "🇦🇷",
+    placeholder: "11-1234-5678",
+    ejemplo: "11-1234-5678",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 10);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+    },
+  },
+  {
+    codigo: "+52",
+    iso: "MX",
+    nombre: "México",
+    bandera: "🇲🇽",
+    placeholder: "55-1234-5678",
+    ejemplo: "55-1234-5678",
+    mascara: (raw: string) => {
+      const digits = raw.replace(/\D/g, "").slice(0, 10);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+    },
+  },
+];
 
 type CarritoItemWeb = {
   tempId: string;
@@ -41,10 +194,11 @@ export default function MenuClienteView({
   const [drawerCheckout, setDrawerCheckout] = useState(false);
   const [comboModalData, setComboModalData] = useState<{ producto: Producto; totalArepas: number } | null>(null);
   const [modalFotoZoom, setModalFotoZoom] = useState<Producto | null>(null);
+  const [modalZonaDelivery, setModalZonaDelivery] = useState(false);
 
   // Bloquear scroll de la página de fondo cuando algún modal o drawer está abierto
   useEffect(() => {
-    if (drawerCheckout || modalFotoZoom) {
+    if (drawerCheckout || modalFotoZoom || modalZonaDelivery) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -52,7 +206,7 @@ export default function MenuClienteView({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [drawerCheckout, modalFotoZoom]);
+  }, [drawerCheckout, modalFotoZoom, modalZonaDelivery]);
 
   // Cerrar lightbox con tecla Escape
   useEffect(() => {
@@ -67,6 +221,7 @@ export default function MenuClienteView({
 
   // Formulario Checkout
   const [nombreCliente, setNombreCliente] = useState("");
+  const [codigoPais, setCodigoPais] = useState("+58");
   const [telefonoCliente, setTelefonoCliente] = useState("");
   const [tipoEntrega, setTipoEntrega] = useState<"pickup" | "delivery">("pickup");
   const [zonaDeliveryId, setZonaDeliveryId] = useState<string>(zonasDelivery[0]?.id || "");
@@ -74,12 +229,52 @@ export default function MenuClienteView({
   const [metodoPago, setMetodoPago] = useState("pago_movil");
   const [notasGenerales, setNotasGenerales] = useState("");
   const [origenPedido, setOrigenPedido] = useState<string>("directo");
+  const [pasoCheckout, setPasoCheckout] = useState<1 | 2 | 3>(1);
   const [enviando, setEnviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [modalLimitePedidos, setModalLimitePedidos] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [cargandoGps, setCargandoGps] = useState(false);
   const [gpsOk, setGpsOk] = useState(false);
+
+  const paisSeleccionado = useMemo(() => {
+    return PAISES_TELEFONO.find((p) => p.codigo === codigoPais) || PAISES_TELEFONO[0];
+  }, [codigoPais]);
+
+  const handleCambiarPais = (nuevoCodigo: string) => {
+    setCodigoPais(nuevoCodigo);
+    const nuevoPais = PAISES_TELEFONO.find((p) => p.codigo === nuevoCodigo) || PAISES_TELEFONO[0];
+    const formatted = nuevoPais.mascara(telefonoCliente);
+    setTelefonoCliente(formatted);
+  };
+
+  const handleTelefonoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    const formatted = paisSeleccionado.mascara(val);
+    setTelefonoCliente(formatted);
+  };
+
+  const handleTelefonoKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace") {
+      const input = e.currentTarget;
+      const { selectionStart, selectionEnd, value } = input;
+      if (selectionStart === selectionEnd && selectionStart !== null && selectionStart > 0) {
+        if (value[selectionStart - 1] === "-") {
+          e.preventDefault();
+          const digits = value.slice(0, selectionStart - 2) + value.slice(selectionStart);
+          setTelefonoCliente(paisSeleccionado.mascara(digits));
+        }
+      }
+    }
+  };
+
+  const getTelefonoCompleto = () => {
+    let digits = telefonoCliente.replace(/\D/g, "");
+    if (codigoPais === "+58" && digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+    return `${codigoPais}${digits}`;
+  };
 
   // Modal límite: Escape key + focus trap
   const modalLimiteRef = useRef<HTMLDivElement>(null);
@@ -207,8 +402,31 @@ export default function MenuClienteView({
     }
   };
 
+  const handleAsignarGpsSimulado = (lat = 11.69875, lng = -70.19853) => {
+    const mapsUrl = `https://maps.google.com/?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
+    setDireccionDelivery((prev) => {
+      const gpsTag = `📍 Ubicación GPS: ${mapsUrl}`;
+      if (!prev.trim()) {
+        return `${gpsTag}\n(Sector Puerta Maraven, Calle 5, Casa #12)`;
+      }
+      if (prev.includes("maps.google.com")) {
+        return prev.replace(/📍 Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, gpsTag);
+      }
+      return `${prev.trim()}\n${gpsTag}`;
+    });
+    setGpsOk(true);
+    setCargandoGps(false);
+    setErrorMsg("");
+  };
+
   const handleObtenerUbicacionGps = () => {
+    const isLocal = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
     if (typeof navigator === "undefined" || !navigator.geolocation) {
+      if (isLocal) {
+        handleAsignarGpsSimulado(11.69875, -70.19853);
+        return;
+      }
       setErrorMsg("Tu navegador no soporta geolocalización GPS. Por favor escribe tu dirección manualmente.");
       return;
     }
@@ -219,35 +437,27 @@ export default function MenuClienteView({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        const mapsUrl = `https://maps.google.com/?q=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-        
-        setDireccionDelivery((prev) => {
-          const gpsTag = `📍 Ubicación GPS: ${mapsUrl}`;
-          if (!prev.trim()) {
-            return `${gpsTag}\n(Casa/Piso/Punto de referencia: )`;
-          }
-          if (prev.includes("maps.google.com")) {
-            return prev.replace(/📍 Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, gpsTag);
-          }
-          return `${prev.trim()}\n${gpsTag}`;
-        });
-
-        setGpsOk(true);
-        setCargandoGps(false);
+        handleAsignarGpsSimulado(latitude, longitude);
       },
       (err) => {
         setCargandoGps(false);
+        if (isLocal) {
+          // En entorno de desarrollo / localhost en PC de escritorio sin GPS satelital
+          handleAsignarGpsSimulado(11.69875, -70.19853);
+          return;
+        }
+
         let msg = "No se pudo obtener la ubicación GPS.";
         if (err.code === 1) {
-          msg = "Permiso de ubicación denegado. Por favor permite el acceso al GPS en tu navegador o escribe tu dirección.";
+          msg = "Permiso de ubicación denegado en tu navegador. Por favor permite el acceso al GPS.";
         } else if (err.code === 2) {
-          msg = "Ubicación no disponible en este momento. Por favor escribe tu dirección manualmente.";
+          msg = "Ubicación no disponible en este dispositivo (sin chip GPS / red Wi-Fi).";
         } else if (err.code === 3) {
           msg = "Tiempo de espera agotado al conectar con el GPS.";
         }
         setErrorMsg(msg);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
 
@@ -277,6 +487,27 @@ export default function MenuClienteView({
     if (!zonasDelivery || zonasDelivery.length === 0) return null;
     return zonasDelivery.find((z) => z.id === zonaDeliveryId) || zonasDelivery[0];
   }, [zonasDelivery, zonaDeliveryId]);
+
+  // Prueba estricta y única de que la dirección contiene un enlace GPS real con coordenadas.
+  // La fuente de verdad es el texto de la dirección (lo que realmente se envía al servidor),
+  // no el estado booleano gpsOk, que puede quedar desincronizado si el usuario borra la dirección.
+  const gpsCoordenadas = useMemo(() => {
+    const linkMapas = direccionDelivery.match(/maps\.google\.com\/\?q=([-\d.]+),([-\d.]+)/);
+    if (!linkMapas) return null;
+    const lat = Number(linkMapas[1]);
+    const lng = Number(linkMapas[2]);
+    if (
+      Number.isFinite(lat) && Number.isFinite(lng) &&
+      lat >= -90 && lat <= 90 &&
+      lng >= -180 && lng <= 180
+    ) {
+      return { lat, lng, url: `https://maps.google.com/?q=${lat.toFixed(6)},${lng.toFixed(6)}` };
+    }
+    return null;
+  }, [direccionDelivery]);
+
+  // Requisito estricto para modalidad delivery: el GPS es obligatorio.
+  const gpsValidadoParaDelivery = !!gpsCoordenadas;
 
   const costoDeliveryUsd = tipoEntrega === "delivery" ? Number(zonaDeliverySeleccionada?.precio_usd || 0) : 0;
   const totalCarritoUsd = subtotalComidaUsd + costoDeliveryUsd;
@@ -361,25 +592,119 @@ export default function MenuClienteView({
     );
   };
 
+  const handleAvanzarPaso1 = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg("");
+    if (carrito.length === 0) {
+      setErrorMsg("Tu carrito está vacío. Agrega al menos un producto.");
+      return;
+    }
+    const nombreLimpio = nombreCliente.trim();
+    const totalLetrasNombre = (nombreLimpio.match(/[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g) || []).length;
+    if (!nombreLimpio || totalLetrasNombre < 2) {
+      setErrorMsg("Por favor indica tu nombre y apellido completo (mínimo 2 letras).");
+      return;
+    }
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.]+$/.test(nombreLimpio)) {
+      setErrorMsg("El nombre solo debe contener letras y espacios.");
+      return;
+    }
+    let telDigits = telefonoCliente.replace(/\D/g, "");
+    if (codigoPais === "+58" && telDigits.startsWith("0")) {
+      telDigits = telDigits.slice(1);
+    }
+    if (!telDigits) {
+      setErrorMsg("Por favor indica tu número de teléfono / WhatsApp.");
+      return;
+    }
+    if (codigoPais === "+58" && telDigits.length !== 10) {
+      setErrorMsg("El número de Venezuela debe tener 10 dígitos (Ej: 424-4325183).");
+      return;
+    }
+    if (telDigits.length < 7) {
+      setErrorMsg(`Por favor completa un número de teléfono válido (Ej: ${paisSeleccionado.ejemplo}).`);
+      return;
+    }
+    setPasoCheckout(2);
+  };
+
+  const handleAvanzarPaso2 = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMsg("");
+    if (tipoEntrega === "delivery") {
+      if (!zonaDeliverySeleccionada) {
+        setErrorMsg("Por favor selecciona la zona o sector para calcular la tarifa de delivery.");
+        setModalZonaDelivery(true);
+        return;
+      }
+      if (!gpsValidadoParaDelivery) {
+        setErrorMsg("📍 La ubicación GPS es obligatoria para el delivery. Por favor presiona el botón 'Usar mi GPS Actual'.");
+        return;
+      }
+      if (!direccionDelivery.trim() || direccionDelivery.trim().length < 3) {
+        setErrorMsg("Por favor ingresa la dirección detallada o punto de referencia para el delivery.");
+        return;
+      }
+    }
+    setPasoCheckout(3);
+  };
+
   const handleConfirmarPedido = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
-    if (!nombreCliente.trim()) {
-      setErrorMsg("Por favor indica tu nombre completo.");
-      return;
-    }
-    if (!telefonoCliente.trim()) {
-      setErrorMsg("Por favor indica tu número de WhatsApp para contacto.");
-      return;
-    }
-    if (tipoEntrega === "delivery" && !direccionDelivery.trim()) {
-      setErrorMsg("Por favor indica la dirección exacta para el delivery.");
-      return;
-    }
     if (carrito.length === 0) {
       setErrorMsg("Tu carrito está vacío.");
+      setPasoCheckout(1);
       return;
+    }
+    const nombreLimpio = nombreCliente.trim();
+    const totalLetrasNombre = (nombreLimpio.match(/[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g) || []).length;
+    if (!nombreLimpio || totalLetrasNombre < 2) {
+      setErrorMsg("Por favor indica tu nombre y apellido completo (mínimo 2 letras).");
+      setPasoCheckout(1);
+      return;
+    }
+    if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s.]+$/.test(nombreLimpio)) {
+      setErrorMsg("El nombre solo debe contener letras y espacios.");
+      setPasoCheckout(1);
+      return;
+    }
+    let telDigits = telefonoCliente.replace(/\D/g, "");
+    if (codigoPais === "+58" && telDigits.startsWith("0")) {
+      telDigits = telDigits.slice(1);
+    }
+    if (!telDigits) {
+      setErrorMsg("Por favor indica tu número de WhatsApp para contacto.");
+      setPasoCheckout(1);
+      return;
+    }
+    if (codigoPais === "+58" && telDigits.length !== 10) {
+      setErrorMsg("El número de Venezuela debe tener 10 dígitos (Ej: 424-4325183).");
+      setPasoCheckout(1);
+      return;
+    }
+    if (telDigits.length < 7) {
+      setErrorMsg(`Por favor completa un número de teléfono válido (Ej: ${paisSeleccionado.ejemplo}).`);
+      setPasoCheckout(1);
+      return;
+    }
+    if (tipoEntrega === "delivery") {
+      if (!zonaDeliverySeleccionada) {
+        setErrorMsg("Por favor selecciona la zona de entrega.");
+        setPasoCheckout(2);
+        return;
+      }
+      if (!gpsValidadoParaDelivery) {
+        setErrorMsg("📍 La ubicación GPS es obligatoria para el delivery. Por favor presiona 'Usar mi GPS Actual'.");
+        setPasoCheckout(2);
+        return;
+      }
+      if (!direccionDelivery.trim() || direccionDelivery.trim().length < 3) {
+        setErrorMsg("Por favor indica la dirección exacta para el delivery.");
+        setPasoCheckout(2);
+        return;
+      }
     }
 
     if (tasaBcv <= 0) {
@@ -396,9 +721,11 @@ export default function MenuClienteView({
       extras_ids: item.extras.map((e) => e.id),
     }));
 
+    const telefonoCompleto = getTelefonoCompleto();
+
     const res = await crearPedidoWebPublico({
-      nombre_cliente: nombreCliente,
-      telefono: telefonoCliente,
+      nombre_cliente: nombreLimpio,
+      telefono: telefonoCompleto,
       tipo_entrega: tipoEntrega,
       delivery_zona_id: tipoEntrega === "delivery" ? (zonaDeliverySeleccionada?.id || zonaDeliveryId) : undefined,
       direccion_delivery: direccionDelivery,
@@ -598,7 +925,7 @@ export default function MenuClienteView({
                           fontSize: 13,
                         }}
                       >
-                        🍱 Armar Sabores {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
+                        🍱 Armar Rellenos {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
                       </button>
                     ) : cantidadEnCarrito > 0 ? (
                       <div className="pedir-card-qty-controls">
@@ -659,20 +986,37 @@ export default function MenuClienteView({
 
       {/* Drawer Checkout Final del Cliente (Mobile First Bottom Sheet) */}
       {drawerCheckout && (
-        <div className="modal-overlay" onClick={() => setDrawerCheckout(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setDrawerCheckout(false);
+            setPasoCheckout(1);
+            setErrorMsg("");
+          }}
+        >
           <div
             className="pedir-drawer-checkout"
             role="dialog"
             aria-modal="true"
-            aria-label="Resumen y confirmación de tu pedido"
+            aria-label="Proceso de Pedido y Pago"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="pedir-sheet-drag-handle" aria-hidden="true" />
+            
+            {/* Header con Título dinámico por paso */}
             <div className="pedir-drawer-header">
-              <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>🛒 Tu Pedido ({totalItemsCount})</h2>
+              <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>
+                {pasoCheckout === 1 && `🛒 Tu Pedido (${totalItemsCount})`}
+                {pasoCheckout === 2 && "🛵 Modalidad de Entrega"}
+                {pasoCheckout === 3 && "💳 Método de Pago & Factura"}
+              </h2>
               <button
                 type="button"
-                onClick={() => setDrawerCheckout(false)}
+                onClick={() => {
+                  setDrawerCheckout(false);
+                  setPasoCheckout(1);
+                  setErrorMsg("");
+                }}
                 className="pedir-btn-close-modal"
                 aria-label="Cerrar resumen de pedido"
               >
@@ -680,285 +1024,542 @@ export default function MenuClienteView({
               </button>
             </div>
 
-            {/* Cuerpo desplazable */}
+            {/* Barra de Progreso de 3 Pasos */}
+            <div className="pedir-checkout-steps" role="tablist">
+              <button
+                type="button"
+                className={`pedir-checkout-step-item ${pasoCheckout === 1 ? "active" : pasoCheckout > 1 ? "completed" : ""}`}
+                onClick={() => setPasoCheckout(1)}
+              >
+                <span className="pedir-checkout-step-badge">
+                  {pasoCheckout > 1 ? "✓" : "1"}
+                </span>
+                <span>1. Pedido</span>
+              </button>
+
+              <div className={`pedir-checkout-step-divider ${pasoCheckout > 1 ? "completed" : ""}`} />
+
+              <button
+                type="button"
+                className={`pedir-checkout-step-item ${pasoCheckout === 2 ? "active" : pasoCheckout > 2 ? "completed" : ""}`}
+                onClick={() => {
+                  if (carrito.length > 0 && nombreCliente.trim() && telefonoCliente.trim()) {
+                    setPasoCheckout(2);
+                  }
+                }}
+              >
+                <span className="pedir-checkout-step-badge">
+                  {pasoCheckout > 2 ? "✓" : "2"}
+                </span>
+                <span>2. Entrega</span>
+              </button>
+
+              <div className={`pedir-checkout-step-divider ${pasoCheckout > 2 ? "completed" : ""}`} />
+
+              <button
+                type="button"
+                className={`pedir-checkout-step-item ${pasoCheckout === 3 ? "active" : ""}`}
+                onClick={() => {
+                  if (
+                    carrito.length > 0 &&
+                    nombreCliente.trim() &&
+                    telefonoCliente.trim() &&
+                    (tipoEntrega === "pickup" || direccionDelivery.trim())
+                  ) {
+                    setPasoCheckout(3);
+                  }
+                }}
+              >
+                <span className="pedir-checkout-step-badge">3</span>
+                <span>3. Pago</span>
+              </button>
+            </div>
+
+            {/* Cuerpo desplazable dinámico por paso */}
             <div className="pedir-drawer-body-scroll">
-              {/* Lista de Items en Carrito */}
-              {carrito.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "28px 16px 20px" }}>
-                  <Image
-                    src="/mascota/stickers/02_triste_agotado.png"
-                    alt="Carrito Vacío"
-                    width={120}
-                    height={120}
-                    style={{ margin: "0 auto 12px", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))", objectFit: "contain" }}
-                  />
-                  <h3 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 6px" }}>
-                    ¡Tu carrito está vacío!
-                  </h3>
-                  <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: 0 }}>
-                    Agrega unas ricas arepas o combos para armar tu pedido.
-                  </p>
-                </div>
-              ) : (
-                <div className="pedir-cart-items-list">
-                  {carrito.map((item) => {
-                    const precioTotal =
-                      (Number(item.producto.precio_usd || 0) +
-                        item.extras.reduce((acc, e) => acc + Number(e.precio_extra_usd || 0), 0)) *
-                      item.cantidad;
+              {/* ============================================================ */}
+              {/* PASO 1: DESGLOSE DE PRODUCTOS + NOMBRE + TELÉFONO           */}
+              {/* ============================================================ */}
+              {pasoCheckout === 1 && (
+                <div>
+                  {carrito.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "28px 16px 20px" }}>
+                      <Image
+                        src="/mascota/stickers/02_triste_agotado.png"
+                        alt="Carrito Vacío"
+                        width={120}
+                        height={120}
+                        style={{ margin: "0 auto 12px", filter: "drop-shadow(0 6px 16px rgba(0,0,0,0.12))", objectFit: "contain" }}
+                      />
+                      <h3 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 6px" }}>
+                        ¡Tu carrito está vacío!
+                      </h3>
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: 0 }}>
+                        Agrega unas ricas arepas o combos para armar tu pedido.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="pedir-cart-items-list">
+                      {carrito.map((item) => {
+                        const precioTotal =
+                          (Number(item.producto.precio_usd || 0) +
+                            item.extras.reduce((acc, e) => acc + Number(e.precio_extra_usd || 0), 0)) *
+                          item.cantidad;
 
-                    return (
-                      <div key={item.tempId} className="pedir-cart-item-row">
-                        <div className="pedir-cart-item-info">
-                          <div className="pedir-cart-item-name-row">
-                            <span className="pedir-cart-item-icon">{item.producto.icono || "🫓"}</span>
-                            <span className="pedir-cart-item-name">{item.producto.nombre}</span>
-                          </div>
-                          {item.extras.length > 0 && (
-                            <div className="pedir-cart-item-extras">
-                              + {item.extras.map((e) => e.nombre).join(", ")}
+                        return (
+                          <div key={item.tempId} className="pedir-cart-item-row">
+                            <div className="pedir-cart-item-info">
+                              <div className="pedir-cart-item-name-row">
+                                <span className="pedir-cart-item-icon">{item.producto.icono || "🫓"}</span>
+                                <span className="pedir-cart-item-name">{item.producto.nombre}</span>
+                              </div>
+                              {item.extras.length > 0 && (
+                                <div className="pedir-cart-item-extras">
+                                  + {item.extras.map((e) => e.nombre).join(", ")}
+                                </div>
+                              )}
+                              {item.notas_item && (
+                                <div className="pedir-cart-item-notes">📝 {item.notas_item}</div>
+                              )}
+                              <div className="pedir-cart-item-price-wrap">
+                                <span className="pedir-cart-item-price-usd">${precioTotal.toFixed(2)} USD</span>
+                                <span className="pedir-cart-item-price-sep">•</span>
+                                <span className="pedir-cart-item-price-bs">Bs. {(precioTotal * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
                             </div>
-                          )}
-                          {item.notas_item && (
-                            <div className="pedir-cart-item-notes">📝 {item.notas_item}</div>
-                          )}
-                          <div className="pedir-cart-item-price-wrap">
-                            <span className="pedir-cart-item-price-usd">${precioTotal.toFixed(2)} USD</span>
-                            <span className="pedir-cart-item-price-sep">•</span>
-                            <span className="pedir-cart-item-price-bs">Bs. {(precioTotal * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
-                        </div>
 
-                        {/* Controles de Cantidad en Carrito */}
-                        <div className="pedir-qty-box">
-                          <button
-                            type="button"
-                            onClick={() => handleModificarCantidad(item.tempId, -1)}
-                            className="pedir-qty-btn pedir-qty-btn-minus"
-                            aria-label={`Restar una unidad de ${item.producto.nombre}`}
+                            {/* Controles de Cantidad en Carrito */}
+                            <div className="pedir-qty-box">
+                              <button
+                                type="button"
+                                onClick={() => handleModificarCantidad(item.tempId, -1)}
+                                className="pedir-qty-btn pedir-qty-btn-minus"
+                                aria-label={`Restar una unidad de ${item.producto.nombre}`}
+                              >
+                                −
+                              </button>
+                              <span className="pedir-qty-val">{item.cantidad}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleModificarCantidad(item.tempId, 1)}
+                                className="pedir-qty-btn pedir-qty-btn-plus"
+                                aria-label={`Sumar una unidad de ${item.producto.nombre}`}
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Formulario de Contacto (Paso 1) */}
+                  {carrito.length > 0 && (
+                    <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 5 }}>
+                      <div className="pedir-form-group">
+                        <label htmlFor="nombreClienteInput" style={{ display: "block", marginBottom: 6, fontSize: 12.5, fontWeight: 800 }}>
+                          👤 Tu Nombre y Apellido *
+                        </label>
+                        <input
+                          id="nombreClienteInput"
+                          type="text"
+                          required
+                          autoComplete="name"
+                          maxLength={60}
+                          placeholder="Ej: María Pérez"
+                          value={nombreCliente}
+                          onChange={(e) => setNombreCliente(e.target.value)}
+                          className="pedir-form-input"
+                        />
+                      </div>
+
+                      <div className="pedir-form-group">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <label htmlFor="telefonoClienteInput" style={{ margin: 0, fontSize: 12.5, fontWeight: 800 }}>
+                            📱 Teléfono / WhatsApp *
+                          </label>
+                          <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>
+                            Ej: {paisSeleccionado.ejemplo}
+                          </span>
+                        </div>
+                        <div className="pedir-phone-input-group">
+                          <select
+                            id="codigoPaisSelect"
+                            aria-label="Código de País"
+                            value={codigoPais}
+                            onChange={(e) => handleCambiarPais(e.target.value)}
+                            className="pedir-phone-country-select"
                           >
-                            −
-                          </button>
-                          <span className="pedir-qty-val">{item.cantidad}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleModificarCantidad(item.tempId, 1)}
-                            className="pedir-qty-btn pedir-qty-btn-plus"
-                            aria-label={`Sumar una unidad de ${item.producto.nombre}`}
-                          >
-                            +
-                          </button>
+                            {PAISES_TELEFONO.map((p) => (
+                              <option key={p.codigo} value={p.codigo}>
+                                {p.bandera} {p.codigo} ({p.nombre})
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            id="telefonoClienteInput"
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            required
+                            placeholder={paisSeleccionado.placeholder}
+                            value={telefonoCliente}
+                            onChange={handleTelefonoChange}
+                            onKeyDown={handleTelefonoKeyDown}
+                            className="pedir-phone-input-field"
+                            maxLength={16}
+                          />
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Formulario de Datos del Cliente */}
-              <form id="pedir-checkout-form-id" onSubmit={handleConfirmarPedido} className="pedir-checkout-form">
-                <div className="pedir-form-group">
-                  <label htmlFor="nombreClienteInput">👤 Tu Nombre y Apellido *</label>
-                  <input
-                    id="nombreClienteInput"
-                    type="text"
-                    required
-                    placeholder="Ej: María Pérez"
-                    value={nombreCliente}
-                    onChange={(e) => setNombreCliente(e.target.value)}
-                    className="pedir-form-input"
-                  />
-                </div>
-
-                <div className="pedir-form-group">
-                  <label htmlFor="telefonoClienteInput">📱 Teléfono / WhatsApp *</label>
-                  <input
-                    id="telefonoClienteInput"
-                    type="tel"
-                    required
-                    placeholder="Ej: 0412 1234567"
-                    value={telefonoCliente}
-                    onChange={(e) => setTelefonoCliente(e.target.value)}
-                    className="pedir-form-input"
-                  />
-                </div>
-
-                {/* Modalidad de Entrega */}
-                <div className="pedir-form-group">
-                  <label className="pedir-form-label-destacado" id="labelModalidadEntrega">
-                    Modalidad de Entrega *
-                  </label>
-                  <div
-                    className="pedir-delivery-switch-cards"
-                    role="radiogroup"
-                    aria-labelledby="labelModalidadEntrega"
-                  >
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={tipoEntrega === "pickup"}
-                      className={`pedir-switch-card ${tipoEntrega === "pickup" ? "active" : ""}`}
-                      onClick={() => setTipoEntrega("pickup")}
-                    >
-                      <div className="pedir-switch-card-icon">🛍️</div>
-                      <div className="pedir-switch-card-body">
-                        <span className="pedir-switch-card-title">Para Llevar / Retiro</span>
-                        <span className="pedir-switch-card-sub">Retiras directo en local</span>
-                      </div>
-                      <div className="pedir-switch-card-check">
-                        {tipoEntrega === "pickup" ? "✓" : ""}
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={tipoEntrega === "delivery"}
-                      className={`pedir-switch-card ${tipoEntrega === "delivery" ? "active" : ""}`}
-                      onClick={() => setTipoEntrega("delivery")}
-                    >
-                      <div className="pedir-switch-card-icon">🛵</div>
-                      <div className="pedir-switch-card-body">
-                        <span className="pedir-switch-card-title">Delivery a Domicilio</span>
-                        <span className="pedir-switch-card-sub">Te lo llevamos a tu puerta</span>
-                      </div>
-                      <div className="pedir-switch-card-check">
-                        {tipoEntrega === "delivery" ? "✓" : ""}
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {tipoEntrega === "delivery" && (
-                  <div className="pedir-form-group pedir-delivery-container-highlight">
-                    {/* Selector de Zona de Delivery Tarifada */}
-                    {zonasDelivery.length > 0 && (
-                      <div style={{ marginBottom: 14 }}>
-                        <label className="pedir-form-label-destacado" id="labelZonaDelivery" style={{ marginBottom: 8 }}>
-                          📍 Selecciona tu Zona / Sector *
-                        </label>
-                        <div
-                          className="pedir-zonas-delivery-grid"
-                          role="radiogroup"
-                          aria-labelledby="labelZonaDelivery"
-                        >
-                          {zonasDelivery.map((z) => {
-                            const isSel = (zonaDeliverySeleccionada?.id === z.id);
-                            return (
-                              <button
-                                key={z.id}
-                                type="button"
-                                role="radio"
-                                aria-checked={isSel}
-                                className={`pedir-zona-card ${isSel ? "active" : ""}`}
-                                onClick={() => setZonaDeliveryId(z.id)}
-                              >
-                                <div className="pedir-zona-card-header">
-                                  <span className="pedir-zona-card-name">{z.nombre}</span>
-                                  <span className="pedir-zona-card-price">
-                                    +${Number(z.precio_usd).toFixed(2)} USD
-                                  </span>
-                                </div>
-                                {z.descripcion && (
-                                  <span className="pedir-zona-card-desc">{z.descripcion}</span>
-                                )}
-                                <div className="pedir-zona-card-footer">
-                                  {z.tiempo_estimado_min ? (
-                                    <span className="pedir-zona-card-time">⏱️ ~{z.tiempo_estimado_min} min</span>
-                                  ) : <span />}
-                                  <span className="pedir-zona-card-status">
-                                    {isSel ? "✓ Seleccionada" : "Seleccionar"}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Botón GPS Super Destacado */}
-                    <button
-                      type="button"
-                      onClick={handleObtenerUbicacionGps}
-                      disabled={cargandoGps}
-                      className={`pedir-btn-gps-hero ${gpsOk ? "gps-active" : ""}`}
-                      title="Detectar ubicación GPS automáticamente"
-                      aria-label="Detectar ubicación GPS automáticamente"
-                    >
-                      <div className="pedir-btn-gps-hero-icon" aria-hidden="true">
-                        {cargandoGps ? "⏳" : gpsOk ? "✅" : "📍"}
-                      </div>
-                      <div className="pedir-btn-gps-hero-content">
-                        <span className="pedir-btn-gps-hero-title" aria-live="polite">
-                          {cargandoGps
-                            ? "Conectando con Satélites GPS..."
-                            : gpsOk
-                            ? "¡Ubicación GPS Detectada!"
-                            : "Usar mi GPS Actual"}
-                        </span>
-                        <span className="pedir-btn-gps-hero-sub">
-                          {gpsOk
-                            ? "Google Maps vinculado para el repartidor ✓"
-                            : "1 toque: detecta tu ubicación sin escribir"}
-                        </span>
-                      </div>
-                      <div className="pedir-btn-gps-hero-badge" aria-hidden="true">
-                        {cargandoGps ? "Buscando..." : gpsOk ? "ACTIVO" : "RECOMENDADO"}
-                      </div>
-                    </button>
-
-                    <label htmlFor="direccionDeliveryInput" style={{ marginTop: 12, marginBottom: 6, display: "block" }}>
-                      Dirección Exacta / Referencias de Entrega *
+              {/* ============================================================ */}
+              {/* PASO 2: MODALIDAD DE ENTREGA (RETIRO / DELIVERY + ZONA + GPS) */}
+              {/* ============================================================ */}
+              {pasoCheckout === 2 && (
+                <div className="pedir-checkout-form">
+                  <div className="pedir-form-group">
+                    <label className="pedir-form-label-destacado" id="labelModalidadEntrega">
+                      ¿Cómo deseas recibir tu comida? *
                     </label>
-                    <textarea
-                      id="direccionDeliveryInput"
-                      required
-                      rows={2}
-                      placeholder="Calle, número de casa, edificio o punto de referencia..."
-                      value={direccionDelivery}
-                      onChange={(e) => setDireccionDelivery(e.target.value)}
+                    <div
+                      className="pedir-delivery-switch-cards"
+                      role="radiogroup"
+                      aria-labelledby="labelModalidadEntrega"
+                    >
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={tipoEntrega === "pickup"}
+                        className={`pedir-switch-card ${tipoEntrega === "pickup" ? "active" : ""}`}
+                        onClick={() => setTipoEntrega("pickup")}
+                      >
+                        <div className="pedir-switch-card-icon">🛍️</div>
+                        <div className="pedir-switch-card-body">
+                          <span className="pedir-switch-card-title">Para Llevar / Retiro</span>
+                          <span className="pedir-switch-card-sub">Retiras directo en nuestro local</span>
+                        </div>
+                        <div className="pedir-switch-card-check">
+                          {tipoEntrega === "pickup" ? "✓" : ""}
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={tipoEntrega === "delivery"}
+                        className={`pedir-switch-card ${tipoEntrega === "delivery" ? "active" : ""}`}
+                        onClick={() => {
+                          setTipoEntrega("delivery");
+                          setModalZonaDelivery(true);
+                        }}
+                      >
+                        <div className="pedir-switch-card-icon">🛵</div>
+                        <div className="pedir-switch-card-body">
+                          <span className="pedir-switch-card-title">Delivery a Domicilio</span>
+                          <span className="pedir-switch-card-sub">Te lo llevamos directo a tu puerta</span>
+                        </div>
+                        <div className="pedir-switch-card-check">
+                          {tipoEntrega === "delivery" ? "✓" : ""}
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {tipoEntrega === "delivery" && (
+                    <div className="pedir-form-group pedir-delivery-container-highlight" style={{ marginTop: 12 }}>
+                      {/* Selector y Resumen de Zona de Delivery en Modal */}
+                      {zonasDelivery.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <label className="pedir-form-label-destacado" style={{ margin: 0 }}>
+                              📍 Zona / Sector de Entrega *
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setModalZonaDelivery(true)}
+                              style={{
+                                background: "var(--primary-light)",
+                                color: "var(--primary-dark)",
+                                border: "1px solid var(--primary)",
+                                padding: "4px 10px",
+                                borderRadius: 8,
+                                fontSize: 11.5,
+                                fontWeight: 800,
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                              }}
+                            >
+                              Cambiar Sector
+                            </button>
+                          </div>
+
+                          <div
+                            onClick={() => setModalZonaDelivery(true)}
+                            style={{
+                              background: "var(--bg-card)",
+                              border: "1.5px solid var(--primary)",
+                              borderRadius: 14,
+                              padding: "12px 14px",
+                              cursor: "pointer",
+                              boxShadow: "0 2px 10px var(--primary-glow)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 12,
+                              transition: "transform 0.15s ease",
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 11, fontWeight: 900, background: "var(--primary)", color: "var(--text)", padding: "1px 7px", borderRadius: 5 }}>
+                                  {zonaDeliverySeleccionada?.nombre}
+                                </span>
+                                <span style={{ fontSize: 13.5, fontWeight: 900, color: "var(--text)" }}>
+                                  +${Number(zonaDeliverySeleccionada?.precio_usd || 0).toFixed(2)} USD
+                                </span>
+                                {tasaBcv > 0 && (
+                                  <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 700 }}>
+                                    (Bs. {(Number(zonaDeliverySeleccionada?.precio_usd || 0) * tasaBcv).toFixed(2)})
+                                  </span>
+                                )}
+                              </div>
+                              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", lineHeight: 1.35 }}>
+                                {zonaDeliverySeleccionada?.descripcion}
+                              </p>
+                            </div>
+                            <span style={{ fontSize: 18, color: "var(--primary-dark)", fontWeight: 900 }}>➔</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Botón GPS Super Destacado */}
+                      <button
+                        type="button"
+                        onClick={handleObtenerUbicacionGps}
+                        disabled={cargandoGps}
+                        className={`pedir-btn-gps-hero ${gpsOk ? "gps-active" : ""}`}
+                        title="Detectar ubicación GPS automáticamente"
+                        aria-label="Detectar ubicación GPS automáticamente"
+                      >
+                        <div className="pedir-btn-gps-hero-icon" aria-hidden="true">
+                          {cargandoGps ? "⏳" : gpsOk ? "✅" : "📍"}
+                        </div>
+                        <div className="pedir-btn-gps-hero-content">
+                          <span className="pedir-btn-gps-hero-title" aria-live="polite">
+                            {cargandoGps
+                              ? "Conectando con Satélites GPS..."
+                              : gpsOk
+                              ? "¡Ubicación GPS Detectada!"
+                              : "Usar mi GPS Actual"}
+                          </span>
+                          <span className="pedir-btn-gps-hero-sub">
+                            {gpsOk
+                              ? "Google Maps vinculado para el repartidor ✓"
+                              : "1 toque: Obligatorio para ubicar tu entrega exacta"}
+                          </span>
+                        </div>
+                        <div className="pedir-btn-gps-hero-badge" aria-hidden="true" style={{ background: gpsOk ? "var(--green)" : "var(--accent)" }}>
+                          {cargandoGps ? "Buscando..." : gpsOk ? "ACTIVO ✓" : "OBLIGATORIO *"}
+                        </div>
+                      </button>
+
+                      {typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && !gpsOk && (
+                        <button
+                          type="button"
+                          onClick={() => handleAsignarGpsSimulado(11.69875, -70.19853)}
+                          style={{
+                            marginTop: 8,
+                            width: "100%",
+                            padding: "8px 12px",
+                            borderRadius: 10,
+                            background: "var(--bg-subtle)",
+                            border: "1px dashed var(--primary)",
+                            color: "var(--primary-dark)",
+                            fontSize: 11.5,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                        >
+                          🧪 (Modo Local / PC): Asignar GPS de Prueba (Punto Fijo)
+                        </button>
+                      )}
+
+                      <label htmlFor="direccionDeliveryInput" style={{ marginTop: 12, marginBottom: 6, display: "block" }}>
+                        Dirección Exacta / Referencias de Entrega *
+                      </label>
+                      <textarea
+                        id="direccionDeliveryInput"
+                        required
+                        aria-required="true"
+                        rows={2}
+                        placeholder="Calle, número de casa, edificio o punto de referencia..."
+                        value={direccionDelivery}
+                        onChange={(e) => setDireccionDelivery(e.target.value)}
+                        className="pedir-form-input"
+                      />
+                      {gpsOk && (
+                        <span className="pedir-gps-ok-hint">
+                          ✨ ¡Listo! Tu enlace de Google Maps se adjuntará automáticamente a la comanda para el repartidor.
+                        </span>
+                      )}
+
+                      {/* Vista Previa Interactiva del Mapa de Google Maps */}
+                      {gpsCoordenadas && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            borderRadius: 14,
+                            overflow: "hidden",
+                            border: "1.5px solid var(--border)",
+                            background: "var(--bg-card)",
+                            boxShadow: "var(--shadow-sm)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: "8px 12px",
+                              background: "rgba(22, 163, 74, 0.12)",
+                              borderBottom: "1px solid var(--border)",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                            }}
+                          >
+                            <span style={{ fontSize: 12, fontWeight: 900, color: "#16a34a", display: "flex", alignItems: "center", gap: 6 }}>
+                              📍 Ubicación Confirmada en el Mapa
+                            </span>
+                            <a
+                              href={gpsCoordenadas.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ fontSize: 11.5, fontWeight: 800, color: "var(--primary-dark)", textDecoration: "none" }}
+                            >
+                              Abrir en Google Maps ↗
+                            </a>
+                          </div>
+                          <div style={{ position: "relative", width: "100%", height: 180, background: "var(--bg-subtle)" }}>
+                            <iframe
+                              title="Mapa de Entrega GPS"
+                              width="100%"
+                              height="100%"
+                              style={{ border: 0 }}
+                              loading="lazy"
+                              allowFullScreen
+                              referrerPolicy="no-referrer-when-downgrade"
+                              src={`https://maps.google.com/maps?q=${gpsCoordenadas.lat},${gpsCoordenadas.lng}&hl=es&z=16&output=embed`}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {tipoEntrega === "pickup" && (
+                    <div
+                      style={{
+                        marginTop: 12,
+                        padding: "14px 16px",
+                        borderRadius: 14,
+                        background: "var(--bg-subtle)",
+                        border: "1px solid var(--border)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                      }}
+                    >
+                      <span style={{ fontSize: 24 }}>🏬</span>
+                      <div>
+                        <strong style={{ fontSize: 13, display: "block", color: "var(--text)" }}>
+                          Retiro directo en La Parada del Sabor
+                        </strong>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                          Tu pedido estará listo y caliente cuando llegues a nuestro local.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ============================================================ */}
+              {/* PASO 3: MÉTODO DE PAGO + COMENTARIOS + FACTURA Y CONFIRMAR   */}
+              {/* ============================================================ */}
+              {pasoCheckout === 3 && (
+                <div className="pedir-checkout-form">
+                  <div className="pedir-form-group" style={{ marginBottom: 12 }}>
+                    <label htmlFor="metodoPagoSelect" className="pedir-form-label-destacado" style={{ marginBottom: 8 }}>
+                      💳 ¿Cómo deseas pagar? *
+                    </label>
+                    <select
+                      id="metodoPagoSelect"
+                      value={metodoPago}
+                      onChange={(e) => setMetodoPago(e.target.value)}
+                      className="pedir-form-input"
+                      style={{ fontSize: 14, fontWeight: 700, padding: "12px 14px" }}
+                    >
+                      <option value="pago_movil">📱 Pago Móvil (Bolívares)</option>
+                      <option value="efectivo_usd">💵 Efectivo Dólares (al recibir o retirar)</option>
+                      <option value="efectivo_bs">🇻🇪 Efectivo Bolívares (al recibir o retirar)</option>
+                      <option value="transferencia">🏦 Transferencia Bancaria BFC (Bolívares)</option>
+                      <option value="binance">🟡 Binance Pay (USDT)</option>
+                      <option value="zelle">🟣 Zelle (Dólares)</option>
+                    </select>
+                  </div>
+
+                  {/* Notas / Comentarios adicionales */}
+                  <div className="pedir-form-group">
+                    <label>Comentarios adicionales (Opcional)</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Tengo billete de $20 para vuelto..."
+                      value={notasGenerales}
+                      onChange={(e) => setNotasGenerales(e.target.value)}
                       className="pedir-form-input"
                     />
-                    {gpsOk && (
-                      <span className="pedir-gps-ok-hint">
-                        ✨ ¡Listo! Tu enlace de Google Maps se adjuntará automáticamente a la comanda para el repartidor.
-                      </span>
-                    )}
                   </div>
-                )}
 
-                {/* Método de Pago Simplificado e Intuitivo */}
-                <div className="pedir-form-group" style={{ marginBottom: 12 }}>
-                  <label className="pedir-form-label-destacado" style={{ marginBottom: 8 }}>
-                    💳 ¿Cómo deseas pagar? *
-                  </label>
-                  <select
-                    value={metodoPago}
-                    onChange={(e) => setMetodoPago(e.target.value)}
-                    className="pedir-form-input"
-                    style={{ fontSize: 14, fontWeight: 700, padding: "12px 14px" }}
+                  {/* Resumen del Cliente y Entrega */}
+                  <div
+                    style={{
+                      background: "var(--bg-subtle)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 14,
+                      padding: "12px 14px",
+                      marginTop: 10,
+                      fontSize: 12,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
                   >
-                    <option value="pago_movil">📱 Pago Móvil (Bolívares)</option>
-                    <option value="transferencia">🏦 Transferencia Bancaria BFC (Bolívares)</option>
-                    <option value="binance">🟡 Binance Pay (USDT)</option>
-                    <option value="zelle">🟣 Zelle (Dólares)</option>
-                    <option value="efectivo_usd">💵 Efectivo Dólares (al recibir o retirar)</option>
-                    <option value="efectivo_bs">🇻🇪 Efectivo Bolívares (al recibir o retirar)</option>
-                  </select>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Cliente:</span>
+                      <strong>{nombreCliente} ({telefonoCliente})</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Modalidad:</span>
+                      <strong>{tipoEntrega === "delivery" ? `🛵 Delivery • ${zonaDeliverySeleccionada?.nombre}` : "🛍️ Para Llevar / Retiro"}</strong>
+                    </div>
+                  </div>
 
-                  {/* Mensaje de tranquilidad y flujo claro super llamativo */}
+                  {/* Mensaje de cómo es el proceso de pago */}
                   <div
                     style={{
                       marginTop: 12,
-                      padding: "14px 16px",
-                      borderRadius: 16,
+                      padding: "12px 14px",
+                      borderRadius: 14,
                       background: "linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(234, 88, 12, 0.08) 100%)",
                       border: "1.5px solid rgba(245, 158, 11, 0.4)",
                       boxShadow: "0 4px 16px rgba(245, 158, 11, 0.1)",
                       display: "flex",
                       flexDirection: "column",
-                      gap: 8,
+                      gap: 6,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -972,30 +1573,18 @@ export default function MenuClienteView({
                           textTransform: "uppercase",
                         }}
                       >
-                        ¿Cómo es el proceso de pago?
+                        ¿Qué pasará al confirmar?
                       </span>
                     </div>
-                    <p style={{ margin: 0, fontSize: 12.5, color: "var(--text)", lineHeight: 1.45, fontWeight: 700 }}>
-                      Al presionar el botón abajo, se generará tu <strong>Factura Digital Oficial</strong> con el monto exacto y los datos para pagar y adjuntar tu captura por WhatsApp.
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--text)", lineHeight: 1.4, fontWeight: 700 }}>
+                      Se generará tu <strong>Factura Digital Oficial</strong> con el número de comanda y los datos para realizar tu pago y enviar tu comprobante por WhatsApp.
                     </p>
                   </div>
                 </div>
-
-                {/* Notas generales */}
-                <div className="pedir-form-group">
-                  <label>Comentarios adicionales (Opcional)</label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Tengo billete de $20 para vuelto..."
-                    value={notasGenerales}
-                    onChange={(e) => setNotasGenerales(e.target.value)}
-                    className="pedir-form-input"
-                  />
-                </div>
-              </form>
+              )}
             </div>
 
-            {/* Pie Fijo con Resumen y Botón de Enviar Pedido */}
+            {/* Pie Fijo con Totales y Botones de Navegación por Paso */}
             <div className="pedir-drawer-sticky-footer">
               <div className="pedir-checkout-totals">
                 {tipoEntrega === "delivery" && costoDeliveryUsd > 0 && (
@@ -1032,14 +1621,66 @@ export default function MenuClienteView({
                 </div>
               )}
 
-              <button
-                type="submit"
-                form="pedir-checkout-form-id"
-                disabled={enviando || carrito.length === 0}
-                className="pedir-btn-submit-order"
-              >
-                {enviando ? "Generando Factura Oficial..." : "🧾 Confirmar y Ver Factura para Pagar"}
-              </button>
+              {/* Botones de Acción según el Paso Activo */}
+              <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+                {pasoCheckout === 1 && (
+                  <button
+                    type="button"
+                    onClick={handleAvanzarPaso1}
+                    disabled={carrito.length === 0}
+                    className="pedir-btn-submit-order"
+                  >
+                    Continuar a Entrega ➔
+                  </button>
+                )}
+
+                {pasoCheckout === 2 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg("");
+                        setPasoCheckout(1);
+                      }}
+                      className="pedir-btn-back"
+                    >
+                      ⬅ Volver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAvanzarPaso2}
+                      className="pedir-btn-submit-order"
+                      style={{ flex: 1 }}
+                    >
+                      Continuar a Pago ➔
+                    </button>
+                  </>
+                )}
+
+                {pasoCheckout === 3 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg("");
+                        setPasoCheckout(2);
+                      }}
+                      className="pedir-btn-back"
+                    >
+                      ⬅ Volver
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmarPedido}
+                      disabled={enviando || carrito.length === 0}
+                      className="pedir-btn-submit-order"
+                      style={{ flex: 1 }}
+                    >
+                      {enviando ? "Generando Factura..." : "Confirmar y Ver Factura"}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1140,6 +1781,16 @@ export default function MenuClienteView({
         />
       )}
 
+      {/* Modal Interactivo de Selección de Zona de Delivery */}
+      <ModalSeleccionarZonaDelivery
+        abierto={modalZonaDelivery}
+        onClose={() => setModalZonaDelivery(false)}
+        zonas={zonasDelivery}
+        zonaSeleccionadaId={zonaDeliveryId}
+        onSeleccionarZona={(id) => setZonaDeliveryId(id)}
+        tasaBcv={tasaBcv}
+      />
+
       {/* Modal Lightbox Zoom de Imagen de Producto */}
       {modalFotoZoom && (
         <div className="modal-overlay" onClick={() => setModalFotoZoom(null)}>
@@ -1167,7 +1818,6 @@ export default function MenuClienteView({
                   width={600}
                   height={600}
                   className="pedir-modal-zoom-img"
-                  priority
                 />
               </div>
             )}
@@ -1198,7 +1848,7 @@ export default function MenuClienteView({
                     }}
                     className="pedir-btn-confirm-order"
                   >
-                    🍱 Personalizar Sabores del Combo
+                    🍱 Personalizar Rellenos del Combo
                   </button>
                 ) : (
                   <button

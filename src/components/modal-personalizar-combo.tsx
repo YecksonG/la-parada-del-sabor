@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Producto } from "@/types/database";
-import { SABORES_AREPAS_COMBO, serializarSaboresCombo, getProductImage } from "@/lib/combo-helper";
+import { RELLENOS_AREPAS_COMBO, serializarRellenosCombo, getProductImage } from "@/lib/combo-helper";
 import { sounds } from "@/lib/sound-effects";
 
 interface ModalPersonalizarComboProps {
@@ -19,13 +19,13 @@ export default function ModalPersonalizarCombo({
   onConfirmar,
   onCerrar,
 }: ModalPersonalizarComboProps) {
-  const [sabores, setSabores] = useState<Record<string, number>>({});
+  const [rellenos, setRellenos] = useState<Record<string, number>>({});
   const [notaOpcional, setNotaOpcional] = useState("");
   const modalCardRef = useRef<HTMLDivElement>(null);
 
   const totalSeleccionadas = useMemo(() => {
-    return Object.values(sabores).reduce((acc, curr) => acc + (curr || 0), 0);
-  }, [sabores]);
+    return Object.values(rellenos).reduce((acc, curr) => acc + (curr || 0), 0);
+  }, [rellenos]);
 
   const faltantes = Math.max(0, totalArepas - totalSeleccionadas);
   const esCompleto = totalSeleccionadas === totalArepas;
@@ -66,9 +66,9 @@ export default function ModalPersonalizarCombo({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleModificarSabor = (saborId: string, delta: number) => {
-    setSabores((prev) => {
-      const actual = prev[saborId] || 0;
+  const handleModificarRelleno = (rellenoId: string, delta: number) => {
+    setRellenos((prev) => {
+      const actual = prev[rellenoId] || 0;
       const nuevo = actual + delta;
       if (nuevo < 0) return prev;
 
@@ -80,9 +80,9 @@ export default function ModalPersonalizarCombo({
 
       const next = { ...prev };
       if (nuevo === 0) {
-        delete next[saborId];
+        delete next[rellenoId];
       } else {
-        next[saborId] = nuevo;
+        next[rellenoId] = nuevo;
       }
       return next;
     });
@@ -91,7 +91,7 @@ export default function ModalPersonalizarCombo({
   const handleConfirmar = () => {
     if (!esCompleto) return;
     sounds.playKitchenBell();
-    const textoNotas = serializarSaboresCombo(sabores, notaOpcional);
+    const textoNotas = serializarRellenosCombo(rellenos, notaOpcional);
     onConfirmar(textoNotas);
   };
 
@@ -124,7 +124,7 @@ export default function ModalPersonalizarCombo({
             )}
             <div>
               <h2 id="combo-modal-title" style={{ fontSize: 17, fontWeight: 900, color: "var(--text)", margin: 0 }}>
-                Elige los Sabores del Combo
+                Elige los Rellenos del Combo
               </h2>
               <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, fontWeight: 700 }}>
                 {producto.nombre}
@@ -135,7 +135,7 @@ export default function ModalPersonalizarCombo({
             type="button"
             onClick={onCerrar}
             className="combo-modal-close-btn"
-            aria-label="Cerrar modal de sabores"
+            aria-label="Cerrar modal de rellenos"
           >
             ✕
           </button>
@@ -178,25 +178,25 @@ export default function ModalPersonalizarCombo({
           </div>
         </div>
 
-        {/* Lista de Sabores con Stepper */}
+        {/* Lista de Rellenos con Stepper */}
         <div className="combo-flavors-list">
-          {SABORES_AREPAS_COMBO.map((sabor) => {
-            const cant = sabores[sabor.id] || 0;
+          {RELLENOS_AREPAS_COMBO.map((relleno) => {
+            const cant = rellenos[relleno.id] || 0;
             const puedeSumar = totalSeleccionadas < totalArepas;
 
             return (
               <div
-                key={sabor.id}
+                key={relleno.id}
                 className={`combo-flavor-row ${cant > 0 ? "flavor-selected" : ""}`}
               >
                 <div className="combo-flavor-info">
-                  <span className="combo-flavor-icon" aria-hidden="true">{sabor.icono}</span>
+                  <span className="combo-flavor-icon" aria-hidden="true">{relleno.icono}</span>
                   <div>
                     <div className="combo-flavor-name">
-                      {sabor.nombre}
+                      {relleno.nombre}
                     </div>
                     <div className="combo-flavor-desc">
-                      {sabor.desc}
+                      {relleno.desc}
                     </div>
                   </div>
                 </div>
@@ -206,9 +206,9 @@ export default function ModalPersonalizarCombo({
                   <button
                     type="button"
                     disabled={cant <= 0}
-                    onClick={() => handleModificarSabor(sabor.id, -1)}
+                    onClick={() => handleModificarRelleno(relleno.id, -1)}
                     className="combo-stepper-btn"
-                    aria-label={`Restar una ${sabor.nombre}`}
+                    aria-label={`Restar una ${relleno.nombre}`}
                   >
                     −
                   </button>
@@ -220,9 +220,9 @@ export default function ModalPersonalizarCombo({
                   <button
                     type="button"
                     disabled={!puedeSumar}
-                    onClick={() => handleModificarSabor(sabor.id, 1)}
+                    onClick={() => handleModificarRelleno(relleno.id, 1)}
                     className={`combo-stepper-btn ${puedeSumar ? "plus-active" : ""}`}
-                    aria-label={`Sumar una ${sabor.nombre}`}
+                    aria-label={`Sumar una ${relleno.nombre}`}
                   >
                     +
                   </button>

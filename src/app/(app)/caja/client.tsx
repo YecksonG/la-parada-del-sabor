@@ -123,6 +123,8 @@ export default function CajaClient({
     let zelleUsd = 0;
 
     let totalUsd = 0;
+    let totalDeliveryUsd = 0;
+    let totalDeliveryViajes = 0;
 
     ventasFiltradas.forEach((v) => {
       // Fallback si total_usd no fue recalculado por triggers o viene en 0
@@ -138,6 +140,11 @@ export default function CajaClient({
       const vBs = Number(v.total_bs) > 0 ? Number(v.total_bs) : Number((vUsd * tasaVenta).toFixed(2));
 
       totalUsd += vUsd;
+
+      if (v.tipo_entrega === "delivery" && Number(v.delivery_monto_usd || 0) > 0) {
+        totalDeliveryUsd += Number(v.delivery_monto_usd);
+        totalDeliveryViajes += 1;
+      }
 
       switch (v.metodo_pago as string) {
         case "efectivo_usd":
@@ -180,6 +187,7 @@ export default function CajaClient({
     const totalBsDigitalesEquivUsd = tasaBcv > 0 ? totalBsDigitales / tasaBcv : 0;
 
     const totalDolaresDigitalesUsd = binanceUsd + zelleUsd;
+    const ventaNetaComidaUsd = totalUsd - totalDeliveryUsd;
 
     const teoricoEfectivoUsd = (Number(sesionActiva?.monto_inicial_usd) || 0) + efectivoFisicoUsd;
     const teoricoEfectivoBs = (Number(sesionActiva?.monto_inicial_bs) || 0) + efectivoFisicoBs;
@@ -195,6 +203,9 @@ export default function CajaClient({
       binanceUsd,
       zelleUsd,
       totalDolaresDigitalesUsd,
+      totalDeliveryUsd,
+      totalDeliveryViajes,
+      ventaNetaComidaUsd,
       totalUsd,
       teoricoEfectivoUsd,
       teoricoEfectivoBs,
@@ -470,6 +481,38 @@ export default function CajaClient({
           </div>
         </div>
 
+        {/* 4. SECCIÓN: CONCILIACIÓN DE DELIVERY & VENTA NETA DE COCINA */}
+        <div style={{ marginTop: 20, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ fontSize: 14, fontWeight: 900, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            🛵 4. Conciliación de Delivery (Cuentas por Pagar Flota Externa)
+          </h3>
+          <span style={{ fontSize: 12, fontWeight: 800, color: "var(--primary-dark)" }}>
+            {resumenTurno.totalDeliveryViajes} Viajes Realizados
+          </span>
+        </div>
+
+        <div className="caja-summary-grid">
+          <div className="caja-stat-card" style={{ borderColor: "rgba(248, 197, 66, 0.4)", background: "rgba(248, 197, 66, 0.04)" }}>
+            <span className="stat-label">🛵 Pasivo Acumulado Delivery (Por Pagar a la Empresa)</span>
+            <strong className="stat-value" style={{ color: "var(--primary-dark)" }}>
+              ${resumenTurno.totalDeliveryUsd.toFixed(2)} USD
+            </strong>
+            <span className="stat-hint">
+              ≈ {(resumenTurno.totalDeliveryUsd * (tasaBcv > 0 ? tasaBcv : 1)).toFixed(2)} Bs • Dinero recaudado en tránsito
+            </span>
+          </div>
+
+          <div className="caja-stat-card" style={{ borderColor: "rgba(34, 197, 94, 0.4)", background: "rgba(34, 197, 94, 0.04)" }}>
+            <span className="stat-label">🍽️ Venta Neta Real de Cocina (Sin Delivery)</span>
+            <strong className="stat-value text-green">
+              ${resumenTurno.ventaNetaComidaUsd.toFixed(2)} USD
+            </strong>
+            <span className="stat-hint">
+              Ingreso propio del restaurante para cálculo de margen real
+            </span>
+          </div>
+        </div>
+
         {/* Gran Total Facturado del Turno */}
         <div className="caja-totals-hero">
           <div>
@@ -520,6 +563,20 @@ export default function CajaClient({
                       #{v.numero_comanda.toString().padStart(4, "0")}
                     </span>
                     <span>{v.cliente?.nombre || "Cliente Mostrador"}</span>
+                    {v.tipo_entrega === "delivery" && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 800,
+                          padding: "2px 6px",
+                          borderRadius: 6,
+                          background: "rgba(248, 197, 66, 0.2)",
+                          color: "var(--primary-dark)",
+                        }}
+                      >
+                        🛵 {v.delivery_zona_nombre || "Delivery"} (+${Number(v.delivery_monto_usd || 0).toFixed(2)})
+                      </span>
+                    )}
                     <span
                       style={{
                         fontSize: 10,
