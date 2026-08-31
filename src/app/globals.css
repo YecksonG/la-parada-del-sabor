@@ -132,6 +132,14 @@ a {
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.topbar-horizontal-logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 .topbar-brand:hover {
   transform: scale(1.03);
 }

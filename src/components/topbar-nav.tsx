@@ -203,28 +203,24 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
           </button>
 
           <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
-            <div style={{ position: "relative", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Image
-                src="/images/isotipo_arepa.png"
-                alt="Logo La Parada del Sabor"
-                width={34}
-                height={34}
-                className="brand-logo-img logo-light-only"
-                priority
-              />
-              <Image
-                src="/images/isotipo_arepa_dark.png"
-                alt="Logo La Parada del Sabor"
-                width={34}
-                height={34}
-                className="brand-logo-img logo-dark-only"
-                priority
-              />
-            </div>
-            <div className="brand-text">
-              <span className="brand-name-main">La Parada </span>
-              <span className="brand-name-accent">del Sabor</span>
-            </div>
+            <Image
+              src="/images/logo-horizontal.png"
+              alt="La Parada del Sabor"
+              width={150}
+              height={44}
+              className="topbar-horizontal-logo logo-light-only"
+              priority
+              style={{ objectFit: "contain", height: "36px", width: "auto" }}
+            />
+            <Image
+              src="/images/logo-horizontal-dark.png"
+              alt="La Parada del Sabor"
+              width={150}
+              height={44}
+              className="topbar-horizontal-logo logo-dark-only"
+              priority
+              style={{ objectFit: "contain", height: "36px", width: "auto" }}
+            />
           </Link>
         </div>
 
@@ -366,26 +362,22 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
             {/* Header del Drawer Móvil */}
             <div className="mobile-drawer-header">
               <div className="mobile-drawer-brand">
-                <div style={{ position: "relative", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Image
-                    src="/images/isotipo_arepa.png"
-                    alt="Logo"
-                    width={36}
-                    height={36}
-                    className="brand-logo-img logo-light-only"
-                  />
-                  <Image
-                    src="/images/isotipo_arepa_dark.png"
-                    alt="Logo"
-                    width={36}
-                    height={36}
-                    className="brand-logo-img logo-dark-only"
-                  />
-                </div>
-                <div>
-                  <h3 className="mobile-drawer-title">La Parada del Sabor</h3>
-                  <span className="mobile-drawer-subtitle">Panel Administrativo</span>
-                </div>
+                <Image
+                  src="/images/logo-horizontal.png"
+                  alt="La Parada del Sabor"
+                  width={160}
+                  height={50}
+                  className="logo-light-only"
+                  style={{ objectFit: "contain", height: "42px", width: "auto" }}
+                />
+                <Image
+                  src="/images/logo-horizontal-dark.png"
+                  alt="La Parada del Sabor"
+                  width={160}
+                  height={50}
+                  className="logo-dark-only"
+                  style={{ objectFit: "contain", height: "42px", width: "auto" }}
+                />
               </div>
               <button
                 type="button"
