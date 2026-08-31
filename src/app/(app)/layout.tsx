@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import TopbarNav from "@/components/topbar-nav";
 import PageTransition from "@/components/page-transition";
 import AutoTasas from "@/components/auto-tasas";
+import SplashScreen from "@/components/splash-screen";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -34,6 +35,7 @@ export default async function AppLayout({
 
   return (
     <div className="app-shell">
+      <SplashScreen />
       <AutoTasas />
       <TopbarNav nombre={nombre} bcvTasa={bcvTasa} />
       <PageTransition>{children}</PageTransition>
