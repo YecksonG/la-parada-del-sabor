@@ -376,28 +376,6 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
     <div className="recibo-page-wrapper">
       {/* Barra de Navegación Simple para Clientes */}
       <header className="recibo-top-banner no-print">
-        <Link href="/pedir" className="recibo-brand-link" title="Ir al Menú de Pedidos">
-          <div style={{ position: "relative", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Image
-              src="/images/isotipo_arepa.png"
-              alt="La Parada del Sabor"
-              width={32}
-              height={32}
-              className="recibo-logo-img logo-light-only"
-            />
-            <Image
-              src="/images/isotipo_arepa_dark.png"
-              alt="La Parada del Sabor"
-              width={32}
-              height={32}
-              className="recibo-logo-img logo-dark-only"
-            />
-          </div>
-          <span className="recibo-brand-title">
-            La Parada <span className="recibo-brand-accent">del Sabor</span>
-          </span>
-        </Link>
-
         <div className="recibo-actions-top">
           <ThemeToggle />
           <Link
@@ -476,28 +454,28 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
             <strong>SABOR</strong>
           </div>
 
-          {/* Encabezado del Recibo */}
+          {/* Encabezado del Recibo con Logotipo Horizontal Oficial */}
           <div className="recibo-header">
-            <div className="recibo-logo-wrapper" style={{ position: "relative", width: 76, height: 76, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <div className="recibo-hero-horizontal-logo-wrap">
               <Image
-                src="/images/isotipo_arepa.png"
-                alt="Logo La Parada del Sabor"
-                width={76}
-                height={76}
-                className="recibo-hero-logo logo-light-only"
+                src="/images/logo-horizontal.png"
+                alt="La Parada del Sabor"
+                width={190}
+                height={55}
+                className="recibo-hero-horizontal-logo logo-light-only"
                 priority
+                style={{ objectFit: "contain", height: "48px", width: "auto" }}
               />
               <Image
-                src="/images/isotipo_arepa_dark.png"
-                alt="Logo La Parada del Sabor"
-                width={76}
-                height={76}
-                className="recibo-hero-logo logo-dark-only"
+                src="/images/logo-horizontal-dark.png"
+                alt="La Parada del Sabor"
+                width={190}
+                height={55}
+                className="recibo-hero-horizontal-logo logo-dark-only"
                 priority
+                style={{ objectFit: "contain", height: "48px", width: "auto" }}
               />
             </div>
-            <h1 className="recibo-title">LA PARADA DEL SABOR</h1>
-            <p className="recibo-subtitle">Arepería Tradicional & Comida Rápida</p>
             <div className="recibo-badge-comanda">
               <span>ORDEN DE SERVICIO</span>
               <strong>#{venta.numero_comanda.toString().padStart(4, "0")}</strong>
