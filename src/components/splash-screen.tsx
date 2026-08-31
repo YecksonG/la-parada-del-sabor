@@ -8,15 +8,15 @@ export default function SplashScreen() {
   const [animandoSalida, setAnimandoSalida] = useState(false);
 
   useEffect(() => {
-    // Iniciar animación de salida a los 1.2 segundos
+    // Iniciar animación de salida cinematográfica a los 1.35 segundos
     const timerSalida = setTimeout(() => {
       setAnimandoSalida(true);
-    }, 1200);
+    }, 1350);
 
-    // Desmontar completamente a los 1.7 segundos
+    // Desmontar completamente a los 1.85 segundos
     const timerDesmontar = setTimeout(() => {
       setVisible(false);
-    }, 1700);
+    }, 1850);
 
     return () => {
       clearTimeout(timerSalida);
@@ -31,35 +31,53 @@ export default function SplashScreen() {
       className={`splash-overlay ${animandoSalida ? "splash-exit" : ""}`}
       aria-hidden="true"
     >
-      {/* Fondo con resplandor ambiental cálido */}
-      <div className="splash-ambient-glow"></div>
+      {/* Fondo con resplandores ambientales y textura */}
+      <div className="splash-ambient-glow-1"></div>
+      <div className="splash-ambient-glow-2"></div>
+      <div className="splash-ambient-pattern"></div>
+
+      {/* Chispas flotantes animadas */}
+      <div className="splash-sparks-wrap">
+        <span className="splash-spark spark-1">✨</span>
+        <span className="splash-spark spark-2">🌟</span>
+        <span className="splash-spark spark-3">✨</span>
+        <span className="splash-spark spark-4">🔥</span>
+      </div>
 
       <div className="splash-content">
         <div className="splash-logo-wrap">
-          {/* Anillos de pulsación dorada */}
-          <div className="splash-pulse-ring splash-pulse-ring-1"></div>
-          <div className="splash-pulse-ring splash-pulse-ring-2"></div>
+          {/* Ondas de choque expansivas */}
+          <div className="splash-shockwave splash-shockwave-1"></div>
+          <div className="splash-shockwave splash-shockwave-2"></div>
+          <div className="splash-shockwave splash-shockwave-3"></div>
 
-          <Image
-            src="/images/isotipo_arepa.png"
-            alt="La Parada del Sabor"
-            width={130}
-            height={130}
-            className="splash-arepa-img logo-light-only"
-            loading="eager"
-          />
-          <Image
-            src="/images/isotipo_arepa_dark.png"
-            alt="La Parada del Sabor"
-            width={130}
-            height={130}
-            className="splash-arepa-img logo-dark-only"
-            loading="eager"
-          />
+          {/* Contenedor de la Arepa con destello de luz sweep */}
+          <div className="splash-image-box">
+            <Image
+              src="/images/isotipo_arepa.png"
+              alt="La Parada del Sabor"
+              width={145}
+              height={145}
+              className="splash-arepa-img logo-light-only"
+              loading="eager"
+            />
+            <Image
+              src="/images/isotipo_arepa_dark.png"
+              alt="La Parada del Sabor"
+              width={145}
+              height={145}
+              className="splash-arepa-img logo-dark-only"
+              loading="eager"
+            />
+            <div className="splash-shine-sweep"></div>
+          </div>
         </div>
 
         <div className="splash-text-wrap">
-          <span className="splash-brand-title">La Parada del Sabor</span>
+          <div className="splash-brand-title">
+            <span>La Parada</span> <span className="splash-title-highlight">del Sabor</span>
+          </div>
+
           <div className="splash-brand-slogan">
             <span className="splash-slogan-dot"></span>
             <span>Tu antojo a 3 clics</span>
