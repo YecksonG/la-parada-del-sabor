@@ -8,15 +8,15 @@ export default function SplashScreen() {
   const [animandoSalida, setAnimandoSalida] = useState(false);
 
   useEffect(() => {
-    // Iniciar animación de salida cinematográfica a los 1.35 segundos
+    // Iniciar animación de salida cinematográfica a los 2.3 segundos (tiempo ideal de lectura)
     const timerSalida = setTimeout(() => {
       setAnimandoSalida(true);
-    }, 1350);
+    }, 2300);
 
-    // Desmontar completamente a los 1.85 segundos
+    // Desmontar completamente a los 2.85 segundos
     const timerDesmontar = setTimeout(() => {
       setVisible(false);
-    }, 1850);
+    }, 2850);
 
     return () => {
       clearTimeout(timerSalida);
@@ -31,10 +31,9 @@ export default function SplashScreen() {
       className={`splash-overlay ${animandoSalida ? "splash-exit" : ""}`}
       aria-hidden="true"
     >
-      {/* Fondo con resplandores ambientales y textura */}
+      {/* Fondo con resplandores ambientales circulares */}
       <div className="splash-ambient-glow-1"></div>
       <div className="splash-ambient-glow-2"></div>
-      <div className="splash-ambient-pattern"></div>
 
       {/* Chispas flotantes animadas */}
       <div className="splash-sparks-wrap">
