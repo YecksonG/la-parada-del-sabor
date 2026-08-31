@@ -4871,8 +4871,26 @@ a {
 }
 
 .pedir-hero-logo-img {
-  border-radius: 50%;
-  box-shadow: 0 2px 8px var(--primary-glow);
+  height: 46px;
+  width: auto;
+  max-width: 170px;
+  object-fit: contain;
+}
+
+.logo-dark-only {
+  display: none !important;
+}
+
+.logo-light-only {
+  display: block !important;
+}
+
+[data-theme="dark"] .logo-dark-only {
+  display: block !important;
+}
+
+[data-theme="dark"] .logo-light-only {
+  display: none !important;
 }
 
 .pedir-brand-title {

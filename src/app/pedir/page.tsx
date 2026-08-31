@@ -38,8 +38,17 @@ export default async function PedirPage() {
       .order("orden", { ascending: true }),
   ]);
 
-  const categorias = catRes.data || [];
-  const productos = prodRes.data || [];
+  // Excluir categoría y productos de empanadas si existen en DB
+  const empanadaCatIds = new Set(
+    (catRes.data || [])
+      .filter((c) => c.nombre.toLowerCase().includes("empanada"))
+      .map((c) => c.id)
+  );
+
+  const categorias = (catRes.data || []).filter((c) => !empanadaCatIds.has(c.id));
+  const productos = (prodRes.data || []).filter(
+    (p) => !empanadaCatIds.has(p.categoria_id) && !p.nombre.toLowerCase().includes("empanada")
+  );
   const extras = extRes.data || [];
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 0;
   
