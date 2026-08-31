@@ -6903,6 +6903,21 @@ a {
   flex: 1;
 }
 
+.combo-flavor-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.combo-flavor-row:hover .combo-flavor-img {
+  transform: scale(1.05);
+}
+
 .combo-flavor-icon {
   font-size: 26px;
   line-height: 1;

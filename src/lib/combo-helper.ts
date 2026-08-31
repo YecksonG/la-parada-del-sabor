@@ -5,15 +5,40 @@ export interface RellenoArepa {
   nombre: string;
   desc: string;
   icono: string;
+  imagen: string;
 }
 
 export type SaborArepa = RellenoArepa;
 
 export const RELLENOS_AREPAS_COMBO: RellenoArepa[] = [
-  { id: "catira", nombre: "Arepa Catira", desc: "Pollo mechado + Queso amarillo", icono: "🍗" },
-  { id: "jamon_queso_amarillo", nombre: "Arepa Jamón y Queso Amarillo", desc: "Jamón + Queso amarillo rallado", icono: "🥓" },
-  { id: "pelua", nombre: "Arepa Pelúa", desc: "Carne mechada + Queso amarillo", icono: "🧀" },
-  { id: "reina_pepiada", nombre: "Arepa Reina Pepiada", desc: "Pollo desmechado con aguacate y mayonesa", icono: "🥑" },
+  {
+    id: "catira",
+    nombre: "Arepa Catira",
+    desc: "Pollo mechado + Queso amarillo",
+    icono: "🍗",
+    imagen: "/images/arepas/arepa-catira.jpg",
+  },
+  {
+    id: "jamon_queso_amarillo",
+    nombre: "Arepa Jamón y Queso Amarillo",
+    desc: "Jamón + Queso amarillo rallado",
+    icono: "🥓",
+    imagen: "/images/arepas/arepa-jamon-queso.jpg",
+  },
+  {
+    id: "pelua",
+    nombre: "Arepa Pelúa",
+    desc: "Carne mechada + Queso amarillo",
+    icono: "🧀",
+    imagen: "/images/arepas/arepa-pelua.jpg",
+  },
+  {
+    id: "reina_pepiada",
+    nombre: "Arepa Reina Pepiada",
+    desc: "Pollo desmechado con aguacate y mayonesa",
+    icono: "🥑",
+    imagen: "/images/arepas/arepa-reina-pepiada.jpg",
+  },
 ];
 
 export const SABORES_AREPAS_COMBO = RELLENOS_AREPAS_COMBO;

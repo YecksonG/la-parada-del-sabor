@@ -190,7 +190,19 @@ export default function ModalPersonalizarCombo({
                 className={`combo-flavor-row ${cant > 0 ? "flavor-selected" : ""}`}
               >
                 <div className="combo-flavor-info">
-                  <span className="combo-flavor-icon" aria-hidden="true">{relleno.icono}</span>
+                  {relleno.imagen ? (
+                    <Image
+                      src={relleno.imagen}
+                      alt={relleno.nombre}
+                      width={48}
+                      height={48}
+                      className="combo-flavor-img"
+                    />
+                  ) : (
+                    <span className="combo-flavor-icon" aria-hidden="true">
+                      {relleno.icono}
+                    </span>
+                  )}
                   <div>
                     <div className="combo-flavor-name">
                       {relleno.nombre}
