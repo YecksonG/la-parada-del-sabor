@@ -23,11 +23,11 @@ export const SABORES_AREPAS_COMBO = RELLENOS_AREPAS_COMBO;
  * Retorna null si no es un combo de arepas.
  */
 export function getComboArepasCount(prod: Producto): number | null {
-  const nombre = prod.nombre.toLowerCase();
-  if (/\b10\s*arep/i.test(nombre) || /\bcombo\s*10\b/i.test(nombre) || /\bfamiliar\s*10\b/i.test(nombre)) return 10;
+  const nombre = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/\b10\s*arep/i.test(nombre) || /\bcombo\s*10\b/i.test(nombre) || /\bfamiliar\b/i.test(nombre) || /\bresuelve\b/i.test(nombre)) return 10;
   if (/\b6\s*arep/i.test(nombre) || /\bcombo\s*6\b/i.test(nombre)) return 6;
-  if (/\b4\s*arep/i.test(nombre) || /\bcombo\s*4\b/i.test(nombre) || /\bcompartir\b/i.test(nombre)) return 4;
-  if (/\b2\s*arep/i.test(nombre) || /\bcombo\s*2\b/i.test(nombre) || /\bpersonal\b/i.test(nombre)) return 2;
+  if (/\b4\s*arep/i.test(nombre) || /\bcombo\s*4\b/i.test(nombre) || /\bcompartir\b/i.test(nombre) || /\bduo\b/i.test(nombre) || /\bpara dos\b/i.test(nombre)) return 4;
+  if (/\b2\s*arep/i.test(nombre) || /\bcombo\s*2\b/i.test(nombre) || /\bpersonal\b/i.test(nombre) || /\bantojo\b/i.test(nombre)) return 2;
   return null;
 }
 
@@ -53,10 +53,10 @@ export function getProductImage(prod: { nombre: string; imagen_url?: string | nu
   if (norm.includes("especial") && (norm.includes("carne") || norm.includes("esmechada"))) return "/images/arepas/arepa-especial-carne.jpg";
   if (norm.includes("pelua")) return "/images/arepas/arepa-pelua.jpg";
   
-  // Combos oficiales (2, 4, 10 arepas)
-  if (norm.includes("combo") && (norm.includes("2") || norm.includes("personal"))) return "/images/combos/combo-2-arepas.jpg";
-  if (norm.includes("combo") && (norm.includes("4") || norm.includes("compartir"))) return "/images/combos/combo-4-arepas.jpg";
-  if (norm.includes("combo") && (norm.includes("10") || norm.includes("familiar"))) return "/images/combos/combo-10-arepas.jpg";
+  // Combos oficiales gourmet
+  if (norm.includes("antojo") || (norm.includes("combo") && (norm.includes("2") || norm.includes("personal")))) return "/images/combos/combo-2-arepas.jpg";
+  if (norm.includes("duo") || norm.includes("para dos") || (norm.includes("combo") && (norm.includes("4") || norm.includes("compartir")))) return "/images/combos/combo-4-arepas.jpg";
+  if (norm.includes("resuelve") || (norm.includes("combo") && (norm.includes("10") || norm.includes("familiar")))) return "/images/combos/combo-10-arepas.jpg";
 
   // Bebidas
   if (norm.includes("pepsi")) return "/images/bebidas/pepsi-1-5l.jpg";
