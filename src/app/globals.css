@@ -7401,28 +7401,31 @@ a {
   }
 }
 
+/* Optimización para Safari / iOS WebKit */
+.splash-overlay,
+.splash-content,
+.splash-image-box,
+.splash-arepa-img,
+.splash-shockwave,
+.splash-shine-sweep {
+  -webkit-transform: translate3d(0, 0, 0);
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .splash-content,
-  .splash-ambient-glow-1,
-  .splash-ambient-glow-2,
-  .splash-shockwave,
-  .splash-image-box,
-  .splash-arepa-img,
-  .splash-text-wrap,
-  .splash-spark,
-  .splash-shine-sweep,
-  .splash-brand-slogan,
-  .splash-progress-fill,
-  .splash-slogan-dot {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-  .splash-progress-fill {
-    width: 100%;
-  }
   .splash-overlay {
-    transition-duration: 0.01s;
+    transition-duration: 0.15s;
+  }
+  .splash-shockwave {
+    display: none;
+  }
+  .splash-ambient-glow-1,
+  .splash-ambient-glow-2 {
+    animation-duration: 4s;
   }
 }
 
