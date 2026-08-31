@@ -203,14 +203,24 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
           </button>
 
           <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
-            <Image
-              src="/images/logo-badge.png"
-              alt="Logo La Parada del Sabor"
-              width={34}
-              height={34}
-              className="brand-logo-img"
-              priority
-            />
+            <div style={{ position: "relative", width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Image
+                src="/images/isotipo_arepa.png"
+                alt="Logo La Parada del Sabor"
+                width={34}
+                height={34}
+                className="brand-logo-img logo-light-only"
+                priority
+              />
+              <Image
+                src="/images/isotipo_arepa_dark.png"
+                alt="Logo La Parada del Sabor"
+                width={34}
+                height={34}
+                className="brand-logo-img logo-dark-only"
+                priority
+              />
+            </div>
             <div className="brand-text">
               <span className="brand-name-main">La Parada </span>
               <span className="brand-name-accent">del Sabor</span>
@@ -356,13 +366,22 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
             {/* Header del Drawer Móvil */}
             <div className="mobile-drawer-header">
               <div className="mobile-drawer-brand">
-                <Image
-                  src="/images/logo-badge.png"
-                  alt="Logo"
-                  width={36}
-                  height={36}
-                  className="brand-logo-img"
-                />
+                <div style={{ position: "relative", width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Image
+                    src="/images/isotipo_arepa.png"
+                    alt="Logo"
+                    width={36}
+                    height={36}
+                    className="brand-logo-img logo-light-only"
+                  />
+                  <Image
+                    src="/images/isotipo_arepa_dark.png"
+                    alt="Logo"
+                    width={36}
+                    height={36}
+                    className="brand-logo-img logo-dark-only"
+                  />
+                </div>
                 <div>
                   <h3 className="mobile-drawer-title">La Parada del Sabor</h3>
                   <span className="mobile-drawer-subtitle">Panel Administrativo</span>

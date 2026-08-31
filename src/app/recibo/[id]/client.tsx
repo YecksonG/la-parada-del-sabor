@@ -377,13 +377,22 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
       {/* Barra de Navegación Simple para Clientes */}
       <header className="recibo-top-banner no-print">
         <Link href="/pedir" className="recibo-brand-link" title="Ir al Menú de Pedidos">
-          <Image
-            src="/images/logo-badge.png"
-            alt="La Parada del Sabor"
-            width={32}
-            height={32}
-            className="recibo-logo-img"
-          />
+          <div style={{ position: "relative", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Image
+              src="/images/isotipo_arepa.png"
+              alt="La Parada del Sabor"
+              width={32}
+              height={32}
+              className="recibo-logo-img logo-light-only"
+            />
+            <Image
+              src="/images/isotipo_arepa_dark.png"
+              alt="La Parada del Sabor"
+              width={32}
+              height={32}
+              className="recibo-logo-img logo-dark-only"
+            />
+          </div>
           <span className="recibo-brand-title">
             La Parada <span className="recibo-brand-accent">del Sabor</span>
           </span>
@@ -469,13 +478,21 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
 
           {/* Encabezado del Recibo */}
           <div className="recibo-header">
-            <div className="recibo-logo-wrapper">
+            <div className="recibo-logo-wrapper" style={{ position: "relative", width: 76, height: 76, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
               <Image
-                src="/images/logo-badge.png"
+                src="/images/isotipo_arepa.png"
                 alt="Logo La Parada del Sabor"
                 width={76}
                 height={76}
-                className="recibo-hero-logo"
+                className="recibo-hero-logo logo-light-only"
+                priority
+              />
+              <Image
+                src="/images/isotipo_arepa_dark.png"
+                alt="Logo La Parada del Sabor"
+                width={76}
+                height={76}
+                className="recibo-hero-logo logo-dark-only"
                 priority
               />
             </div>

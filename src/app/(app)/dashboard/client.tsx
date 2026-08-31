@@ -355,13 +355,24 @@ export default function DashboardClient({
       {/* Header con Filtro de Periodo */}
       <div className="recetas-header">
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <Image
-            src="/images/logo-badge.png"
-            alt="Logo La Parada del Sabor"
-            width={48}
-            height={48}
-            style={{ borderRadius: "50%", flexShrink: 0 }}
-          />
+          <div style={{ position: "relative", width: 48, height: 48, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Image
+              src="/images/isotipo_arepa.png"
+              alt="Logo La Parada del Sabor"
+              width={48}
+              height={48}
+              className="logo-light-only"
+              style={{ objectFit: "contain" }}
+            />
+            <Image
+              src="/images/isotipo_arepa_dark.png"
+              alt="Logo La Parada del Sabor"
+              width={48}
+              height={48}
+              className="logo-dark-only"
+              style={{ objectFit: "contain" }}
+            />
+          </div>
           <div>
             <h1 className="recetas-title">📊 Panel Administrativo & Métricas</h1>
             <p className="recetas-subtitle">

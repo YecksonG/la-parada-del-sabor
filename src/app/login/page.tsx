@@ -116,8 +116,9 @@ export default function LoginPage() {
 
       {/* Widget Interactivo Inferior Izquierdo */}
       <aside className="login-floating-brand" title="La Parada del Sabor">
-        <div className="floating-brand-logo">
-          <Image src="/images/logo-badge.png" alt="Logo" width={26} height={26} />
+        <div className="floating-brand-logo" style={{ position: "relative", width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Image src="/images/isotipo_arepa.png" alt="Logo" width={26} height={26} className="logo-light-only" />
+          <Image src="/images/isotipo_arepa_dark.png" alt="Logo" width={26} height={26} className="logo-dark-only" />
         </div>
         <div className="floating-brand-text">
           <span className="brand-name-main">La Parada</span>
@@ -129,14 +130,24 @@ export default function LoginPage() {
         {/* Cabecera */}
         <header className="login-header">
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-            <Image
-              src="/images/logo-badge.png"
-              alt="Logo La Parada del Sabor"
-              width={88}
-              height={88}
-              className="login-logo-badge-img"
-              priority
-            />
+            <div style={{ position: "relative", width: 88, height: 88, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Image
+                src="/images/isotipo_arepa.png"
+                alt="Logo La Parada del Sabor"
+                width={88}
+                height={88}
+                className="login-logo-badge-img logo-light-only"
+                priority
+              />
+              <Image
+                src="/images/isotipo_arepa_dark.png"
+                alt="Logo La Parada del Sabor"
+                width={88}
+                height={88}
+                className="login-logo-badge-img logo-dark-only"
+                priority
+              />
+            </div>
           </div>
 
           <div className="login-status-row">
