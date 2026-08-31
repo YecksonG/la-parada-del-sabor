@@ -82,10 +82,9 @@ export default function ModalSeleccionarZonaDelivery({
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="🔍 Escribe tu sector (ej. Zarabón, Centro, Maraven...)"
-              className="pedir-search-input"
-              style={{ fontSize: 13, padding: "10px 14px", width: "100%" }}
-              autoFocus
+              placeholder="🔍 Buscar sector (ej. Zarabón, Centro, Maraven...)"
+              className="pedir-search-input modal-zona-search-input"
+              style={{ fontSize: "16px", padding: "11px 14px", width: "100%" }}
             />
             {busqueda && (
               <button
