@@ -9,6 +9,7 @@ import { Categoria, Producto, ExtraModificador, ZonaDelivery } from "@/types/dat
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
 import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
+import SplashScreen from "@/components/splash-screen";
 
 interface MenuClienteViewProps {
   categorias: Categoria[];
@@ -426,6 +427,7 @@ export default function MenuClienteView({
 
   return (
     <div className="pedir-page-layout">
+      <SplashScreen />
       {/* Header Público de La Parada del Sabor */}
       <header className="pedir-hero-header">
         <div className="pedir-header-top">

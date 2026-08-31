@@ -6959,3 +6959,128 @@ a {
     padding-bottom: calc(18px + env(safe-area-inset-bottom, 16px)) !important;
   }
 }
+
+/* ==============================================================================
+   SPLASH SCREEN NATIVO & ANIMACIÓN DE ENTRADA (BRANDING LA PARADA DEL SABOR)
+   ============================================================================== */
+
+.splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.splash-overlay.splash-exit {
+  opacity: 0;
+  transform: scale(1.06);
+  pointer-events: none;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  animation: splashEntrance 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.splash-logo-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.splash-arepa-img {
+  width: 110px;
+  height: 110px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 28px var(--primary-glow));
+  animation: splashFloat 1.8s ease-in-out infinite alternate;
+}
+
+.splash-text-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: splashFadeInText 0.6s ease-out 0.25s both;
+}
+
+.splash-brand-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.splash-brand-slogan {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--primary-dark);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  background: var(--primary-light);
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+@keyframes splashEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) rotate(-8deg);
+  }
+  70% {
+    transform: scale(1.05) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes splashFloat {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+@keyframes splashFadeInText {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-content {
+    animation: none;
+    opacity: 1;
+  }
+  .splash-arepa-img {
+    animation: none;
+  }
+  .splash-text-wrap {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .splash-overlay {
+    transition-duration: 0.01s;
+  }
+}
