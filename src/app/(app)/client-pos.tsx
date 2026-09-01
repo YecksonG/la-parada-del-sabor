@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
-import { Producto, Categoria, ExtraModificador, Cliente, PedidoPendiente } from "@/types/database";
+import { Producto, Categoria, ExtraModificador, Cliente, PedidoPendiente, ZonaDelivery } from "@/types/database";
 import {
   registrarVentaPos,
   aceptarPedidoWeb,
@@ -14,6 +14,7 @@ import {
 import { sounds } from "@/lib/sound-effects";
 import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
+import ModalSeleccionarZonaDelivery from "@/components/modal-seleccionar-zona-delivery";
 
 interface PosClientProps {
   categorias: Categoria[];
@@ -22,6 +23,7 @@ interface PosClientProps {
   tasaBcv: number;
   pedidosPendientes?: PedidoPendiente[];
   clientesIniciales?: Cliente[];
+  zonasDelivery?: ZonaDelivery[];
 }
 
 export default function PosClient({
@@ -31,6 +33,7 @@ export default function PosClient({
   tasaBcv,
   pedidosPendientes = [],
   clientesIniciales = [],
+  zonasDelivery = [],
 }: PosClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [modalPedidosWeb, setModalPedidosWeb] = useState(false);
@@ -50,6 +53,13 @@ export default function PosClient({
   const [nuevoTelefono, setNuevoTelefono] = useState("");
   const [nuevaDireccion, setNuevaDireccion] = useState("");
   const [guardandoCliente, setGuardandoCliente] = useState(false);
+
+  // Gestión de Delivery en POS
+  const [zonaDeliveryId, setZonaDeliveryId] = useState<string | null>(() => {
+    return zonasDelivery.length > 0 ? zonasDelivery[0].id : null;
+  });
+  const [modalZonaDeliveryPos, setModalZonaDeliveryPos] = useState(false);
+  const [direccionDeliveryPos, setDireccionDeliveryPos] = useState("");
 
   // Cliente actualmente seleccionado
   const clienteActual = useMemo(() => {
@@ -218,8 +228,22 @@ export default function PosClient({
     });
   };
 
-  // Cálculos de Totales
-  const totalUsd = useMemo(() => {
+  // Sincronizar dirección de delivery si el cliente seleccionado ya tiene una guardada
+  useEffect(() => {
+    if (clienteActual?.direccion_delivery) {
+      setDireccionDeliveryPos(clienteActual.direccion_delivery);
+    }
+  }, [clienteActual]);
+
+  // Cálculos de Totales y Delivery en POS
+  const zonaDeliveryActual = useMemo(() => {
+    if (tipoEntrega !== "delivery" || !zonaDeliveryId) return null;
+    return zonasDelivery.find((z) => z.id === zonaDeliveryId) || null;
+  }, [tipoEntrega, zonaDeliveryId, zonasDelivery]);
+
+  const tarifaDeliveryUsd = zonaDeliveryActual ? Number(zonaDeliveryActual.precio_usd || 0) : 0;
+
+  const subtotalItemsUsd = useMemo(() => {
     return carrito.reduce((acc, item) => {
       const subtotalItem = item.precio_unitario_usd * item.cantidad;
       const subtotalExtras = (item.extras || []).reduce(
@@ -230,6 +254,7 @@ export default function PosClient({
     }, 0);
   }, [carrito]);
 
+  const totalUsd = subtotalItemsUsd + (tipoEntrega === "delivery" ? tarifaDeliveryUsd : 0);
   const totalBs = Number((totalUsd * tasaBcv).toFixed(2));
 
   // Guardar Cliente Rápido desde el POS
@@ -312,6 +337,10 @@ ${estadoPago}`;
       cliente_id: clienteSeleccionadoId,
       metodo_pago: metodoPago,
       tipo_entrega: tipoEntrega,
+      delivery_zona_id: tipoEntrega === "delivery" ? (zonaDeliveryActual?.id || null) : null,
+      delivery_zona_nombre: tipoEntrega === "delivery" ? (zonaDeliveryActual?.nombre || null) : null,
+      delivery_tarifa_usd: tipoEntrega === "delivery" ? tarifaDeliveryUsd : 0,
+      direccion_delivery: tipoEntrega === "delivery" ? direccionDeliveryPos.trim() : null,
       tasa_bcv: tasaBcv,
       notas_comanda: notasComanda,
       items: carrito,
@@ -334,6 +363,7 @@ ${estadoPago}`;
       setCarrito([]);
       setNotasComanda("");
       setClienteSeleccionadoId(null);
+      setDireccionDeliveryPos("");
     } else {
       alert(res.error || "No se pudo procesar la comanda.");
     }
@@ -637,6 +667,64 @@ ${estadoPago}`;
               </button>
             ))}
           </div>
+
+          {/* Configuración de Zona y Dirección de Delivery en POS */}
+          {tipoEntrega === "delivery" && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: "10px 12px",
+                background: "linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(234, 88, 12, 0.06))",
+                border: "1.5px dashed var(--primary)",
+                borderRadius: 14,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                  <span style={{ fontSize: 16 }}>📍</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 900, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {zonaDeliveryActual ? zonaDeliveryActual.nombre : "Seleccionar Zona de Delivery"}
+                    </div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-dark)" }}>
+                      {tarifaDeliveryUsd > 0
+                        ? `+${tarifaDeliveryUsd.toFixed(2)} USD (Bs. ${(tarifaDeliveryUsd * tasaBcv).toFixed(2)})`
+                        : "Sin zona seleccionada"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModalZonaDeliveryPos(true)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 8,
+                    background: "var(--primary)",
+                    color: "#ffffff",
+                    border: "none",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    flexShrink: 0,
+                  }}
+                >
+                  {zonaDeliveryActual ? "Cambiar ⇄" : "Elegir 📍"}
+                </button>
+              </div>
+
+              <input
+                type="text"
+                placeholder="🛵 Dirección / Referencia o Link de Google Maps..."
+                value={direccionDeliveryPos}
+                onChange={(e) => setDireccionDeliveryPos(e.target.value)}
+                className="cart-notes-input"
+                style={{ fontSize: 12, padding: "8px 10px", borderRadius: 8, background: "var(--bg-card)" }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Lista de Items en la Comanda */}
@@ -782,6 +870,18 @@ ${estadoPago}`;
 
           {/* Totales */}
           <div className="cart-totals-box">
+            {tipoEntrega === "delivery" && tarifaDeliveryUsd > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)", marginBottom: 4, fontWeight: 700 }}>
+                <span>Subtotal Comida:</span>
+                <span>${subtotalItemsUsd.toFixed(2)} USD</span>
+              </div>
+            )}
+            {tipoEntrega === "delivery" && tarifaDeliveryUsd > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--primary-dark)", marginBottom: 6, fontWeight: 800 }}>
+                <span>🛵 Tarifa Delivery:</span>
+                <span>+${tarifaDeliveryUsd.toFixed(2)} USD</span>
+              </div>
+            )}
             <div className="totals-row-usd">
               <span>Total a Pagar:</span>
               <strong className="amount-usd">${totalUsd.toFixed(2)} USD</strong>
@@ -1406,6 +1506,20 @@ ${estadoPago}`;
           onCerrar={() => setComboModalData(null)}
         />
       )}
+
+      {/* Modal Interactivo de Selección de Zona de Delivery en POS */}
+      <ModalSeleccionarZonaDelivery
+        abierto={modalZonaDeliveryPos}
+        onClose={() => setModalZonaDeliveryPos(false)}
+        zonas={zonasDelivery}
+        zonaSeleccionadaId={zonaDeliveryId || ""}
+        onSeleccionarZona={(id) => {
+          setZonaDeliveryId(id);
+          setModalZonaDeliveryPos(false);
+          sounds.playPop();
+        }}
+        tasaBcv={tasaBcv}
+      />
     </div>
   );
 }

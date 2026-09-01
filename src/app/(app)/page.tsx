@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import PosClient from "./client-pos";
-import { Producto, Categoria, ExtraModificador, PedidoPendiente } from "@/types/database";
+import { Producto, Categoria, ExtraModificador, PedidoPendiente, ZonaDelivery } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -16,6 +16,7 @@ export default async function PosPage() {
     tasaRes,
     pedidosRes,
     clientesRes,
+    zonasRes,
   ] = await Promise.all([
     supabase
       .from("categorias")
@@ -50,6 +51,11 @@ export default async function PosPage() {
       .from("clientes")
       .select("*")
       .order("nombre", { ascending: true }),
+    supabase
+      .from("zonas_delivery")
+      .select("*")
+      .eq("activo", true)
+      .order("orden", { ascending: true }),
   ]);
 
   const categorias = catRes.data || [];
@@ -58,6 +64,7 @@ export default async function PosPage() {
   const bcvTasa = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 0;
   const pedidosPendientes = pedidosRes.data || [];
   const clientes = clientesRes.data || [];
+  const zonasDelivery = zonasRes.data || [];
 
   return (
     <PosClient
@@ -67,6 +74,7 @@ export default async function PosPage() {
       tasaBcv={bcvTasa}
       pedidosPendientes={(pedidosPendientes as PedidoPendiente[]) || []}
       clientesIniciales={(clientes as any[]) || []}
+      zonasDelivery={(zonasDelivery as ZonaDelivery[]) || []}
     />
   );
 }

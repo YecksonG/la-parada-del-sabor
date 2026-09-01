@@ -24,6 +24,10 @@ export type RegistrarVentaPayload = {
   cliente_id?: string | null;
   metodo_pago: string;
   tipo_entrega: string;
+  delivery_zona_id?: string | null;
+  delivery_zona_nombre?: string | null;
+  delivery_tarifa_usd?: number;
+  direccion_delivery?: string | null;
   tasa_bcv: number;
   notas_comanda?: string;
   items: CartItem[];
@@ -96,9 +100,17 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
     }
     totalUsdCalculado += subtotalItem + subtotalExtras;
   }
+
+  const tarifaDeliveryUsd =
+    payload.tipo_entrega === "delivery" && Number(payload.delivery_tarifa_usd) > 0
+      ? Number(payload.delivery_tarifa_usd)
+      : 0;
+
+  totalUsdCalculado += tarifaDeliveryUsd;
   totalUsdCalculado = Number(totalUsdCalculado.toFixed(2));
   const tasaBCV = Number(payload.tasa_bcv) > 0 ? Number(payload.tasa_bcv) : 1;
   const totalBsCalculado = Number((totalUsdCalculado * tasaBCV).toFixed(2));
+  const deliveryBs = tarifaDeliveryUsd > 0 ? Number((tarifaDeliveryUsd * tasaBCV).toFixed(2)) : null;
 
   // 1. Insertar Cabecera de Venta
   const { data: venta, error: ventaError } = await supabase
@@ -108,6 +120,11 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
       tasa_bcv: tasaBCV,
       metodo_pago: payload.metodo_pago,
       tipo_entrega: payload.tipo_entrega,
+      delivery_zona_id: payload.delivery_zona_id || null,
+      delivery_zona_nombre: payload.delivery_zona_nombre || null,
+      delivery_monto_usd: tarifaDeliveryUsd > 0 ? tarifaDeliveryUsd : null,
+      delivery_monto_bs: deliveryBs,
+      direccion_delivery: payload.direccion_delivery || null,
       estado: "preparando",
       notas_comanda: payload.notas_comanda || null,
       creado_por: nombreOperador,
