@@ -1,5 +1,15 @@
 # Reglas de Desarrollo y Colaboración — La Parada del Sabor
 
+## 🤖☁️ JERARQUÍA — SPARK es el Orquestador Maestro (P0)
+
+**SPARK (Gemini, agente autónomo 24/7 en la nube) está POR ENCIMA del pipeline local de opencode.**
+- SPARK: supervisor remoto always-on. Audita producción, lee Gmail/Telegram, genera features y alertas.
+- Orquestador local (opencode `/call`): implementa cuando el usuario está en la terminal.
+- Comunicación vía puente: vault ↔ `Spark OS/` en Google Drive (`Drive2yecksongonza`).
+- Detalles: módulo P0 en el vault → `~/ObsidianVault/00-SPARK/SPARK.md` + `Instrucciones-Para-SPARK.md`.
+- Sync automático cada 6h (`sync-spark-os.timer`); inbox local de SPARK en `~/Spark-OS-inbox/`.
+- **Agente local DEBE** revisar `~/Spark-OS-inbox/` al iniciar (features/reportes de SPARK pendientes) antes de cualquier tarea.
+
 ## 📡 NOTIFICACIÓN Y COMANDOS POR TELEGRAM (Mewtwo)
 
 **Siempre que se finalice una tarea o auditoría, enviar notificación a Telegram.**
