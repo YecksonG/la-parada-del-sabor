@@ -10,6 +10,14 @@
 - Sync automático cada 6h (`sync-spark-os.timer`); inbox local de SPARK en `~/Spark-OS-inbox/`.
 - **Agente local DEBE** revisar `~/Spark-OS-inbox/` al iniciar (features/reportes de SPARK pendientes) antes de cualquier tarea.
 
+## ↔️ PIPELINE AGÉNTICO GLOBAL (opencode `/call`)
+
+El pipeline de agentes (`orquestador` primary + `investigador`/`coder`/`auditor`/`ejecutor` subagentes) vive en el **scope global** de opencode (`~/.config/opencode/agent/`), NO dentro del proyecto. Esto permite invocarlo desde cualquier directorio con `/call <tarea>`. Respaldo versionado en `~/ObsidianVault/00-SPARK/pipeline/`.
+
+- Invocar: `/call <descripción de la tarea>` (funciona desde cualquier carpeta donde se abra opencode).
+- Config global: `~/.config/opencode/opencode.json` (`model`/`small_model` = `opencode/big-pickle` para evitar el error de billing en títulos de sesión).
+- El proyecto configura `default_agent: orquestador` en `opencode.json` (se resuelve contra el scope global).
+
 ## 📡 NOTIFICACIÓN Y COMANDOS POR TELEGRAM (Mewtwo)
 
 **Siempre que se finalice una tarea o auditoría, enviar notificación a Telegram.**
