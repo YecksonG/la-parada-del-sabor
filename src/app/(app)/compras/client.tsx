@@ -54,24 +54,30 @@ export default function ComprasClient({
     if (!insumoId || guardando || totalUsd <= 0 || cantidadComprada <= 0) return;
 
     setGuardando(true);
-    const res = await registrarCompraInsumo({
-      proveedor_id: proveedorId,
-      insumo_id: insumoId,
-      cantidad_comprada: Number(cantidadComprada),
-      unidad_compra: unidadConfig.id,
-      factor_conversion: unidadConfig.factor,
-      total_usd: Number(totalUsd),
-      tasa_bcv: tasaBcv,
-      metodo_pago: metodoPago,
-      comprobante,
-      notas,
-    });
-    setGuardando(false);
+    try {
+      const res = await registrarCompraInsumo({
+        proveedor_id: proveedorId,
+        insumo_id: insumoId,
+        cantidad_comprada: Number(cantidadComprada),
+        unidad_compra: unidadConfig.id,
+        factor_conversion: unidadConfig.factor,
+        total_usd: Number(totalUsd),
+        tasa_bcv: tasaBcv,
+        metodo_pago: metodoPago,
+        comprobante,
+        notas,
+      });
 
-    if (res.ok) {
-      setModalAbierto(false);
-    } else {
-      alert(res.error || "Error al registrar la compra.");
+      if (res.ok) {
+        setModalAbierto(false);
+      } else {
+        alert(res.error || "Error al registrar la compra.");
+      }
+    } catch (err) {
+      console.error("Error al registrar compra:", err);
+      alert("Ocurrió un error inesperado. Intenta de nuevo.");
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -128,7 +134,7 @@ export default function ComprasClient({
                     {item?.cantidad_comprada}x {item?.unidad_compra}
                   </span>
                   <span className="comanda-badge-payment">
-                    {compra.metodo_pago.replace("_", " ").toUpperCase()}
+                    {(compra.metodo_pago || "").replaceAll("_", " ").toUpperCase()}
                   </span>
                 </div>
 

@@ -201,7 +201,7 @@ export default function TasasClient({ tasas }: TasasClientProps) {
     }
   };
 
-  const valorTasaActiva = Number(tasaActual.tasa_usd_bs || tasaActual.bcv_usd_bs).toFixed(2);
+  const valorTasaActiva = (Number(tasaActual?.tasa_usd_bs || tasaActual?.bcv_usd_bs) || 0).toFixed(2);
 
   return (
     <main className="recetas-container">

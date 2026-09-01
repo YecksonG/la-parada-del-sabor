@@ -281,7 +281,7 @@ export default function ProveedoresClient({
                   <div className="cost-detail-item">
                     <span>Total Facturado:</span>
                     <strong className="text-primary">
-                      ${stats.totalUsd.toFixed(2)} USD
+                      ${(Number(stats.totalUsd) || 0).toFixed(2)} USD
                       {stats.totalBs ? <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span> : null}
                     </strong>
                   </div>
@@ -379,7 +379,7 @@ export default function ProveedoresClient({
                     </td>
                     <td>
                       <strong className="text-primary" style={{ fontSize: 14 }}>
-                        ${stats.totalUsd.toFixed(2)} USD
+                        ${(Number(stats.totalUsd) || 0).toFixed(2)} USD
                         {stats.totalBs ? <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span> : null}
                       </strong>
                     </td>

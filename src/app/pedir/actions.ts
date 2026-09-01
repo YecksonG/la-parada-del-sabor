@@ -65,6 +65,19 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   if (!payload.telefono?.trim()) {
     return { ok: false, error: "Por favor indica tu número de teléfono / WhatsApp." };
   }
+  // Validar longitudes máximas para evitar payloads abusivos
+  if (payload.nombre_cliente.trim().length > 100) {
+    return { ok: false, error: "El nombre no puede exceder 100 caracteres." };
+  }
+  if (payload.telefono.trim().length > 30) {
+    return { ok: false, error: "El teléfono no puede exceder 30 caracteres." };
+  }
+  if (payload.notas_pedido && payload.notas_pedido.length > 500) {
+    return { ok: false, error: "Las notas del pedido no pueden exceder 500 caracteres." };
+  }
+  if (payload.direccion_delivery && payload.direccion_delivery.length > 600) {
+    return { ok: false, error: "La dirección no puede exceder 600 caracteres." };
+  }
   if (!payload.items || payload.items.length === 0) {
     return { ok: false, error: "Tu pedido no tiene productos seleccionados." };
   }
@@ -72,15 +85,15 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
     return { ok: false, error: "Por favor ingresa la dirección exacta para el delivery." };
   }
 
-  // Validación estricta de cantidades en el servidor (rango 1..25, enteros)
+  // Validación estricta de cantidades en el servidor (rango 1..50, enteros)
   for (const item of payload.items) {
     if (
       typeof item.cantidad !== "number" ||
       !Number.isInteger(item.cantidad) ||
       item.cantidad < 1 ||
-      item.cantidad > 25
+      item.cantidad > 50
     ) {
-      return { ok: false, error: "La cantidad máxima permitida por producto en la web es de 25 unidades." };
+      return { ok: false, error: "La cantidad máxima permitida por producto en la web es de 50 unidades." };
     }
   }
 
