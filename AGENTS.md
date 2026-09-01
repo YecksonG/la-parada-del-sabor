@@ -1,5 +1,29 @@
 # Reglas de Desarrollo y Colaboración — La Parada del Sabor
 
+## 📡 NOTIFICACIÓN Y COMANDOS POR TELEGRAM (Mewtwo)
+
+**Siempre que se finalice una tarea o auditoría, enviar notificación a Telegram.**
+- Herramienta: `~/.local/bin/notify-telegram`
+- Mensaje: `notify-telegram "dictamen"` (texto Markdown) o `notify-telegram -f <ruta> "caption"` (archivo).
+- Formato del dictamen final por tarea:
+  ```
+  🔔 TAREA: <nombre>
+  • Verificación: <tsc/lint/pruebas — resultados reales>
+  • Hallazgos (LÍNEA:n): GRAVE/MEDIO/MENOR
+  • Estado: LIMPIO / CON HALLAZGOS
+  ```
+- Los dictámenes de auditoría usan formato consistente: tabla de fixes con verificación por nº de línea + salida de comando real + estado.
+- Daemon Mewtwo (`antigravity-telegram-daemon.py`) permite órdenes desde Telegram: `/status`, `/new`, `/reset`. Su backend usa AGY (cuota); mientras no haya cuota, el canal de NOTIFICACIÓN sigue funcionando con `notify-telegram` (no depende de AGY).
+
+## 🔄 FLUJO DE CALIDAD — AUTO-AUDITORÍA EN 2 FASES (sin AGY)
+
+Cuando AGY no tenga cuota disponible (orquestador no disponible), replicar la garantía de calidad con una **auto-auditoría en dos roles independientes**:
+1. **Rol A (desarrollador):** implementar funcionalidad, arreglos u optimizaciones.
+2. **Rol B (auditor):** revisar el propio trabajo del Rol A con intención de ENCONTRAR fallos (edge cases, tipos, SQL/RLS, SSR guards, seguridad, coherencia). Verificar cada hallazgo con salida REAL (tsc --noEmit, lint, logs, diffs) — nunca por opinión.
+3. Categorizar: GRAVE / MEDIO / MENOR / LIMPIO.
+4. Corregir GRAVEs/MEDIos, re-verificar, y notificar por Telegram el dictamen final.
+Este flujo reemplaza al orquestador(auditor-externo) y mantiene la misma disciplina hasta que AGY vuelva a tener cuota.
+
 ## 🚨 REGLAS NO NEGOCIABLES:
 
 ### 1. Auditoría Obligatoria con OpenCode (`opencode run`)
