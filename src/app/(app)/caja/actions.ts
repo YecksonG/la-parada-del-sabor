@@ -71,25 +71,31 @@ export type CerrarCajaPayload = {
 };
 
 export async function cerrarSesionCaja(payload: CerrarCajaPayload) {
+  if (!payload.sesion_id) {
+    return { ok: false, error: "Identificador de sesión no válido." };
+  }
+
   const supabase = await createClient();
   const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
+
+  const sanitizeNum = (val: any) => (typeof val === "number" && Number.isFinite(val) ? val : 0);
 
   const { error } = await supabase
     .from("sesiones_caja")
     .update({
       estado: "cerrada",
       fecha_cierre: new Date().toISOString(),
-      total_ventas_efectivo_usd: payload.total_ventas_efectivo_usd,
-      total_ventas_pago_movil_bs: payload.total_ventas_pago_movil_bs,
-      total_ventas_transferencia_bs: payload.total_ventas_transferencia_bs,
-      total_ventas_binance_usd: payload.total_ventas_binance_usd,
-      total_ventas_punto_bs: payload.total_ventas_punto_bs,
-      arqueo_fisico_efectivo_usd: payload.arqueo_fisico_efectivo_usd,
-      arqueo_fisico_efectivo_bs: payload.arqueo_fisico_efectivo_bs,
-      diferencia_usd: payload.diferencia_usd,
-      diferencia_bs: payload.diferencia_bs,
-      notas_cierre: payload.notas_cierre || null,
+      total_ventas_efectivo_usd: sanitizeNum(payload.total_ventas_efectivo_usd),
+      total_ventas_pago_movil_bs: sanitizeNum(payload.total_ventas_pago_movil_bs),
+      total_ventas_transferencia_bs: sanitizeNum(payload.total_ventas_transferencia_bs),
+      total_ventas_binance_usd: sanitizeNum(payload.total_ventas_binance_usd),
+      total_ventas_punto_bs: sanitizeNum(payload.total_ventas_punto_bs),
+      arqueo_fisico_efectivo_usd: sanitizeNum(payload.arqueo_fisico_efectivo_usd),
+      arqueo_fisico_efectivo_bs: sanitizeNum(payload.arqueo_fisico_efectivo_bs),
+      diferencia_usd: sanitizeNum(payload.diferencia_usd),
+      diferencia_bs: sanitizeNum(payload.diferencia_bs),
+      notas_cierre: payload.notas_cierre?.trim() || null,
       usuario_cierre: payload.usuario_cierre || auth.user?.email?.split("@")[0] || "Operador",
     })
     .eq("id", payload.sesion_id);

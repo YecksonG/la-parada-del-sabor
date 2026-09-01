@@ -88,14 +88,50 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const nombreOperador = auth.user?.email?.split("@")[0] ?? "cajero";
-  // 0. Calcular totales directamente en el servidor
+
+  // 0. Revalidar precios reales de la base de datos (seguridad financiera)
+  const productIds = Array.from(new Set(payload.items.map((it) => it.producto_id)));
+  const { data: dbProducts } = await supabase
+    .from("productos")
+    .select("id, precio_usd")
+    .in("id", productIds);
+
+  const productPriceMap = new Map<string, number>();
+  (dbProducts || []).forEach((p) => {
+    productPriceMap.set(p.id, Number(p.precio_usd) || 0);
+  });
+
+  const extraIds = Array.from(
+    new Set(
+      payload.items.flatMap((it) => (it.extras || []).map((e) => e.extra_id))
+    )
+  );
+
+  const extraPriceMap = new Map<string, number>();
+  if (extraIds.length > 0) {
+    const { data: dbExtras } = await supabase
+      .from("extras_modificadores")
+      .select("id, precio_extra_usd")
+      .in("id", extraIds);
+    (dbExtras || []).forEach((e) => {
+      extraPriceMap.set(e.id, Number(e.precio_extra_usd) || 0);
+    });
+  }
+
+  // Calcular totales directamente en el servidor con precios de DB
   let totalUsdCalculado = 0;
   for (const item of payload.items) {
-    const subtotalItem = Number((item.precio_unitario_usd * item.cantidad).toFixed(2));
+    const precioProd = productPriceMap.has(item.producto_id)
+      ? productPriceMap.get(item.producto_id)!
+      : Number(item.precio_unitario_usd) || 0;
+    const subtotalItem = Number((precioProd * item.cantidad).toFixed(2));
     let subtotalExtras = 0;
     if (item.extras && item.extras.length > 0) {
       for (const ext of item.extras) {
-        subtotalExtras += Number((ext.precio_unitario_usd * ext.cantidad).toFixed(2));
+        const precioExt = extraPriceMap.has(ext.extra_id)
+          ? extraPriceMap.get(ext.extra_id)!
+          : Number(ext.precio_unitario_usd) || 0;
+        subtotalExtras += Number((precioExt * ext.cantidad).toFixed(2));
       }
     }
     totalUsdCalculado += subtotalItem + subtotalExtras;
@@ -141,8 +177,11 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 
   // 2. Insertar Items de Venta (Disparará la deducción atómica de gramos de insumos de recetas)
   for (const item of payload.items) {
-    const subtotalItem = Number((item.precio_unitario_usd * item.cantidad).toFixed(2));
-    const precioUnitarioBs = Number((item.precio_unitario_usd * tasaBCV).toFixed(2));
+    const precioProd = productPriceMap.has(item.producto_id)
+      ? productPriceMap.get(item.producto_id)!
+      : Number(item.precio_unitario_usd) || 0;
+    const subtotalItem = Number((precioProd * item.cantidad).toFixed(2));
+    const precioUnitarioBs = Number((precioProd * tasaBCV).toFixed(2));
     const subtotalBs = Number((subtotalItem * tasaBCV).toFixed(2));
 
     const { data: ventaItem, error: itemError } = await supabase
@@ -151,7 +190,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
         venta_id: venta.id,
         producto_id: item.producto_id,
         cantidad: item.cantidad,
-        precio_unitario_usd: item.precio_unitario_usd,
+        precio_unitario_usd: precioProd,
         precio_unitario_bs: precioUnitarioBs,
         subtotal_usd: subtotalItem,
         subtotal_bs: subtotalBs,
@@ -168,15 +207,18 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
     // 3. Insertar Extras si tiene (Disparará la deducción de gramos de extras)
     if (item.extras && item.extras.length > 0) {
       const extrasInsert = item.extras.map((ext) => {
-        const subtotalExtraUsd = Number((ext.precio_unitario_usd * ext.cantidad).toFixed(2));
+        const precioExt = extraPriceMap.has(ext.extra_id)
+          ? extraPriceMap.get(ext.extra_id)!
+          : Number(ext.precio_unitario_usd) || 0;
+        const subtotalExtraUsd = Number((precioExt * ext.cantidad).toFixed(2));
         return {
           venta_item_id: ventaItem.id,
           extra_id: ext.extra_id,
           cantidad: ext.cantidad,
-          precio_extra_usd: ext.precio_unitario_usd,
-          precio_extra_bs: Number((ext.precio_unitario_usd * tasaBCV).toFixed(2)),
-          precio_unitario_usd: ext.precio_unitario_usd,
-          precio_unitario_bs: Number((ext.precio_unitario_usd * tasaBCV).toFixed(2)),
+          precio_extra_usd: precioExt,
+          precio_extra_bs: Number((precioExt * tasaBCV).toFixed(2)),
+          precio_unitario_usd: precioExt,
+          precio_unitario_bs: Number((precioExt * tasaBCV).toFixed(2)),
           subtotal_usd: subtotalExtraUsd,
           subtotal_bs: Number((subtotalExtraUsd * tasaBCV).toFixed(2)),
         };

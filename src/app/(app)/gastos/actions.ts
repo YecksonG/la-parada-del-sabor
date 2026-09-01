@@ -111,7 +111,7 @@ export async function crearGasto(payload: PayloadGasto) {
       monto_usd: payload.monto_usd,
       monto_bs: monto_bs,
       tasa_bcv: tasa,
-      cuenta_origen: payload.metodo_pago || ctaOrigen,
+      cuenta_origen: payload.cuenta_origen || payload.metodo_pago || ctaOrigen,
       cuenta_id: payload.cuenta_id || null,
       numero_factura: payload.numero_factura?.trim() || null,
       comprobante_url: payload.comprobante_url || null,
@@ -611,7 +611,7 @@ export async function crearTransferenciaCuenta(payload: PayloadTransferencia) {
     return { ok: false, error: "El monto recibido debe ser mayor a 0." };
   }
 
-  const METODOS_PERMITIDOS = ["pago_movil", "transferencia", "biopago", "efectivo", "zelle", "binance", "otro"];
+  const METODOS_PERMITIDOS = ["pago_movil", "transferencia", "biopago", "efectivo", "zelle", "binance", "compra_usdt_p2p", "venta_usdt_p2p", "otro"];
   const metodoValido = METODOS_PERMITIDOS.includes(payload.metodo_transferencia)
     ? payload.metodo_transferencia
     : "pago_movil";

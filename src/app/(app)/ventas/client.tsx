@@ -183,7 +183,7 @@ ${estadoPago}`;
                   <div className="comanda-type-row">
                     <span className="comanda-badge-type">{v.tipo_entrega.toUpperCase()}</span>
                     <span className="comanda-badge-payment">
-                      {v.metodo_pago.replace("_", " ").toUpperCase()}
+                      {(v.metodo_pago || "").replaceAll("_", " ").toUpperCase()}
                     </span>
                     {v.origen_pedido === "instagram" ? (
                       <span style={{ fontSize: 11, fontWeight: 800, background: "linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)", color: "#ffffff", padding: "2px 8px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 3 }}>

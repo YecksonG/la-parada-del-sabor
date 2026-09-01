@@ -338,8 +338,8 @@ export default function InsumosClient({
               <div key={ins.id} className="insumo-card">
                 {/* Fila Superior: Categoría y Botón Discreto de Editar */}
                 <div className="insumo-card-topbar">
-                  <span className={`insumo-cat-tag ${ins.categoria_insumo.toLowerCase().includes("pre-elaborado") ? "tag-pre-elaborado" : ""}`}>
-                    {ins.categoria_insumo.toLowerCase().includes("pre-elaborado") ? "🍳 " : ""}{ins.categoria_insumo}
+                  <span className={`insumo-cat-tag ${(ins.categoria_insumo || "General").toLowerCase().includes("pre-elaborado") ? "tag-pre-elaborado" : ""}`}>
+                    {(ins.categoria_insumo || "General").toLowerCase().includes("pre-elaborado") ? "🍳 " : ""}{ins.categoria_insumo || "General"}
                   </span>
                   <button
                     type="button"

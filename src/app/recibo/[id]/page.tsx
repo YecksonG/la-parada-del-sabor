@@ -73,7 +73,6 @@ export default async function ReciboPage({
         direccion_delivery,
         estado,
         notas_comanda,
-        creado_por,
         cliente:clientes (
           id,
           nombre,
