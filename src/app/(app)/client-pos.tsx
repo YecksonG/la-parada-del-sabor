@@ -26,6 +26,20 @@ interface PosClientProps {
   zonasDelivery?: ZonaDelivery[];
 }
 
+const METODOS_PAGO_LABEL: Record<string, string> = {
+  efectivo_usd: "💵 Efectivo (USD)",
+  efectivo_bs: "🇻🇪 Efectivo (Bs)",
+  pago_movil: "📱 Pago Móvil (Bs)",
+  pago_movil_bs: "📱 Pago Móvil (Bs)",
+  transferencia: "🏦 Transferencia Bancaria (Bs)",
+  punto: "💳 Punto de Venta / Tarjeta (Bs)",
+  punto_bs: "💳 Punto de Venta / Tarjeta (Bs)",
+  binance: "🟡 Binance Pay (USDT)",
+  binance_usdt: "🟡 Binance Pay (USDT)",
+  zelle: "🟣 Zelle (USD)",
+  pesos_cop: "🇨🇴 Pesos Colombianos (COP)",
+};
+
 export default function PosClient({
   categorias,
   productos,
@@ -108,6 +122,7 @@ export default function PosClient({
     numero: number;
     totalUsd: number;
     totalBs: number;
+    metodoPago: string;
     ventaId?: string;
     clienteNombre?: string;
     clienteTelefono?: string | null;
@@ -295,8 +310,12 @@ export default function PosClient({
       .map((it: any) => `  • ${it.cantidad}x ${it.producto?.nombre || "Producto"}${it.notas_item ? ` (${it.notas_item})` : ""}`)
       .join("\n");
 
-    const metodoPago = p.metodo_pago;
-    const esPagado = p.estado === "completada" || metodoPago === "pago_movil" || metodoPago === "binance" || metodoPago === "zelle";
+    const metodoPagoVal = p.metodo_pago;
+    const esPagado =
+      p.estado === "completada" ||
+      ["pago_movil", "pago_movil_bs", "binance", "binance_usdt", "zelle", "transferencia", "punto", "punto_bs"].includes(
+        metodoPagoVal || ""
+      );
     const estadoPago = esPagado
       ? "✅ YA PAGADO (No cobrar)"
       : `💵 COBRAR AL CLIENTE: $${Number(p.total_usd).toFixed(2)} USD / Bs. ${Number(p.total_bs).toFixed(2)}`;
@@ -356,6 +375,7 @@ ${estadoPago}`;
         numero: res.numero_comanda,
         totalUsd,
         totalBs,
+        metodoPago,
         ventaId: res.venta_id,
         clienteNombre: clienteObj?.nombre,
         clienteTelefono: clienteObj?.telefono,
@@ -852,9 +872,13 @@ ${estadoPago}`;
               onChange={(e) => setMetodoPago(e.target.value)}
               className="payment-select"
             >
-              <option value="efectivo_usd">💵 Efectivo USD</option>
-              <option value="pago_movil_bs">📱 Pago Móvil (Bs)</option>
+              <option value="pago_movil">📱 Pago Móvil (Bs)</option>
+              <option value="efectivo_usd">💵 Efectivo (USD)</option>
+              <option value="efectivo_bs">🇻🇪 Efectivo (Bs)</option>
+              <option value="punto">💳 Tarjeta / Punto de Venta (Bs)</option>
+              <option value="transferencia">🏦 Transferencia Bancaria (Bs)</option>
               <option value="binance">🟡 Binance Pay (USDT)</option>
+              <option value="zelle">🟣 Zelle (USD)</option>
               <option value="pesos_cop">🇨🇴 Pesos Colombianos (COP)</option>
             </select>
           </div>
@@ -928,6 +952,12 @@ ${estadoPago}`;
               <div className="ticket-row">
                 <span>Número de Comanda:</span>
                 <strong className="badge-ticket">#{comandaExitosa.numero}</strong>
+              </div>
+              <div className="ticket-row">
+                <span>Método de Cobro:</span>
+                <strong style={{ color: "var(--primary)", fontWeight: 800 }}>
+                  {METODOS_PAGO_LABEL[comandaExitosa.metodoPago] || comandaExitosa.metodoPago}
+                </strong>
               </div>
               <div className="ticket-row">
                 <span>Total Cobrado:</span>

@@ -47,7 +47,11 @@ export default function VentasClient({ ventas }: VentasClientProps) {
       .map((it: any) => `  • ${it.cantidad}x ${it.producto?.nombre || "Producto"}${it.notas_item ? ` (${it.notas_item})` : ""}`)
       .join("\n");
 
-    const esPagado = v.estado === "completada" || v.metodo_pago === "pago_movil" || v.metodo_pago === "binance" || v.metodo_pago === "zelle";
+    const esPagado =
+      v.estado === "completada" ||
+      ["pago_movil", "pago_movil_bs", "binance", "binance_usdt", "zelle", "transferencia", "punto", "punto_bs"].includes(
+        v.metodo_pago
+      );
     const estadoPago = esPagado
       ? "✅ YA PAGADO (No cobrar)"
       : `💵 COBRAR AL CLIENTE: $${Number(v.total_usd).toFixed(2)} USD / Bs. ${Number(v.total_bs).toFixed(2)}`;

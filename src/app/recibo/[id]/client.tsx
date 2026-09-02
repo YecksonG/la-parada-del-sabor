@@ -61,11 +61,15 @@ const METODOS_PAGO_LABEL: Record<string, string> = {
   efectivo_usd: "💵 Efectivo (USD)",
   efectivo_bs: "🇻🇪 Efectivo (Bs)",
   pago_movil: "📱 Pago Móvil",
+  pago_movil_bs: "📱 Pago Móvil",
   transferencia: "🏦 Transferencia Bancaria",
   punto: "💳 Tarjeta / Punto de Venta",
+  punto_bs: "💳 Tarjeta / Punto de Venta",
   binance: "🟡 Binance USDT",
+  binance_usdt: "🟡 Binance USDT",
   zelle: "🟣 Zelle",
   credito: "📝 A Crédito (Pendiente)",
+  pesos_cop: "🇨🇴 Pesos Colombianos (COP)",
 };
 
 const TIPOS_ENTREGA_LABEL: Record<string, { label: string; icon: string }> = {
@@ -408,7 +412,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
       {/* Contenedor Principal del Ticket */}
       <main className="recibo-container">
         {/* Banner de Estado Pendiente en el Top */}
-        {venta.estado === "pendiente" && ["pago_movil", "transferencia", "binance", "zelle"].includes(venta.metodo_pago) && (
+        {venta.estado === "pendiente" && ["pago_movil", "pago_movil_bs", "transferencia", "binance", "binance_usdt", "zelle"].includes(venta.metodo_pago) && (
           <div
             className="no-print"
             style={{
@@ -775,7 +779,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               </div>
 
               {/* 1. Datos de Pago Móvil BFC */}
-              {venta.metodo_pago === "pago_movil" && (
+              {(venta.metodo_pago === "pago_movil" || venta.metodo_pago === "pago_movil_bs") && (
                 <div className="recibo-pm-card" style={{ margin: 0 }}>
                   <div className="recibo-pm-title">
                     <span>📱 Datos de Pago Móvil</span>
@@ -840,7 +844,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               )}
 
               {/* 3. Datos de Binance Pay USDT */}
-              {venta.metodo_pago === "binance" && (
+              {(venta.metodo_pago === "binance" || venta.metodo_pago === "binance_usdt") && (
                 <div className="recibo-pm-card" style={{ margin: 0, borderLeftColor: "#F3BA2F" }}>
                   <div className="recibo-pm-title">
                     <span>🟡 Binance Pay (USDT)</span>
@@ -901,7 +905,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               )}
 
               {/* Paso 2: Reportar Comprobante por WhatsApp */}
-              {["pago_movil", "transferencia", "binance", "zelle"].includes(venta.metodo_pago) ? (
+              {["pago_movil", "pago_movil_bs", "transferencia", "binance", "binance_usdt", "zelle"].includes(venta.metodo_pago) ? (
                 <div
                   style={{
                     borderTop: "1.5px dashed var(--border)",
