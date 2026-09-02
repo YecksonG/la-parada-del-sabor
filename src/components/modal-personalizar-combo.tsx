@@ -2,26 +2,42 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
-import { Producto } from "@/types/database";
-import { RELLENOS_AREPAS_COMBO, serializarRellenosCombo, getProductImage } from "@/lib/combo-helper";
+import { Producto, ExtraModificador } from "@/types/database";
+import { RELLENOS_AREPAS_COMBO, serializarRellenosCombo, getProductImage, RELLENO_A_EXTRA_NOMBRE } from "@/lib/combo-helper";
 import { sounds } from "@/lib/sound-effects";
+
+export interface ComboConfirmResult {
+  notasItem: string;
+  extrasIds: string[];
+}
 
 interface ModalPersonalizarComboProps {
   producto: Producto;
   totalArepas: number;
-  onConfirmar: (notasItem: string) => void;
+  extras: ExtraModificador[];
+  onConfirmar: (result: ComboConfirmResult) => void;
   onCerrar: () => void;
 }
 
 export default function ModalPersonalizarCombo({
   producto,
   totalArepas,
+  extras,
   onConfirmar,
   onCerrar,
 }: ModalPersonalizarComboProps) {
   const [rellenos, setRellenos] = useState<Record<string, number>>({});
   const [notaOpcional, setNotaOpcional] = useState("");
   const modalCardRef = useRef<HTMLDivElement>(null);
+
+  // Índice de extras por nombre normalizado para lookup rápido
+  const extrasPorNombre = useMemo(() => {
+    const map = new Map<string, ExtraModificador>();
+    for (const ext of extras) {
+      map.set(ext.nombre.toLowerCase().trim(), ext);
+    }
+    return map;
+  }, [extras]);
 
   const totalSeleccionadas = useMemo(() => {
     return Object.values(rellenos).reduce((acc, curr) => acc + (curr || 0), 0);
@@ -92,7 +108,21 @@ export default function ModalPersonalizarCombo({
     if (!esCompleto) return;
     sounds.playKitchenBell();
     const textoNotas = serializarRellenosCombo(rellenos, notaOpcional);
-    onConfirmar(textoNotas);
+
+    // Construir extrasIds: por cada arepa elegida, buscar el extra de la BD N veces
+    const extrasIds: string[] = [];
+    for (const [rellenoId, cantidad] of Object.entries(rellenos)) {
+      const extraNombre = RELLENO_A_EXTRA_NOMBRE[rellenoId];
+      if (!extraNombre) continue;
+      const extraEnBd = extrasPorNombre.get(extraNombre.toLowerCase().trim());
+      if (extraEnBd) {
+        for (let i = 0; i < cantidad; i++) {
+          extrasIds.push(extraEnBd.id);
+        }
+      }
+    }
+
+    onConfirmar({ notasItem: textoNotas, extrasIds });
   };
 
   return (

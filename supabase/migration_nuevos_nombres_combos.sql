@@ -18,7 +18,7 @@ WHERE (nombre ILIKE '%combo%2%' OR nombre ILIKE '%combo personal%' OR nombre ILI
 UPDATE public.productos
 SET 
     nombre = 'El Dúo Dinámico',
-    descripcion = '4 arepitas rellenas a tu gusto para compartir en pareja + 2 bebidas frías.',
+    descripcion = '4 arepitas rellenas a tu gusto para compartir en pareja + Refresco 1L',
     imagen_url = '/images/combos/combo-4-arepas.jpg'
 WHERE (nombre ILIKE '%combo%4%' OR nombre ILIKE '%compartir%' OR nombre ILIKE '%para dos%' OR nombre ILIKE '%duo%' OR nombre ILIKE 'Combo 4 Arepas%');
 

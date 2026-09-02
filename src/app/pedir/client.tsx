@@ -548,9 +548,13 @@ export default function MenuClienteView({
     });
   };
 
-  const handleConfirmarCombo = (notasItem: string) => {
+  const handleConfirmarCombo = ({ notasItem, extrasIds }: import("@/components/modal-personalizar-combo").ComboConfirmResult) => {
     if (!comboModalData) return;
     const prod = comboModalData.producto;
+    // Resolver ExtraModificador completos para el carrito
+    const extrasSeleccionados = extrasIds
+      .map((eid) => extras.find((e) => e.id === eid))
+      .filter((e): e is ExtraModificador => !!e);
     setCarrito((prev) => [
       ...prev,
       {
@@ -558,7 +562,7 @@ export default function MenuClienteView({
         producto: prod,
         cantidad: 1,
         notas_item: notasItem,
-        extras: [],
+        extras: extrasSeleccionados,
       },
     ]);
     setComboModalData(null);
@@ -1776,6 +1780,7 @@ export default function MenuClienteView({
         <ModalPersonalizarCombo
           producto={comboModalData.producto}
           totalArepas={comboModalData.totalArepas}
+          extras={extras}
           onConfirmar={handleConfirmarCombo}
           onCerrar={() => setComboModalData(null)}
         />

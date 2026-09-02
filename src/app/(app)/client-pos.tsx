@@ -170,9 +170,19 @@ export default function PosClient({
     });
   };
 
-  const handleConfirmarComboPos = (notasItem: string) => {
+  const handleConfirmarComboPos = ({ notasItem, extrasIds }: import("@/components/modal-personalizar-combo").ComboConfirmResult) => {
     if (!comboModalData) return;
     const producto = comboModalData.producto;
+    // Convertir UUIDs de extras a CartItemExtra (forma requerida por pos-actions)
+    const extrasSeleccionados: CartItemExtra[] = extrasIds
+      .map((eid) => extras.find((e) => e.id === eid))
+      .filter((e): e is ExtraModificador => !!e)
+      .map((e) => ({
+        extra_id: e.id,
+        nombre: e.nombre,
+        precio_unitario_usd: Number(e.precio_extra_usd || 0),
+        cantidad: 1,
+      }));
     setCarrito((prev) => [
       ...prev,
       {
@@ -181,7 +191,7 @@ export default function PosClient({
         precio_unitario_usd: Number(producto.precio_usd),
         cantidad: 1,
         notas_item: notasItem,
-        extras: [],
+        extras: extrasSeleccionados,
       },
     ]);
     setComboModalData(null);
@@ -1532,6 +1542,7 @@ ${estadoPago}`;
         <ModalPersonalizarCombo
           producto={comboModalData.producto}
           totalArepas={comboModalData.totalArepas}
+          extras={extras}
           onConfirmar={handleConfirmarComboPos}
           onCerrar={() => setComboModalData(null)}
         />

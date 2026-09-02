@@ -10,6 +10,19 @@ export interface RellenoArepa {
 
 export type SaborArepa = RellenoArepa;
 
+/**
+ * Mapeo: rellenoId interno → nombre exacto en extras_modificadores (BD)
+ * Usado por el modal para resolver UUIDs reales al confirmar un combo.
+ */
+export const RELLENO_A_EXTRA_NOMBRE: Record<string, string> = {
+  catira:              "Catira (Pollo Mechado + Queso Amarillo)",
+  pelua:               "Pelúa (Carne Mechada + Queso Amarillo)",
+  jamon_queso_amarillo:"Jamón y Queso Amarillo",
+  reina_pepiada:       "Reina Pepiada (Aguacate + Pollo)",
+  especial_pollo:      "Especial de Pollo Esmechado (Gourmet)",
+  especial_carne:      "Especial de Carne Esmechada (Gourmet)",
+};
+
 export const RELLENOS_AREPAS_COMBO: RellenoArepa[] = [
   {
     id: "catira",

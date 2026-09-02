@@ -14,7 +14,7 @@
 - Orquestador local (opencode `/call`): implementa cuando el usuario está en la terminal.
 - Comunicación vía puente: vault ↔ `Spark OS/` en Google Drive (`Drive2yecksongonza`).
 - Detalles: módulo P0 en el vault → `~/ObsidianVault/00-SPARK/SPARK.md` + `Instrucciones-Para-SPARK.md`.
-- Sync automático cada 6h (`sync-spark-os.timer`); inbox local de SPARK en `~/Spark-OS-inbox/`.
+- Sync automático 3×/día (`sync-spark-os.timer`: 07:10, 17:40 y 18:40 + OnBootSec=10min); inbox local de SPARK en `~/Spark-OS-inbox/`.
 - **Agente local DEBE** revisar `~/Spark-OS-inbox/` al iniciar (features/reportes de SPARK pendientes) antes de cualquier tarea.
 
 ## ↔️ PIPELINE AGÉNTICO GLOBAL (opencode `/call`)
