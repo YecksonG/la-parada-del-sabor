@@ -7,6 +7,7 @@ import { SesionCaja, Venta } from "@/types/database";
 import { abrirSesionCaja, cerrarSesionCaja } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import { createClient } from "@/lib/supabase/client";
+import { esMismaFechaEnCaracas } from "@/lib/date-vzla";
 
 interface CajaClientProps {
   sesionActiva: SesionCaja | null;
@@ -97,15 +98,28 @@ export default function CajaClient({
   // Filtrar ventas por período seleccionado (Turno Activo / Hoy / Todo)
   const ventasFiltradas = useMemo(() => {
     const ahora = new Date();
+
+    // Ventana de 24 horas para cubrir el turno nocturno completo si no hay sesión abierta
+    const limite24Horas = ahora.getTime() - 24 * 60 * 60 * 1000;
+
     return ventas.filter((v) => {
       if (v.estado === "cancelada") return false;
       const fechaVenta = new Date(v.fecha);
+
       if (filtroPeriodo === "turno" && sesionActiva) {
         return fechaVenta >= new Date(sesionActiva.fecha_apertura);
       }
-      if (filtroPeriodo === "hoy" || (filtroPeriodo === "turno" && !sesionActiva)) {
-        return fechaVenta.toDateString() === ahora.toDateString();
+
+      if (filtroPeriodo === "hoy") {
+        // "Hoy" = día exacto en Venezuela (America/Caracas, UTC-4)
+        return esMismaFechaEnCaracas(fechaVenta);
       }
+
+      if (filtroPeriodo === "turno" && !sesionActiva) {
+        // Si no hay sesión activa formal, mostrar la jornada actual (últimas 24h)
+        return fechaVenta.getTime() >= limite24Horas;
+      }
+
       return true;
     });
   }, [ventas, filtroPeriodo, sesionActiva]);

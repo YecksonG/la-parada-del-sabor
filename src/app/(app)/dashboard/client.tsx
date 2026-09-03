@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Venta, Cliente, Insumo, Producto } from "@/types/database";
+import { esMismaFechaEnCaracas } from "@/lib/date-vzla";
 
 interface DashboardClientProps {
   ventas: Venta[];
@@ -32,7 +33,7 @@ export default function DashboardClient({
     return ventas.filter((v) => {
       const fechaVenta = new Date(v.fecha);
       if (periodo === "hoy") {
-        return fechaVenta.toDateString() === ahora.toDateString();
+        return esMismaFechaEnCaracas(v.fecha);
       }
       if (periodo === "semana") {
         const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);

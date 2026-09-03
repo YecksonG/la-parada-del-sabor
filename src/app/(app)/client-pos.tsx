@@ -1320,11 +1320,18 @@ ${estadoPago}`;
       {modalPedidosWeb && (
         <div className="modal-overlay" onClick={() => setModalPedidosWeb(false)}>
           <div
-            className="modal-ticket-card"
-            style={{ maxWidth: 520, maxHeight: "90vh", overflowY: "auto" }}
+            className="modal-ticket-card modal-pedidos-web"
+            style={{
+              maxWidth: 540,
+              maxHeight: "88vh",
+              display: "flex",
+              flexDirection: "column",
+              padding: "20px",
+              boxSizing: "border-box",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexShrink: 0 }}>
               <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>
                 📱 Bandeja de Pedidos Web / WhatsApp
               </h2>
@@ -1348,7 +1355,17 @@ ${estadoPago}`;
                 </p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                  overflowY: "auto",
+                  paddingRight: 4,
+                  minHeight: 0,
+                  flex: 1,
+                }}
+              >
                 {pedidosPendientes.map((p) => {
                   return (
                     <div

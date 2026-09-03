@@ -8,6 +8,10 @@ export const revalidate = 0;
 export default async function PosPage() {
   const supabase = await createClient();
 
+  // Acotar pedidos pendientes a los últimos 48h: cubre un turno nocturno
+  // completo sin saturar la bandeja con pedidos abandonados de meses.
+  const limitePedidos = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
   // Ejecutar todas las consultas en paralelo con Promise.all
   const [
     catRes,
@@ -46,6 +50,7 @@ export default async function PosPage() {
         items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))
       `)
       .eq("estado", "pendiente")
+      .gte("fecha", limitePedidos)
       .order("fecha", { ascending: false }),
     supabase
       .from("clientes")
