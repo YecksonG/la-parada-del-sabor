@@ -1438,16 +1438,15 @@ export default function MenuClienteView({
                               Abrir en Google Maps ↗
                             </a>
                           </div>
-                          <div style={{ position: "relative", width: "100%", height: 180, background: "var(--bg-subtle)" }}>
-                            <iframe
-                              title="Mapa de Entrega GPS"
+                          {/* Mapa estático — sin iframe para evitar conflictos de permisos GPS en Android Chrome */}
+                          <div style={{ position: "relative", width: "100%", height: 180, background: "var(--bg-subtle)", overflow: "hidden" }}>
+                            <img
+                              src={`https://staticmap.openstreetmap.de/staticmap.php?center=${gpsCoordenadas.lat},${gpsCoordenadas.lng}&zoom=16&size=400x180&markers=${gpsCoordenadas.lat},${gpsCoordenadas.lng},red-pushpin`}
+                              alt="Mapa de ubicación de entrega"
                               width="100%"
                               height="100%"
-                              style={{ border: 0 }}
+                              style={{ objectFit: "cover", display: "block" }}
                               loading="lazy"
-                              allowFullScreen
-                              referrerPolicy="no-referrer-when-downgrade"
-                              src={`https://maps.google.com/maps?q=${gpsCoordenadas.lat},${gpsCoordenadas.lng}&hl=es&z=16&output=embed`}
                             />
                           </div>
                         </div>
