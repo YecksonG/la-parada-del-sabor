@@ -68,19 +68,40 @@ export async function guardarProveedor(payload: GuardarProveedorPayload) {
       p_insumos_ids: payload.insumos_ids,
     });
 
-    // 2. Si la RPC no está instalada, ejecutar directamente contra la tabla con validación
+    // 2. Si la RPC no está instalada, ejecutar directamente contra la tabla preservando precios
     if (rpcError) {
-      const { error: delErr } = await supabase
-        .from("proveedor_insumos")
-        .delete()
-        .eq("proveedor_id", providerId);
+      // Eliminar solo las filas que ya NO están en el nuevo arreglo de insumos
+      if (payload.insumos_ids.length > 0) {
+        const { error: delErr } = await supabase
+          .from("proveedor_insumos")
+          .delete()
+          .eq("proveedor_id", providerId)
+          .not("insumo_id", "in", payload.insumos_ids);
 
-      if (!delErr && payload.insumos_ids.length > 0) {
+        if (delErr) {
+          console.error("Error al eliminar proveedor_insumos obsoletos:", delErr.message);
+        }
+      } else {
+        // Si se deseleccionaron todos, eliminar todo
+        const { error: delErr } = await supabase
+          .from("proveedor_insumos")
+          .delete()
+          .eq("proveedor_id", providerId);
+
+        if (delErr) {
+          console.error("Error al eliminar proveedor_insumos:", delErr.message);
+        }
+      }
+
+      // Upsert los insumos seleccionados (NO sobrescribe precio_referencial_usd si ya existe)
+      if (payload.insumos_ids.length > 0) {
         const rows = payload.insumos_ids.map((insId) => ({
           proveedor_id: providerId,
           insumo_id: insId,
         }));
-        const { error: insErr } = await supabase.from("proveedor_insumos").insert(rows);
+        const { error: insErr } = await supabase
+          .from("proveedor_insumos")
+          .upsert(rows, { onConflict: "proveedor_id,insumo_id", ignoreDuplicates: true });
         if (insErr && insErr.code !== "PGRST204" && insErr.code !== "42P01") {
           console.error("Error al sincronizar proveedor_insumos:", insErr.message);
         }

@@ -5,18 +5,19 @@ import { Insumo, UnidadMedida, Proveedor } from "@/types/database";
 import { guardarInsumo, ajustarStockInsumo, eliminarInsumo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import {
-  getProveedoresPorInsumo,
   parseProveedorInsumos,
 } from "@/lib/proveedor-insumos-helper";
 
 interface InsumosClientProps {
   insumos: Insumo[];
   proveedores?: Proveedor[];
+  preciosReferenciales?: { [insumoId: string]: { [provId: string]: number } };
 }
 
 export default function InsumosClient({
   insumos,
   proveedores = [],
+  preciosReferenciales = {},
 }: InsumosClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [busqueda, setBusqueda] = useState("");
@@ -25,6 +26,22 @@ export default function InsumosClient({
   const [insumoSeleccionado, setInsumoSeleccionado] = useState<Insumo | null>(null);
   const [nuevoStockAjuste, setNuevoStockAjuste] = useState<number>(0);
   const [guardando, setGuardando] = useState(false);
+
+  // Mapa memoizado de proveedores por insumo para evitar O(N·M) parses por render
+  const proveedoresPorInsumo = useMemo(() => {
+    const map = new Map<string, Proveedor[]>();
+    for (const ins of insumos) {
+      map.set(ins.id, []);
+    }
+    for (const p of proveedores) {
+      const { insumos_ids } = parseProveedorInsumos(p.notas);
+      for (const id of insumos_ids) {
+        const arr = map.get(id);
+        if (arr) arr.push(p);
+      }
+    }
+    return map;
+  }, [insumos, proveedores]);
 
   // Cargar preferencia guardada al montar
   useEffect(() => {
@@ -409,7 +426,7 @@ export default function InsumosClient({
 
                 {/* Proveedores Vinculados */}
                 {(() => {
-                  const proveedoresDelInsumo = getProveedoresPorInsumo(proveedores, ins.id);
+                  const proveedoresDelInsumo = proveedoresPorInsumo.get(ins.id) || [];
                   return (
                     <div className="insumo-suppliers-box">
                       <span className="insumo-suppliers-label">
@@ -417,15 +434,24 @@ export default function InsumosClient({
                       </span>
                       {proveedoresDelInsumo.length > 0 ? (
                         <div className="insumos-supplied-chips">
-                          {proveedoresDelInsumo.map((p) => (
-                            <span
-                              key={p.id}
-                              className="insumo-supplied-badge"
-                              title={p.contacto ? `Contacto: ${p.contacto}` : undefined}
-                            >
-                              🏢 {p.nombre}
-                            </span>
-                          ))}
+                          {proveedoresDelInsumo.map((p) => {
+                            const pRef = preciosReferenciales[ins.id]?.[p.id];
+                            return (
+                              <span
+                                key={p.id}
+                                className="insumo-supplied-badge"
+                                title={p.contacto ? `Contacto: ${p.contacto}` : undefined}
+                                style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+                              >
+                                <span>🏢 {p.nombre.split(" (")[0]}</span>
+                                {pRef !== undefined && (
+                                  <strong style={{ color: "var(--accent-hover)", fontSize: 10 }}>
+                                    ${pRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""}
+                                  </strong>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : (
                         <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
@@ -471,7 +497,7 @@ export default function InsumosClient({
                 const stockMin = Number(ins.stock_minimo);
                 const costoUnit = Number(ins.costo_unitario_usd);
                 const valorTotal = stock * costoUnit;
-                const proveedoresDelInsumo = getProveedoresPorInsumo(proveedores, ins.id);
+                const proveedoresDelInsumo = proveedoresPorInsumo.get(ins.id) || [];
 
                 const esAgotado = stock <= 0;
                 const esCritico = !esAgotado && stock <= stockMin * 0.5;
@@ -556,11 +582,23 @@ export default function InsumosClient({
                     <td style={{ maxWidth: 220, fontSize: 12 }}>
                       {proveedoresDelInsumo.length > 0 ? (
                         <div className="insumos-supplied-chips">
-                          {proveedoresDelInsumo.map((p) => (
-                            <span key={p.id} className="insumo-supplied-badge">
-                              🏢 {p.nombre}
-                            </span>
-                          ))}
+                          {proveedoresDelInsumo.map((p) => {
+                            const pRef = preciosReferenciales[ins.id]?.[p.id];
+                            return (
+                              <span
+                                key={p.id}
+                                className="insumo-supplied-badge"
+                                style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+                              >
+                                <span>🏢 {p.nombre.split(" (")[0]}</span>
+                                {pRef !== undefined && (
+                                  <strong style={{ color: "var(--accent-hover)", fontSize: 10 }}>
+                                    ${pRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""}
+                                  </strong>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : (
                         <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>

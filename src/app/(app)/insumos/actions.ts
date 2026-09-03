@@ -88,19 +88,40 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
       p_proveedores_ids: payload.proveedores_ids,
     });
 
-    // 2. Fallback directo a la tabla puente con validación de errores
+    // 2. Fallback directo a la tabla puente preservando precios existentes
     if (rpcError) {
-      const { error: delErr } = await supabase
-        .from("proveedor_insumos")
-        .delete()
-        .eq("insumo_id", insumoId);
+      // Eliminar solo las filas que ya NO están en el nuevo arreglo de proveedores
+      if (payload.proveedores_ids.length > 0) {
+        const { error: delErr } = await supabase
+          .from("proveedor_insumos")
+          .delete()
+          .eq("insumo_id", insumoId)
+          .not("proveedor_id", "in", payload.proveedores_ids);
 
-      if (!delErr && payload.proveedores_ids.length > 0) {
+        if (delErr) {
+          console.error("Error al eliminar proveedor_insumos obsoletos desde insumo:", delErr.message);
+        }
+      } else {
+        // Si se deseleccionaron todos, eliminar todo
+        const { error: delErr } = await supabase
+          .from("proveedor_insumos")
+          .delete()
+          .eq("insumo_id", insumoId);
+
+        if (delErr) {
+          console.error("Error al eliminar proveedor_insumos desde insumo:", delErr.message);
+        }
+      }
+
+      // Upsert los proveedores seleccionados (NO sobrescribe precio_referencial_usd si ya existe)
+      if (payload.proveedores_ids.length > 0) {
         const rows = payload.proveedores_ids.map((provId) => ({
           proveedor_id: provId,
           insumo_id: insumoId,
         }));
-        const { error: insErr } = await supabase.from("proveedor_insumos").insert(rows);
+        const { error: insErr } = await supabase
+          .from("proveedor_insumos")
+          .upsert(rows, { onConflict: "proveedor_id,insumo_id", ignoreDuplicates: true });
         if (insErr && insErr.code !== "PGRST204" && insErr.code !== "42P01") {
           console.error("Error al sincronizar proveedor_insumos desde insumo:", insErr.message);
         }

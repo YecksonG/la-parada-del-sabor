@@ -33,15 +33,20 @@ BEGIN
 END $$;
 
 -- RPC Transaccional Atómica: Sincronizar Insumos de un Proveedor
+-- NOTA: Re-definida en supabase/migrations/20260903_fix_preservar_precios_proveedor_insumos.sql
+-- para preservar precio_referencial_usd. Se mantiene aquí como referencia histórica.
 CREATE OR REPLACE FUNCTION public.sincronizar_proveedor_insumos(
     p_proveedor_id UUID,
     p_insumos_ids UUID[]
 ) RETURNS VOID AS $$
 BEGIN
-    DELETE FROM public.proveedor_insumos WHERE proveedor_id = p_proveedor_id;
+    DELETE FROM public.proveedor_insumos
+    WHERE proveedor_id = p_proveedor_id
+      AND NOT (p_insumos_ids IS NOT NULL AND insumo_id = ANY(p_insumos_ids));
     IF p_insumos_ids IS NOT NULL AND array_length(p_insumos_ids, 1) > 0 THEN
         INSERT INTO public.proveedor_insumos (proveedor_id, insumo_id)
-        SELECT p_proveedor_id, unnest(p_insumos_ids);
+        SELECT p_proveedor_id, unnest(p_insumos_ids)
+        ON CONFLICT (proveedor_id, insumo_id) DO NOTHING;
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
@@ -52,10 +57,13 @@ CREATE OR REPLACE FUNCTION public.sincronizar_insumo_proveedores(
     p_proveedores_ids UUID[]
 ) RETURNS VOID AS $$
 BEGIN
-    DELETE FROM public.proveedor_insumos WHERE insumo_id = p_insumo_id;
+    DELETE FROM public.proveedor_insumos
+    WHERE insumo_id = p_insumo_id
+      AND NOT (p_proveedores_ids IS NOT NULL AND proveedor_id = ANY(p_proveedores_ids));
     IF p_proveedores_ids IS NOT NULL AND array_length(p_proveedores_ids, 1) > 0 THEN
         INSERT INTO public.proveedor_insumos (proveedor_id, insumo_id)
-        SELECT unnest(p_proveedores_ids), p_insumo_id;
+        SELECT unnest(p_proveedores_ids), p_insumo_id
+        ON CONFLICT (proveedor_id, insumo_id) DO NOTHING;
     END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;

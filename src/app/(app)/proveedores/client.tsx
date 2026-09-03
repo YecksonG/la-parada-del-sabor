@@ -10,12 +10,14 @@ interface ProveedoresClientProps {
   proveedores: Proveedor[];
   insumos: Insumo[];
   statsCompras: { [id: string]: { conteo: number; totalUsd: number; totalBs?: number } };
+  preciosReferenciales?: { [provId: string]: { [insumoId: string]: number } };
 }
 
 export default function ProveedoresClient({
   proveedores,
   insumos,
   statsCompras,
+  preciosReferenciales = {},
 }: ProveedoresClientProps) {
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [busqueda, setBusqueda] = useState("");
@@ -259,11 +261,19 @@ export default function ProveedoresClient({
                   </span>
                   {insumosSuministrados.length > 0 ? (
                     <div className="insumos-supplied-chips">
-                      {insumosSuministrados.map((ins) => (
-                        <span key={ins.id} className="insumo-supplied-badge">
-                          {ins.categoria_insumo === "Carnes" ? "🥩" : ins.categoria_insumo === "Masas" ? "🌽" : ins.categoria_insumo === "Quesos" || ins.categoria_insumo === "Lácteos" ? "🧀" : ins.categoria_insumo === "Vegetales" ? "🥬" : ins.categoria_insumo === "Salsas" ? "🥫" : "📦"} {ins.nombre}
-                        </span>
-                      ))}
+                      {insumosSuministrados.map((ins) => {
+                        const precioRef = preciosReferenciales[p.id]?.[ins.id];
+                        return (
+                          <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            <span>{ins.categoria_insumo === "Carnes" ? "🥩" : ins.categoria_insumo === "Masas" ? "🌽" : ins.categoria_insumo === "Quesos" || ins.categoria_insumo === "Lácteos" ? "🧀" : ins.categoria_insumo === "Vegetales" ? "🥬" : ins.categoria_insumo === "Salsas" ? "🥫" : "📦"} {ins.nombre}</span>
+                            {precioRef !== undefined && (
+                              <strong style={{ color: "var(--accent-hover)", fontSize: 10, background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 4 }}>
+                                ${precioRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""}
+                              </strong>
+                            )}
+                          </span>
+                        );
+                      })}
                     </div>
                   ) : (
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
@@ -362,11 +372,19 @@ export default function ProveedoresClient({
                     <td style={{ maxWidth: 260, fontSize: 12 }}>
                       {insumosSuministrados.length > 0 ? (
                         <div className="insumos-supplied-chips">
-                          {insumosSuministrados.map((ins) => (
-                            <span key={ins.id} className="insumo-supplied-badge">
-                              {ins.nombre}
-                            </span>
-                          ))}
+                          {insumosSuministrados.map((ins) => {
+                            const precioRef = preciosReferenciales[p.id]?.[ins.id];
+                            return (
+                              <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                {ins.nombre}
+                                {precioRef !== undefined && (
+                                  <strong style={{ color: "var(--accent-hover)", fontSize: 10 }}>
+                                    (${precioRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""})
+                                  </strong>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       ) : notas_texto ? (
                         <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>📝 {notas_texto}</span>
