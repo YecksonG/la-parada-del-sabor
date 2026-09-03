@@ -226,6 +226,8 @@ export default function MenuClienteView({
   const [tipoEntrega, setTipoEntrega] = useState<"pickup" | "delivery">("pickup");
   const [zonaDeliveryId, setZonaDeliveryId] = useState<string>(zonasDelivery[0]?.id || "");
   const [direccionDelivery, setDireccionDelivery] = useState("");
+  const [gpsFalloAviso, setGpsFalloAviso] = useState(false);
+  const refDireccionInput = useRef<HTMLTextAreaElement | null>(null);
   const [metodoPago, setMetodoPago] = useState("pago_movil");
   const [notasGenerales, setNotasGenerales] = useState("");
   const [origenPedido, setOrigenPedido] = useState<string>("directo");
@@ -433,12 +435,14 @@ export default function MenuClienteView({
 
     setCargandoGps(true);
     setErrorMsg("");
+    setGpsFalloAviso(false);
 
     const solicitarPosicion = (highAccuracy: boolean) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           handleAsignarGpsSimulado(latitude, longitude);
+          setGpsFalloAviso(false);
         },
         (err) => {
           // Si falló con alta precisión por timeout o red, intentar una vez con precisión estándar
@@ -453,15 +457,13 @@ export default function MenuClienteView({
             return;
           }
 
-          let msg = "No se pudo obtener la ubicación GPS.";
-          if (err.code === 1) {
-            msg = "Permiso de ubicación denegado en tu navegador. Puedes escribir tu dirección exacta manualmente abajo.";
-          } else if (err.code === 2) {
-            msg = "Ubicación no disponible en este dispositivo. Puedes escribir tu dirección abajo.";
-          } else if (err.code === 3) {
-            msg = "Tiempo de espera agotado al conectar con el GPS. Puedes escribir tu dirección abajo.";
-          }
-          setErrorMsg(msg);
+          // Activamos el sticker explicativo y enfocamos el campo de dirección
+          setGpsFalloAviso(true);
+          setTimeout(() => {
+            if (refDireccionInput.current) {
+              refDireccionInput.current.focus();
+            }
+          }, 300);
         },
         { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 10000 : 15000, maximumAge: 60000 }
       );
@@ -651,7 +653,10 @@ export default function MenuClienteView({
         return;
       }
       if (!direccionDelivery.trim() || direccionDelivery.trim().length < 5) {
-        setErrorMsg("Por favor ingresa la dirección detallada o punto de referencia para el delivery (calle, casa, referencia).");
+        setErrorMsg("Por favor escribe tu calle, casa o punto de referencia en el cuadro de texto para el repartidor.");
+        if (refDireccionInput.current) {
+          refDireccionInput.current.focus();
+        }
         return;
       }
     }
@@ -1394,17 +1399,49 @@ export default function MenuClienteView({
                         </button>
                       )}
 
+                      {/* Aviso amigable con Sticker de Mascota si el navegador denegó o no tiene GPS */}
+                      {gpsFalloAviso && !gpsOk && (
+                        <div
+                          style={{
+                            marginTop: 10,
+                            padding: "12px 14px",
+                            borderRadius: 16,
+                            background: "rgba(234, 88, 12, 0.08)",
+                            border: "1.5px solid rgba(234, 88, 12, 0.3)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                          }}
+                        >
+                          <img
+                            src="/mascota/stickers/06_pensativa_duda.png"
+                            alt="Mascota La Parada del Sabor"
+                            style={{ width: 52, height: 52, objectFit: "contain", flexShrink: 0 }}
+                          />
+                          <div style={{ fontSize: 12.5, lineHeight: 1.4, color: "var(--text)" }}>
+                            <strong style={{ color: "var(--primary-dark)", display: "block", marginBottom: 2 }}>
+                              ¡No te preocupes por el GPS! 🛵
+                            </strong>
+                            No pudimos obtener la ubicación automática de tu navegador. Escribe tu dirección abajo con puntos de referencia, y <strong>al finalizar tu pedido podrás compartirnos tu ubicación por WhatsApp</strong> junto con tu comprobante.
+                          </div>
+                        </div>
+                      )}
+
                       <label htmlFor="direccionDeliveryInput" style={{ marginTop: 12, marginBottom: 6, display: "block" }}>
                         Dirección Exacta / Referencias de Entrega *
                       </label>
                       <textarea
                         id="direccionDeliveryInput"
+                        ref={refDireccionInput}
                         required
                         aria-required="true"
                         rows={2}
                         placeholder="Calle, número de casa, edificio o punto de referencia..."
                         value={direccionDelivery}
-                        onChange={(e) => setDireccionDelivery(e.target.value)}
+                        onChange={(e) => {
+                          setDireccionDelivery(e.target.value);
+                          if (errorMsg) setErrorMsg("");
+                        }}
                         className="pedir-form-input"
                       />
                       {gpsOk && (

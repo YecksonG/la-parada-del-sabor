@@ -941,13 +941,13 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                       📲 Envía tu Comprobante a Cocina
                     </h4>
                     <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600, lineHeight: 1.4 }}>
-                      Toca el botón verde abajo para abrir WhatsApp con tu Comanda #{venta.numero_comanda.toString().padStart(4, "0")} ya vinculada y adjuntar tu captura de pago:
+                      Toca el botón verde abajo para abrir WhatsApp con tu Comanda #{venta.numero_comanda.toString().padStart(4, "0")} ya vinculada para adjuntar tu comprobante de pago{venta.tipo_entrega === "delivery" ? " y compartir tu ubicación en tiempo real" : ""}:
                     </p>
                   </div>
 
                   <a
                     href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                      `¡Hola La Parada del Sabor! 🫓 Acabo de registrar mi pedido #${venta.numero_comanda.toString().padStart(4, "0")} por la web ($${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}).\n\nAdjunto mi comprobante de pago.\n\n🔗 Factura digital & estado en vivo:\n${reciboUrl}`
+                      `¡Hola La Parada del Sabor! 🫓 Acabo de registrar mi pedido #${venta.numero_comanda.toString().padStart(4, "0")} por la web ($${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}).\n\nAdjunto mi comprobante de pago${venta.tipo_entrega === "delivery" ? " y mi ubicación para el repartidor" : ""}.\n\n🔗 Factura digital & estado en vivo:\n${reciboUrl}`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -967,8 +967,13 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                       textAlign: "center",
                     }}
                   >
-                    <span>💬 Enviar Comprobante al WhatsApp (+58 412-2595386)</span>
+                    <span>💬 Enviar Comprobante {venta.tipo_entrega === "delivery" ? "+ Ubicación " : ""}al WhatsApp</span>
                   </a>
+                  {venta.tipo_entrega === "delivery" && (
+                    <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--text-muted)", textAlign: "center", fontWeight: 600 }}>
+                      💡 <em>Tip: En el chat de WhatsApp puedes tocar el clip 📎 y seleccionar <strong>Ubicación</strong> para que el repartidor llegue directo a tu puerta.</em>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, textAlign: "center" }}>
