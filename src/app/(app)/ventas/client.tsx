@@ -3,7 +3,9 @@
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import { Venta } from "@/types/database";
-import { cambiarEstadoVenta } from "./actions";
+import type { MetodoPago } from "@/types/database";
+import { cambiarEstadoVenta, actualizarMetodoPagoVenta } from "./actions";
+import { toFechaCaracasString, fechaHoyEnCaracas } from "@/lib/date-vzla";
 
 interface VentasClientProps {
   ventas: Venta[];
@@ -11,18 +13,59 @@ interface VentasClientProps {
 
 export default function VentasClient({ ventas }: VentasClientProps) {
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
+  const [filtroFecha, setFiltroFecha] = useState<"hoy" | "ayer" | "todas" | "fecha">("hoy");
+  const [fechaEspecifica, setFechaEspecifica] = useState<string>("");
   const [procesandoId, setProcesandoId] = useState<string | null>(null);
 
+  // Fechas de referencia en Caracas
+  const hoyStr = useMemo(() => {
+    const h = fechaHoyEnCaracas();
+    return `${h.anio}-${h.mes}-${h.dia}`;
+  }, []);
+
+  const ayerStr = useMemo(() => {
+    const h = fechaHoyEnCaracas();
+    const d = new Date(Date.UTC(Number(h.anio), Number(h.mes) - 1, Number(h.dia) - 1));
+    return toFechaCaracasString(d);
+  }, []);
+
   const ventasFiltradas = useMemo(() => {
-    if (filtroEstado === "todos") return ventas;
-    return ventas.filter((v) => v.estado === filtroEstado);
-  }, [ventas, filtroEstado]);
+    return ventas.filter((v) => {
+      // 1. Filtro por fecha / jornada
+      if (filtroFecha === "hoy") {
+        const vFechaStr = toFechaCaracasString(v.fecha);
+        if (vFechaStr !== hoyStr) return false;
+      } else if (filtroFecha === "ayer") {
+        const vFechaStr = toFechaCaracasString(v.fecha);
+        if (vFechaStr !== ayerStr) return false;
+      } else if (filtroFecha === "fecha" && fechaEspecifica) {
+        const vFechaStr = toFechaCaracasString(v.fecha);
+        if (vFechaStr !== fechaEspecifica) return false;
+      }
+
+      // 2. Filtro por estado
+      if (filtroEstado !== "todos" && v.estado !== filtroEstado) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [ventas, filtroEstado, filtroFecha, fechaEspecifica, hoyStr, ayerStr]);
 
   const totalVentasUsd = useMemo(() => {
-    return ventas
+    return ventasFiltradas
       .filter((v) => v.estado === "preparando" || v.estado === "lista" || v.estado === "completada")
       .reduce((acc, v) => acc + Number(v.total_usd), 0);
-  }, [ventas]);
+  }, [ventasFiltradas]);
+
+  const handleCambiarMetodoPago = async (ventaId: string, nuevoMetodo: MetodoPago) => {
+    setProcesandoId(ventaId);
+    const res = await actualizarMetodoPagoVenta(ventaId, nuevoMetodo);
+    setProcesandoId(null);
+    if (!res.ok) {
+      alert(res.error || "No se pudo actualizar el método de pago.");
+    }
+  };
 
   const handleCambiarEstado = async (
     ventaId: string,
@@ -117,6 +160,58 @@ ${estadoPago}`;
         </div>
       </div>
 
+      {/* Selector de Jornada / Fecha */}
+      <div className="comanda-jornada-bar" style={{ marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "var(--text)" }}>📅 Jornada:</span>
+          <button
+            type="button"
+            onClick={() => setFiltroFecha("hoy")}
+            className={`cat-pill ${filtroFecha === "hoy" ? "cat-pill-active" : ""}`}
+            style={{ fontSize: 12, padding: "5px 12px" }}
+          >
+            🔥 Hoy ({hoyStr})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroFecha("ayer")}
+            className={`cat-pill ${filtroFecha === "ayer" ? "cat-pill-active" : ""}`}
+            style={{ fontSize: 12, padding: "5px 12px" }}
+          >
+            ⏮️ Ayer ({ayerStr})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroFecha("todas")}
+            className={`cat-pill ${filtroFecha === "todas" ? "cat-pill-active" : ""}`}
+            style={{ fontSize: 12, padding: "5px 12px" }}
+          >
+            📚 Todas las Comandas
+          </button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>Filtrar por día:</span>
+          <input
+            type="date"
+            value={fechaEspecifica}
+            onChange={(e) => {
+              setFechaEspecifica(e.target.value);
+              if (e.target.value) setFiltroFecha("fecha");
+            }}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--bg)",
+              color: "var(--text)",
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          />
+        </div>
+      </div>
+
       {/* Lista de Comandas */}
       <div className="comandas-grid">
         {ventasFiltradas.length === 0 ? (
@@ -129,7 +224,7 @@ ${estadoPago}`;
               style={{ margin: "0 auto 12px", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.1))", objectFit: "contain" }}
             />
             <h3 style={{ margin: "0 0 6px" }}>¡Cocina al Día!</h3>
-            <p style={{ margin: 0, color: "var(--text-muted)" }}>No hay comandas pendientes con este filtro. Las nuevas órdenes aparecerán aquí al instante.</p>
+            <p style={{ margin: 0, color: "var(--text-muted)" }}>No hay comandas registradas con este filtro. Cambia de jornada o estado arriba.</p>
           </div>
         ) : (
           ventasFiltradas.map((v) => {
@@ -184,11 +279,53 @@ ${estadoPago}`;
                     </div>
                   </div>
 
+                  {/* Nombre y Contacto del Cliente en el Tablero de Cocina */}
+                  <div className="comanda-client-row">
+                    <span style={{ fontSize: 16 }}>👤</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <strong style={{ fontSize: 13, color: "var(--text)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {v.cliente?.nombre || (v.creado_por === "web_cliente" ? "Cliente Web" : "Cliente Mostrador")}
+                      </strong>
+                      {v.cliente?.telefono && (
+                        <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
+                          📞 {v.cliente.telefono}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="comanda-type-row">
                     <span className="comanda-badge-type">{v.tipo_entrega.toUpperCase()}</span>
-                    <span className="comanda-badge-payment">
-                      {(v.metodo_pago || "").replaceAll("_", " ").toUpperCase()}
-                    </span>
+                    
+                    {/* Selector rápido de método de pago */}
+                    <select
+                      value={v.metodo_pago || "efectivo_usd"}
+                      disabled={procesandoId === v.id}
+                      onChange={(e) => handleCambiarMetodoPago(v.id, e.target.value as MetodoPago)}
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "2px 6px",
+                        borderRadius: 6,
+                        border: "1px solid var(--border)",
+                        background: "var(--bg-subtle)",
+                        color: "var(--text)",
+                        cursor: "pointer",
+                      }}
+                      title="Haz clic para cambiar el método de pago de esta comanda"
+                    >
+                      <option value="pago_movil">📱 Pago Móvil</option>
+                      <option value="pago_movil_bs">📱 Pago Móvil Bs</option>
+                      <option value="efectivo_usd">💵 Efectivo USD</option>
+                      <option value="efectivo_bs">🇻🇪 Efectivo Bs</option>
+                      <option value="punto">💳 Tarjeta / POS</option>
+                      <option value="punto_bs">💳 Punto de Venta Bs</option>
+                      <option value="transferencia">🏦 Transferencia</option>
+                      <option value="binance">🟡 Binance Pay</option>
+                      <option value="zelle">🟣 Zelle</option>
+                      <option value="pesos_cop">🇨🇴 Pesos COP</option>
+                    </select>
+
                     {v.origen_pedido === "instagram" ? (
                       <span style={{ fontSize: 11, fontWeight: 800, background: "linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)", color: "#ffffff", padding: "2px 8px", borderRadius: 6, display: "inline-flex", alignItems: "center", gap: 3 }}>
                         📸 Instagram

@@ -131,7 +131,13 @@ export default function DashboardClient({
   // Cálculos Financieros
   const finanzas = useMemo(() => {
     const totalFacturadoUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
-    const totalFacturadoBs = totalFacturadoUsd * tasaBcv;
+    // Cálculo individual por comanda según su tasa y bolívares históricos
+    const totalFacturadoBs = ventasFiltradas.reduce((acc, v) => {
+      const bsHistorico = Number(v.total_bs);
+      if (!isNaN(bsHistorico) && bsHistorico > 0) return acc + bsHistorico;
+      const tasaHistorica = Number(v.tasa_bcv) || tasaBcv;
+      return acc + ((Number(v.total_usd) || 0) * tasaHistorica);
+    }, 0);
 
     // Calcular costo real de insumos vendidos en el periodo
     let costoInsumosUsd = 0;
@@ -426,7 +432,7 @@ export default function DashboardClient({
           <strong className="stat-value text-primary">
             ${finanzas.totalFacturadoUsd.toFixed(2)} USD
           </strong>
-          <span className="stat-hint">{finanzas.totalFacturadoBs.toLocaleString()} Bs (BCV {tasaBcv})</span>
+          <span className="stat-hint">{finanzas.totalFacturadoBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs (Tasas de Cada Día)</span>
         </div>
 
         <div className="caja-stat-card">

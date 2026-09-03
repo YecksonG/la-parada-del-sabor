@@ -54,3 +54,9 @@ export function esMismaFechaEnCaracas(
     fechaVenta.dia === referencia.dia
   );
 }
+
+/** Devuelve la fecha en formato YYYY-MM-DD en hora de Caracas. */
+export function toFechaCaracasString(fecha: string | Date): string {
+  const f = toFechaCaracas(fecha);
+  return `${f.anio}-${f.mes}-${f.dia}`;
+}

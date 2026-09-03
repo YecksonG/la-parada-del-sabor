@@ -261,7 +261,7 @@ export default function ProveedoresClient({
                   </span>
                   {insumosSuministrados.length > 0 ? (
                     <div className="insumos-supplied-chips">
-                      {insumosSuministrados.map((ins) => {
+                      {insumosSuministrados.slice(0, 2).map((ins) => {
                         const precioRef = preciosReferenciales[p.id]?.[ins.id];
                         return (
                           <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -274,6 +274,16 @@ export default function ProveedoresClient({
                           </span>
                         );
                       })}
+                      {insumosSuministrados.length > 2 && (
+                        <button
+                          type="button"
+                          onClick={() => abrirEditar(p)}
+                          className="insumo-supplied-badge-more"
+                          title={insumosSuministrados.slice(2).map((i) => i.nombre).join(", ")}
+                        >
+                          +{insumosSuministrados.length - 2} más
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
@@ -369,10 +379,10 @@ export default function ProveedoresClient({
                     <td style={{ maxWidth: 200, fontSize: 12 }}>
                       {p.direccion ? <span>📍 {p.direccion}</span> : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
-                    <td style={{ maxWidth: 260, fontSize: 12 }}>
+                    <td style={{ minWidth: 220, maxWidth: 320, fontSize: 12 }}>
                       {insumosSuministrados.length > 0 ? (
                         <div className="insumos-supplied-chips">
-                          {insumosSuministrados.map((ins) => {
+                          {insumosSuministrados.slice(0, 2).map((ins) => {
                             const precioRef = preciosReferenciales[p.id]?.[ins.id];
                             return (
                               <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
@@ -385,6 +395,16 @@ export default function ProveedoresClient({
                               </span>
                             );
                           })}
+                          {insumosSuministrados.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => abrirEditar(p)}
+                              className="insumo-supplied-badge-more"
+                              title={insumosSuministrados.slice(2).map((i) => i.nombre).join(", ")}
+                            >
+                              +{insumosSuministrados.length - 2} más
+                            </button>
+                          )}
                         </div>
                       ) : notas_texto ? (
                         <span style={{ color: "var(--primary-dark)", fontWeight: 600 }}>📝 {notas_texto}</span>

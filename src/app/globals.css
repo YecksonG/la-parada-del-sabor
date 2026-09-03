@@ -3197,7 +3197,40 @@ a {
   background: var(--bg-subtle);
   border: 1px solid var(--border);
   color: var(--text);
+  white-space: normal;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+.insumo-supplied-badge-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--primary-light);
+  border: 1px dashed var(--primary);
+  color: var(--primary-dark);
+  cursor: pointer;
+  transition: all 0.15s ease;
   white-space: nowrap;
+}
+
+.insumo-supplied-badge-more:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-style: solid;
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .insumo-supplied-badge-more {
+  color: var(--primary);
+}
+
+[data-theme="dark"] .insumo-supplied-badge-more:hover {
+  color: #ffffff;
 }
 
 .insumo-suppliers-box {
@@ -3329,10 +3362,33 @@ a {
   color: var(--accent);
 }
 
+.comanda-jornada-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.comanda-client-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
 .comanda-type-row {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .comanda-badge-type {

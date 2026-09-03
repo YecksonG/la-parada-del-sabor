@@ -3,8 +3,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guard";
+import type { MetodoPago } from "@/types/database";
 
 export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
+
+const METODOS_PAGO_VALIDOS: MetodoPago[] = [
+  "efectivo_usd",
+  "efectivo_bs",
+  "pago_movil",
+  "pago_movil_bs",
+  "transferencia",
+  "punto",
+  "punto_bs",
+  "binance",
+  "zelle",
+  "pesos_cop",
+];
 
 const TRANSICIONES_VALIDAS: Record<EstadoVenta, EstadoVenta[]> = {
   pendiente: ["preparando", "cancelada"],
@@ -56,6 +70,35 @@ export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: EstadoVe
   revalidatePath("/caja");
   revalidatePath("/dashboard");
   revalidatePath("/insumos");
+  revalidatePath("/");
+
+  return { ok: true };
+}
+
+export async function actualizarMetodoPagoVenta(venta_id: string, nuevoMetodoPago: MetodoPago) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!venta_id || !UUID_REGEX.test(venta_id)) {
+    return { ok: false, error: "Identificador de venta no válido." };
+  }
+
+  if (!METODOS_PAGO_VALIDOS.includes(nuevoMetodoPago)) {
+    return { ok: false, error: "Método de pago no válido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error } = await supabase
+    .from("ventas")
+    .update({ metodo_pago: nuevoMetodoPago })
+    .eq("id", venta_id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/dashboard");
   revalidatePath("/");
 
   return { ok: true };

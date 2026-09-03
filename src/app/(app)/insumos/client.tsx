@@ -434,7 +434,7 @@ export default function InsumosClient({
                       </span>
                       {proveedoresDelInsumo.length > 0 ? (
                         <div className="insumos-supplied-chips">
-                          {proveedoresDelInsumo.map((p) => {
+                          {proveedoresDelInsumo.slice(0, 2).map((p) => {
                             const pRef = preciosReferenciales[ins.id]?.[p.id];
                             return (
                               <span
@@ -452,6 +452,16 @@ export default function InsumosClient({
                               </span>
                             );
                           })}
+                          {proveedoresDelInsumo.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => abrirEditar(ins)}
+                              className="insumo-supplied-badge-more"
+                              title={proveedoresDelInsumo.slice(2).map((p) => p.nombre).join(", ")}
+                            >
+                              +{proveedoresDelInsumo.length - 2} más
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <span style={{ fontSize: 11, color: "var(--text-muted)", fontStyle: "italic" }}>
@@ -579,10 +589,10 @@ export default function InsumosClient({
                         ${valorTotal.toFixed(2)} USD
                       </strong>
                     </td>
-                    <td style={{ maxWidth: 220, fontSize: 12 }}>
+                    <td style={{ minWidth: 200, maxWidth: 300, fontSize: 12 }}>
                       {proveedoresDelInsumo.length > 0 ? (
                         <div className="insumos-supplied-chips">
-                          {proveedoresDelInsumo.map((p) => {
+                          {proveedoresDelInsumo.slice(0, 2).map((p) => {
                             const pRef = preciosReferenciales[ins.id]?.[p.id];
                             return (
                               <span
@@ -599,6 +609,16 @@ export default function InsumosClient({
                               </span>
                             );
                           })}
+                          {proveedoresDelInsumo.length > 2 && (
+                            <button
+                              type="button"
+                              onClick={() => abrirEditar(ins)}
+                              className="insumo-supplied-badge-more"
+                              title={proveedoresDelInsumo.slice(2).map((p) => p.nombre).join(", ")}
+                            >
+                              +{proveedoresDelInsumo.length - 2} más
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <span style={{ color: "var(--text-muted)", fontSize: 11 }}>—</span>
