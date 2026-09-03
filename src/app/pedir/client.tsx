@@ -506,7 +506,7 @@ export default function MenuClienteView({
     return null;
   }, [direccionDelivery]);
 
-  // Requisito estricto para modalidad delivery: el GPS es obligatorio.
+  // Estado de si el GPS fue detectado exitosamente
   const gpsValidadoParaDelivery = !!gpsCoordenadas;
 
   const costoDeliveryUsd = tipoEntrega === "delivery" ? Number(zonaDeliverySeleccionada?.precio_usd || 0) : 0;
@@ -641,12 +641,8 @@ export default function MenuClienteView({
         setModalZonaDelivery(true);
         return;
       }
-      if (!gpsValidadoParaDelivery) {
-        setErrorMsg("📍 La ubicación GPS es obligatoria para el delivery. Por favor presiona el botón 'Usar mi GPS Actual'.");
-        return;
-      }
-      if (!direccionDelivery.trim() || direccionDelivery.trim().length < 3) {
-        setErrorMsg("Por favor ingresa la dirección detallada o punto de referencia para el delivery.");
+      if (!direccionDelivery.trim() || direccionDelivery.trim().length < 5) {
+        setErrorMsg("Por favor ingresa la dirección detallada o punto de referencia para el delivery (calle, casa, referencia).");
         return;
       }
     }
@@ -699,13 +695,8 @@ export default function MenuClienteView({
         setPasoCheckout(2);
         return;
       }
-      if (!gpsValidadoParaDelivery) {
-        setErrorMsg("📍 La ubicación GPS es obligatoria para el delivery. Por favor presiona 'Usar mi GPS Actual'.");
-        setPasoCheckout(2);
-        return;
-      }
-      if (!direccionDelivery.trim() || direccionDelivery.trim().length < 3) {
-        setErrorMsg("Por favor indica la dirección exacta para el delivery.");
+      if (!direccionDelivery.trim() || direccionDelivery.trim().length < 5) {
+        setErrorMsg("Por favor indica la dirección exacta para el delivery (calle, número o referencias).");
         setPasoCheckout(2);
         return;
       }
@@ -1342,7 +1333,7 @@ export default function MenuClienteView({
                         </div>
                       )}
 
-                      {/* Botón GPS Super Destacado */}
+                      {/* Botón GPS Destacado (Recomendado) */}
                       <button
                         type="button"
                         onClick={handleObtenerUbicacionGps}
@@ -1360,16 +1351,16 @@ export default function MenuClienteView({
                               ? "Conectando con Satélites GPS..."
                               : gpsOk
                               ? "¡Ubicación GPS Detectada!"
-                              : "Usar mi GPS Actual"}
+                              : "Adjuntar mi Ubicación GPS"}
                           </span>
                           <span className="pedir-btn-gps-hero-sub">
                             {gpsOk
                               ? "Google Maps vinculado para el repartidor ✓"
-                              : "1 toque: Obligatorio para ubicar tu entrega exacta"}
+                              : "1 toque: Ayuda al repartidor a llegar más rápido (Opcional)"}
                           </span>
                         </div>
-                        <div className="pedir-btn-gps-hero-badge" aria-hidden="true" style={{ background: gpsOk ? "var(--green)" : "var(--accent)" }}>
-                          {cargandoGps ? "Buscando..." : gpsOk ? "ACTIVO ✓" : "OBLIGATORIO"}
+                        <div className="pedir-btn-gps-hero-badge" aria-hidden="true" style={{ background: gpsOk ? "var(--green)" : "var(--primary)" }}>
+                          {cargandoGps ? "Buscando..." : gpsOk ? "ACTIVO ✓" : "RECOMENDADO"}
                         </div>
                       </button>
 

@@ -376,17 +376,17 @@ export default function ProveedoresClient({
                         <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
                       )}
                     </td>
-                    <td style={{ maxWidth: 200, fontSize: 12 }}>
+                    <td style={{ width: 180, maxWidth: 220, fontSize: 12 }}>
                       {p.direccion ? <span>📍 {p.direccion}</span> : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
-                    <td style={{ minWidth: 220, maxWidth: 320, fontSize: 12 }}>
+                    <td style={{ minWidth: 220, maxWidth: 300, fontSize: 12 }}>
                       {insumosSuministrados.length > 0 ? (
                         <div className="insumos-supplied-chips">
                           {insumosSuministrados.slice(0, 2).map((ins) => {
                             const precioRef = preciosReferenciales[p.id]?.[ins.id];
                             return (
                               <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                                {ins.nombre}
+                                <span>{ins.nombre}</span>
                                 {precioRef !== undefined && (
                                   <strong style={{ color: "var(--accent-hover)", fontSize: 10 }}>
                                     (${precioRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""})
@@ -412,10 +412,10 @@ export default function ProveedoresClient({
                         <span style={{ color: "var(--text-muted)" }}>—</span>
                       )}
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap", width: 150 }}>
                       <span className="badge-ticket" style={{ fontSize: 12 }}>{stats.conteo} Movimientos</span>
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap", width: 160 }}>
                       <strong className="text-primary" style={{ fontSize: 14 }}>
                         ${(Number(stats.totalUsd) || 0).toFixed(2)} USD
                         {stats.totalBs ? <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span> : null}

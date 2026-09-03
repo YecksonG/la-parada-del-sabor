@@ -234,6 +234,46 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   revalidatePath("/dashboard");
   revalidatePath("/insumos");
 
+  // Notificación a Telegram para POS en segundo plano
+  try {
+    const { notificarComandaTelegram } = await import("@/lib/telegram");
+    let clienteNombre = "Cliente Salón";
+    let clienteTelf: string | null = null;
+    if (payload.cliente_id) {
+      const { data: cData } = await supabase
+        .from("clientes")
+        .select("nombre, telefono")
+        .eq("id", payload.cliente_id)
+        .maybeSingle();
+      if (cData) {
+        clienteNombre = cData.nombre;
+        clienteTelf = cData.telefono;
+      }
+    }
+
+    const itemNames = payload.items.map((it) => ({
+      cantidad: it.cantidad,
+      nombre: it.nombre || "Producto",
+      notas: it.notas_item,
+    }));
+
+    notificarComandaTelegram({
+      numero_comanda: venta.numero_comanda,
+      origen: "pos",
+      nombre_cliente: clienteNombre,
+      telefono: clienteTelf,
+      tipo_entrega: payload.tipo_entrega,
+      delivery_zona: payload.delivery_zona_nombre,
+      direccion: payload.direccion_delivery,
+      total_usd: totalUsdCalculado,
+      total_bs: totalBsCalculado,
+      metodo_pago: payload.metodo_pago,
+      items: itemNames,
+    }).catch((err) => console.error("Error Telegram POS:", err));
+  } catch (tErr) {
+    console.error("Error preparando notificación Telegram POS:", tErr);
+  }
+
   return {
     ok: true,
     numero_comanda: venta.numero_comanda,

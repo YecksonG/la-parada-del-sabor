@@ -92,19 +92,18 @@ a {
 }
 
 .page-transition-wrapper {
-  animation: pageEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-  will-change: opacity, transform;
+  animation: pageEnter 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   flex: 1;
 }
 
 @keyframes pageEnter {
   0% {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -3182,6 +3181,7 @@ a {
 .insumos-supplied-chips {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   margin-top: 4px;
 }
@@ -3197,9 +3197,11 @@ a {
   background: var(--bg-subtle);
   border: 1px solid var(--border);
   color: var(--text);
-  white-space: normal;
-  word-break: break-word;
+  white-space: nowrap !important;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .insumo-supplied-badge-more {
@@ -5587,10 +5589,16 @@ a {
     padding: 0 !important;
   }
 
-  .modal-overlay:has(.pedir-modal-zoom-card) {
+  .modal-overlay:has(.pedir-modal-zoom-card),
+  .modal-overlay:has(.modal-recipe-card) {
     align-items: center !important;
     justify-content: center !important;
     padding: 16px !important;
+  }
+
+  .modal-recipe-card {
+    margin: auto !important;
+    max-height: 88vh !important;
   }
 
   .pedir-modal-zoom-card {

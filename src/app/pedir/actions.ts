@@ -128,6 +128,34 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   revalidatePath("/dashboard");
   revalidatePath("/");
 
+  // Notificación instantánea a Telegram (asíncrona en segundo plano)
+  try {
+    const { notificarComandaTelegram } = await import("@/lib/telegram");
+    // Obtener nombres de los productos para el resumen
+    const pIds = payload.items.map((it) => it.producto_id);
+    const { data: prods } = await supabase.from("productos").select("id, nombre").in("id", pIds);
+    const prodMap = new Map((prods || []).map((p) => [p.id, p.nombre]));
+
+    notificarComandaTelegram({
+      numero_comanda: rpcRes.numero_comanda,
+      origen: "web",
+      nombre_cliente: payload.nombre_cliente,
+      telefono: payload.telefono,
+      tipo_entrega: payload.tipo_entrega,
+      direccion: payload.direccion_delivery,
+      total_usd: Number(rpcRes.total_usd) || 0,
+      total_bs: Number(rpcRes.total_bs) || null,
+      metodo_pago: payload.metodo_pago,
+      items: payload.items.map((it) => ({
+        cantidad: it.cantidad,
+        nombre: prodMap.get(it.producto_id) || "Producto",
+        notas: it.notas_item,
+      })),
+    }).catch((err) => console.error("Error Telegram Web:", err));
+  } catch (tErr) {
+    console.error("Error preparando notificación Telegram:", tErr);
+  }
+
   return {
     ok: true,
     venta_id: rpcRes.venta_id,

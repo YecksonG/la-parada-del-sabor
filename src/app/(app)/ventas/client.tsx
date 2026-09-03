@@ -121,6 +121,41 @@ ${estadoPago}`;
     window.open(url, "_blank");
   };
 
+  const handleNotificarClienteWhatsApp = (
+    v: Venta,
+    estadoNotificar: "preparando" | "lista" | "completada"
+  ) => {
+    const rawTel = v.cliente?.telefono || "";
+    let telDigits = rawTel.replace(/\D/g, "");
+    if (telDigits.startsWith("0")) {
+      telDigits = "58" + telDigits.slice(1);
+    } else if (telDigits.length === 10) {
+      telDigits = "58" + telDigits;
+    }
+
+    const nombreCliente = v.cliente?.nombre || "Estimado cliente";
+    const comandaNum = v.numero_comanda || v.id.slice(0, 6);
+
+    let textoEstado = "";
+    if (estadoNotificar === "preparando") {
+      textoEstado = `¡Hola *${nombreCliente}*! 👋🧑‍🍳\nTu pedido *#${comandaNum}* en *La Parada del Sabor* ya ha sido confirmado y está *EN PREPARACIÓN* en nuestra cocina. Te avisaremos apenas esté listo. ¡Gracias por tu preferencia! 💛`;
+    } else if (estadoNotificar === "lista") {
+      if (v.tipo_entrega === "delivery") {
+        textoEstado = `¡Hola *${nombreCliente}*! 🛵💨\nTu pedido *#${comandaNum}* de *La Parada del Sabor* está *LISTO Y EN CAMINO* con nuestro repartidor a tu dirección. ¡Ten tu método de pago o comprobante a mano! ✨`;
+      } else {
+        textoEstado = `¡Hola *${nombreCliente}*! 🛍️✨\nTu pedido *#${comandaNum}* de *La Parada del Sabor* está *LISTO PARA RETIRAR* en nuestro local. ¡Te esperamos!`;
+      }
+    } else if (estadoNotificar === "completada") {
+      textoEstado = `¡Hola *${nombreCliente}*! 🎉🍽️\nTu pedido *#${comandaNum}* de *La Parada del Sabor* figura como *ENTREGADO*. ¡Que lo disfrutes al máximo! Si tienes algún comentario estamos siempre a la orden. ¡Buen provecho! 🙌`;
+    }
+
+    const waUrl = telDigits
+      ? `https://wa.me/${telDigits}?text=${encodeURIComponent(textoEstado)}`
+      : `https://wa.me/?text=${encodeURIComponent(textoEstado)}`;
+
+    window.open(waUrl, "_blank");
+  };
+
   const conteoPendientes = useMemo(() => {
     return ventas.filter((v) => v.estado === "pendiente").length;
   }, [ventas]);
@@ -471,26 +506,47 @@ ${estadoPago}`;
                   <div className="comanda-actions">
                     {/* 1. Si está Pendiente (Web) */}
                     {v.estado === "pendiente" && (
-                      <button
-                        type="button"
-                        disabled={procesandoId === v.id}
-                        onClick={() => handleCambiarEstado(v.id, "preparando")}
-                        className="btn-comanda-complete"
-                        style={{ background: "#f97316" }}
-                      >
-                        {procesandoId === v.id ? "Procesando..." : "🍳 Confirmar & Enviar a Cocina"}
-                      </button>
+                      <div style={{ display: "flex", gap: 6, width: "100%" }}>
+                        <button
+                          type="button"
+                          disabled={procesandoId === v.id}
+                          onClick={() => handleCambiarEstado(v.id, "preparando")}
+                          className="btn-comanda-complete"
+                          style={{ background: "#f97316", flex: 1 }}
+                        >
+                          {procesandoId === v.id ? "Procesando..." : "🍳 Confirmar & A Cocina"}
+                        </button>
+                        {v.cliente?.telefono && (
+                          <button
+                            type="button"
+                            onClick={() => handleNotificarClienteWhatsApp(v, "preparando")}
+                            style={{
+                              background: "#25D366",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 12,
+                              padding: "0 12px",
+                              fontSize: 13,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                            }}
+                            title="Avisar al cliente por WhatsApp que su comanda está en preparación"
+                          >
+                            💬 Avisar
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* 2. Si está en Cocina (Preparando) */}
                     {v.estado === "preparando" && (
-                      <div style={{ display: "flex", gap: 6, width: "100%" }}>
+                      <div style={{ display: "flex", gap: 6, width: "100%", flexWrap: "wrap" }}>
                         <button
                           type="button"
                           disabled={procesandoId === v.id}
                           onClick={() => handleCambiarEstado(v.id, "lista")}
                           className="btn-comanda-complete"
-                          style={{ background: "#3b82f6" }}
+                          style={{ background: "#3b82f6", flex: 1 }}
                         >
                           {procesandoId === v.id ? "..." : (v.tipo_entrega === "delivery" ? "🛵 En Camino" : "🛍️ Marcar Lista")}
                         </button>
@@ -502,19 +558,68 @@ ${estadoPago}`;
                         >
                           {procesandoId === v.id ? "..." : "✅ Entregada"}
                         </button>
+                        {v.cliente?.telefono && (
+                          <button
+                            type="button"
+                            onClick={() => handleNotificarClienteWhatsApp(v, "lista")}
+                            style={{
+                              background: "rgba(37, 211, 102, 0.15)",
+                              color: "#16a34a",
+                              border: "1px solid #25D366",
+                              borderRadius: 10,
+                              padding: "4px 8px",
+                              fontSize: 11.5,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              width: "100%",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
+                            }}
+                            title="Avisar al cliente por WhatsApp que su pedido está listo/en camino"
+                          >
+                            💬 Avisar por WhatsApp ({v.tipo_entrega === "delivery" ? "En Camino" : "Listo"})
+                          </button>
+                        )}
                       </div>
                     )}
 
                     {/* 3. Si está Lista */}
                     {v.estado === "lista" && (
-                      <button
-                        type="button"
-                        disabled={procesandoId === v.id}
-                        onClick={() => handleCambiarEstado(v.id, "completada")}
-                        className="btn-comanda-complete"
-                      >
-                        {procesandoId === v.id ? "Procesando..." : "✅ Marcar Entregada"}
-                      </button>
+                      <div style={{ display: "flex", gap: 6, width: "100%", flexDirection: "column" }}>
+                        <button
+                          type="button"
+                          disabled={procesandoId === v.id}
+                          onClick={() => handleCambiarEstado(v.id, "completada")}
+                          className="btn-comanda-complete"
+                        >
+                          {procesandoId === v.id ? "Procesando..." : "✅ Marcar Entregada"}
+                        </button>
+                        {v.cliente?.telefono && (
+                          <button
+                            type="button"
+                            onClick={() => handleNotificarClienteWhatsApp(v, "lista")}
+                            style={{
+                              background: "#25D366",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 10,
+                              padding: "6px 10px",
+                              fontSize: 12,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: 6,
+                            }}
+                            title="Reenviar mensaje de WhatsApp al cliente"
+                          >
+                            💬 Notificar al Cliente por WhatsApp
+                          </button>
+                        )}
+                      </div>
                     )}
 
                     {/* 4. Opción de Cancelar / Reactivar */}
