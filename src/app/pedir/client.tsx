@@ -434,31 +434,40 @@ export default function MenuClienteView({
     setCargandoGps(true);
     setErrorMsg("");
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        handleAsignarGpsSimulado(latitude, longitude);
-      },
-      (err) => {
-        setCargandoGps(false);
-        if (isLocal) {
-          // En entorno de desarrollo / localhost en PC de escritorio sin GPS satelital
-          handleAsignarGpsSimulado(11.69875, -70.19853);
-          return;
-        }
+    const solicitarPosicion = (highAccuracy: boolean) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          handleAsignarGpsSimulado(latitude, longitude);
+        },
+        (err) => {
+          // Si falló con alta precisión por timeout o red, intentar una vez con precisión estándar
+          if (highAccuracy && (err.code === 3 || err.code === 2)) {
+            solicitarPosicion(false);
+            return;
+          }
 
-        let msg = "No se pudo obtener la ubicación GPS.";
-        if (err.code === 1) {
-          msg = "Permiso de ubicación denegado en tu navegador. Por favor permite el acceso al GPS.";
-        } else if (err.code === 2) {
-          msg = "Ubicación no disponible en este dispositivo (sin chip GPS / red Wi-Fi).";
-        } else if (err.code === 3) {
-          msg = "Tiempo de espera agotado al conectar con el GPS.";
-        }
-        setErrorMsg(msg);
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
+          setCargandoGps(false);
+          if (isLocal) {
+            handleAsignarGpsSimulado(11.69875, -70.19853);
+            return;
+          }
+
+          let msg = "No se pudo obtener la ubicación GPS.";
+          if (err.code === 1) {
+            msg = "Permiso de ubicación denegado en tu navegador. Puedes escribir tu dirección exacta manualmente abajo.";
+          } else if (err.code === 2) {
+            msg = "Ubicación no disponible en este dispositivo. Puedes escribir tu dirección abajo.";
+          } else if (err.code === 3) {
+            msg = "Tiempo de espera agotado al conectar con el GPS. Puedes escribir tu dirección abajo.";
+          }
+          setErrorMsg(msg);
+        },
+        { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 10000 : 15000, maximumAge: 60000 }
+      );
+    };
+
+    solicitarPosicion(true);
   };
 
   const productosFiltrados = useMemo(() => {
@@ -1404,51 +1413,50 @@ export default function MenuClienteView({
                         </span>
                       )}
 
-                      {/* Vista Previa Interactiva del Mapa de Google Maps */}
+                      {/* Opción A: Confirmación limpia y enlace directo a Google Maps */}
                       {gpsCoordenadas && (
                         <div
                           style={{
                             marginTop: 12,
                             borderRadius: 14,
                             overflow: "hidden",
-                            border: "1.5px solid var(--border)",
-                            background: "var(--bg-card)",
-                            boxShadow: "var(--shadow-sm)",
+                            border: "1.5px solid rgba(34, 197, 94, 0.4)",
+                            background: "rgba(34, 197, 94, 0.08)",
+                            padding: "12px 14px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 10,
                           }}
                         >
-                          <div
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 900, color: "#16a34a", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>✅</span> Coordenadas GPS fijadas con éxito
+                            </div>
+                            <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
+                              Lat: {gpsCoordenadas.lat.toFixed(5)}, Lng: {gpsCoordenadas.lng.toFixed(5)}
+                            </div>
+                          </div>
+                          <a
+                            href={gpsCoordenadas.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             style={{
+                              fontSize: 12,
+                              fontWeight: 800,
+                              color: "#fff",
+                              background: "var(--primary-dark)",
                               padding: "8px 12px",
-                              background: "rgba(22, 163, 74, 0.12)",
-                              borderBottom: "1px solid var(--border)",
-                              display: "flex",
-                              justifyContent: "space-between",
+                              borderRadius: 10,
+                              textDecoration: "none",
+                              whiteSpace: "nowrap",
+                              display: "inline-flex",
                               alignItems: "center",
+                              gap: 4,
                             }}
                           >
-                            <span style={{ fontSize: 12, fontWeight: 900, color: "#16a34a", display: "flex", alignItems: "center", gap: 6 }}>
-                              📍 Ubicación Confirmada en el Mapa
-                            </span>
-                            <a
-                              href={gpsCoordenadas.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ fontSize: 11.5, fontWeight: 800, color: "var(--primary-dark)", textDecoration: "none" }}
-                            >
-                              Abrir en Google Maps ↗
-                            </a>
-                          </div>
-                          {/* Mapa estático — sin iframe para evitar conflictos de permisos GPS en Android Chrome */}
-                          <div style={{ position: "relative", width: "100%", height: 180, background: "var(--bg-subtle)", overflow: "hidden" }}>
-                            <img
-                              src={`https://staticmap.openstreetmap.de/staticmap.php?center=${gpsCoordenadas.lat},${gpsCoordenadas.lng}&zoom=16&size=400x180&markers=${gpsCoordenadas.lat},${gpsCoordenadas.lng},red-pushpin`}
-                              alt="Mapa de ubicación de entrega"
-                              width="100%"
-                              height="100%"
-                              style={{ objectFit: "cover", display: "block" }}
-                              loading="lazy"
-                            />
-                          </div>
+                            Ver en Maps ↗
+                          </a>
                         </div>
                       )}
                     </div>
