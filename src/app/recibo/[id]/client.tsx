@@ -905,77 +905,82 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               )}
 
               {/* Paso 2: Reportar Comprobante por WhatsApp */}
-              {["pago_movil", "pago_movil_bs", "transferencia", "binance", "binance_usdt", "zelle"].includes(venta.metodo_pago) ? (
-                <div
-                  style={{
-                    borderTop: "1.5px dashed var(--border)",
-                    paddingTop: 18,
-                    marginTop: 4,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 12,
-                    background: "rgba(37, 211, 102, 0.06)",
-                    padding: "18px 16px",
-                    borderRadius: 18,
-                    border: "1.5px solid rgba(37, 211, 102, 0.35)",
-                  }}
-                >
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <span
-                        style={{
-                          fontSize: 10.5,
-                          fontWeight: 900,
-                          background: "#25D366",
-                          color: "#ffffff",
-                          padding: "3px 10px",
-                          borderRadius: 12,
-                          letterSpacing: 0.5,
-                          boxShadow: "0 2px 8px rgba(37, 211, 102, 0.4)",
-                        }}
-                      >
-                        ⚡ PASO FINAL INDISPENSABLE
-                      </span>
-                    </div>
-                    <h4 style={{ margin: "4px 0 2px 0", fontSize: 15, fontWeight: 900, color: "var(--text)" }}>
-                      📲 Envía tu Comprobante a Cocina
-                    </h4>
-                    <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600, lineHeight: 1.4 }}>
-                      Toca el botón verde abajo para abrir WhatsApp con tu Comanda #{venta.numero_comanda.toString().padStart(4, "0")} ya vinculada para adjuntar tu comprobante de pago{venta.tipo_entrega === "delivery" ? " y compartir tu ubicación en tiempo real" : ""}:
-                    </p>
-                  </div>
+              {["pago_movil", "pago_movil_bs", "transferencia", "binance", "binance_usdt", "zelle"].includes(venta.metodo_pago) ? (() => {
+                const tieneGps = Boolean(venta.cliente?.direccion_delivery?.includes("maps.google.com"));
+                const requiereUbicacionWa = venta.tipo_entrega === "delivery" && !tieneGps;
 
-                  <a
-                    href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                      `¡Hola La Parada del Sabor! 🫓 Acabo de registrar mi pedido #${venta.numero_comanda.toString().padStart(4, "0")} por la web ($${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}).\n\nAdjunto mi comprobante de pago${venta.tipo_entrega === "delivery" ? " y mi ubicación para el repartidor" : ""}.\n\n🔗 Factura digital & estado en vivo:\n${reciboUrl}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                return (
+                  <div
                     style={{
-                      background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
-                      color: "#ffffff",
-                      padding: "16px 20px",
-                      borderRadius: 16,
-                      fontWeight: 900,
-                      fontSize: 15,
-                      textDecoration: "none",
+                      borderTop: "1.5px dashed var(--border)",
+                      paddingTop: 18,
+                      marginTop: 4,
                       display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 10,
-                      boxShadow: "0 8px 24px rgba(37, 211, 102, 0.4)",
-                      textAlign: "center",
+                      flexDirection: "column",
+                      gap: 12,
+                      background: "rgba(37, 211, 102, 0.06)",
+                      padding: "18px 16px",
+                      borderRadius: 18,
+                      border: "1.5px solid rgba(37, 211, 102, 0.35)",
                     }}
                   >
-                    <span>💬 Enviar Comprobante {venta.tipo_entrega === "delivery" ? "+ Ubicación " : ""}al WhatsApp</span>
-                  </a>
-                  {venta.tipo_entrega === "delivery" && (
-                    <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--text-muted)", textAlign: "center", fontWeight: 600 }}>
-                      💡 <em>Tip: En el chat de WhatsApp puedes tocar el clip 📎 y seleccionar <strong>Ubicación</strong> para que el repartidor llegue directo a tu puerta.</em>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            fontWeight: 900,
+                            background: "#25D366",
+                            color: "#ffffff",
+                            padding: "3px 10px",
+                            borderRadius: 12,
+                            letterSpacing: 0.5,
+                            boxShadow: "0 2px 8px rgba(37, 211, 102, 0.4)",
+                          }}
+                        >
+                          ⚡ PASO FINAL INDISPENSABLE
+                        </span>
+                      </div>
+                      <h4 style={{ margin: "4px 0 2px 0", fontSize: 15, fontWeight: 900, color: "var(--text)" }}>
+                        📲 Envía tu Comprobante a Cocina
+                      </h4>
+                      <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600, lineHeight: 1.4 }}>
+                        Toca el botón verde abajo para abrir WhatsApp con tu Comanda #{venta.numero_comanda.toString().padStart(4, "0")} ya vinculada para adjuntar tu comprobante de pago{requiereUbicacionWa ? " y compartir tu ubicación en tiempo real" : ""}:
+                      </p>
                     </div>
-                  )}
-                </div>
-              ) : (
+
+                    <a
+                      href={`https://wa.me/584122595386?text=${encodeURIComponent(
+                        `¡Hola La Parada del Sabor! 🫓 Acabo de registrar mi pedido #${venta.numero_comanda.toString().padStart(4, "0")} por la web ($${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}).\n\nAdjunto mi comprobante de pago${requiereUbicacionWa ? " y mi ubicación para el repartidor" : ""}.\n\n🔗 Factura digital & estado en vivo:\n${reciboUrl}`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: "linear-gradient(135deg, #25D366 0%, #128C7E 100%)",
+                        color: "#ffffff",
+                        padding: "16px 20px",
+                        borderRadius: 16,
+                        fontWeight: 900,
+                        fontSize: 15,
+                        textDecoration: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 10,
+                        boxShadow: "0 8px 24px rgba(37, 211, 102, 0.4)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <span>💬 Enviar Comprobante {requiereUbicacionWa ? "+ Ubicación " : ""}al WhatsApp</span>
+                    </a>
+                    {requiereUbicacionWa && (
+                      <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--text-muted)", textAlign: "center", fontWeight: 600 }}>
+                        💡 <em>Tip: En el chat de WhatsApp puedes tocar el clip 📎 y seleccionar <strong>Ubicación</strong> para que el repartidor llegue directo a tu puerta.</em>
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : (
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, textAlign: "center" }}>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
                     💵 ¡Tu orden está registrada en caja! Por favor ten a mano el monto exacto (${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}) al recibir o retirar tu pedido.
