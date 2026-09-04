@@ -739,44 +739,120 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
             CENTRO DE PAGO Y CONFIRMACIÓN GOURMET (FLUJO LINEAL GUIADO)
             ============================================================================== */}
         <div className="no-print" style={{ marginTop: 20 }}>
-          {venta.estado === "pendiente" ? (
+          {/* Banner de Estado del Pedido (cuando no está pendiente) */}
+          {venta.estado === "cancelada" ? (
             <div
               style={{
-                background: "var(--bg-card)",
-                border: "1.5px solid var(--border)",
-                borderRadius: 22,
-                padding: "22px 18px",
-                boxShadow: "0 14px 35px -8px rgba(0,0,0,0.15)",
+                background: "rgba(239, 68, 68, 0.1)",
+                border: "1.5px solid #ef4444",
+                borderRadius: 20,
+                padding: "16px 20px",
                 display: "flex",
-                flexDirection: "column",
-                gap: 16,
+                alignItems: "center",
+                gap: 14,
+                marginBottom: 16,
               }}
             >
-              {/* Encabezado Paso 1: Pagar */}
+              <span style={{ fontSize: 32 }}>❌</span>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 900,
-                      background: "var(--primary-light)",
-                      color: "var(--primary-dark)",
-                      padding: "3px 10px",
-                      borderRadius: 12,
-                      border: "1px solid var(--border)",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    PASO 1 DE 2
-                  </span>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: "var(--text)" }}>
-                    💳 Realiza tu Pago
-                  </span>
-                </div>
+                <strong style={{ fontSize: 15, color: "#dc2626", display: "block", marginBottom: 2 }}>
+                  Pedido Cancelado
+                </strong>
                 <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                  Transfiere el monto exacto mediante los datos oficiales de abajo:
+                  Esta comanda fue cancelada en el sistema. Si requieres asistencia, comunícate con nosotros por WhatsApp.
                 </p>
               </div>
+            </div>
+          ) : venta.estado === "completada" ? (
+            <div
+              style={{
+                background: "rgba(34, 197, 94, 0.1)",
+                border: "1.5px solid #22c55e",
+                borderRadius: 20,
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                marginBottom: 16,
+              }}
+            >
+              <span style={{ fontSize: 32 }}>🎉</span>
+              <div>
+                <strong style={{ fontSize: 15, color: "#15803d", display: "block", marginBottom: 2 }}>
+                  ¡Pedido Entregado y Completado!
+                </strong>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                  ¡Esperamos que lo disfrutes al máximo! Gracias por preferir el auténtico sabor de La Parada del Sabor.
+                </p>
+              </div>
+            </div>
+          ) : venta.estado !== "pendiente" ? (
+            <div
+              style={{
+                background: "rgba(34, 197, 94, 0.1)",
+                border: "1.5px solid #22c55e",
+                borderRadius: 20,
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                marginBottom: 16,
+              }}
+            >
+              <span style={{ fontSize: 32 }}>{venta.estado === "lista" ? "🛵" : "🍳"}</span>
+              <div>
+                <strong style={{ fontSize: 15, color: "#15803d", display: "block", marginBottom: 2 }}>
+                  {venta.estado === "lista" ? "¡Tu Pedido está Listo!" : "¡Pago Verificado & Pedido en Cocina!"}
+                </strong>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                  {venta.estado === "lista"
+                    ? `Tu comanda #${venta.numero_comanda.toString().padStart(4, "0")} está lista para su entrega.`
+                    : `Tu comanda #${venta.numero_comanda.toString().padStart(4, "0")} está siendo preparada con ingredientes frescos.`}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Tarjeta de Datos de Pago (Siempre visible como respaldo financiero del cliente) */}
+          <div
+            style={{
+              background: "var(--bg-card)",
+              border: "1.5px solid var(--border)",
+              borderRadius: 22,
+              padding: "22px 18px",
+              boxShadow: "0 14px 35px -8px rgba(0,0,0,0.15)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+          >
+            {/* Encabezado: Datos de Pago Oficiales */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 900,
+                    background: "var(--primary-light)",
+                    color: "var(--primary-dark)",
+                    padding: "3px 10px",
+                    borderRadius: 12,
+                    border: "1px solid var(--border)",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {venta.estado === "pendiente" ? "PASO 1 DE 2" : "DATOS DE PAGO"}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 900, color: "var(--text)" }}>
+                  💳 Datos para Pagar
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                {venta.estado === "pendiente"
+                  ? "Transfiere el monto exacto mediante los datos oficiales de abajo:"
+                  : "Datos oficiales de la cuenta asignada a esta factura:"}
+              </p>
+            </div>
 
               {/* 1. Datos de Pago Móvil BFC */}
               {(venta.metodo_pago === "pago_movil" || venta.metodo_pago === "pago_movil_bs") && (
@@ -988,76 +1064,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                 </div>
               )}
             </div>
-          ) : venta.estado === "cancelada" ? (
-            <div
-              style={{
-                background: "rgba(239, 68, 68, 0.1)",
-                border: "1.5px solid #ef4444",
-                borderRadius: 20,
-                padding: "16px 20px",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-              }}
-            >
-              <span style={{ fontSize: 32 }}>❌</span>
-              <div>
-                <strong style={{ fontSize: 15, color: "#dc2626", display: "block", marginBottom: 2 }}>
-                  Pedido Cancelado
-                </strong>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                  Esta comanda fue cancelada en el sistema. Si requieres asistencia, comunícate con nosotros por WhatsApp.
-                </p>
-              </div>
-            </div>
-          ) : venta.estado === "completada" ? (
-            <div
-              style={{
-                background: "rgba(34, 197, 94, 0.1)",
-                border: "1.5px solid #22c55e",
-                borderRadius: 20,
-                padding: "16px 20px",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-              }}
-            >
-              <span style={{ fontSize: 32 }}>🎉</span>
-              <div>
-                <strong style={{ fontSize: 15, color: "#15803d", display: "block", marginBottom: 2 }}>
-                  ¡Pedido Entregado y Completado!
-                </strong>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                  ¡Esperamos que lo disfrutes al máximo! Gracias por preferir el auténtico sabor de La Parada del Sabor.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                background: "rgba(34, 197, 94, 0.1)",
-                border: "1.5px solid #22c55e",
-                borderRadius: 20,
-                padding: "16px 20px",
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
-              }}
-            >
-              <span style={{ fontSize: 32 }}>{venta.estado === "lista" ? "🛵" : "🍳"}</span>
-              <div>
-                <strong style={{ fontSize: 15, color: "#15803d", display: "block", marginBottom: 2 }}>
-                  {venta.estado === "lista" ? "¡Tu Pedido está Listo!" : "¡Pago Verificado & Pedido en Cocina!"}
-                </strong>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                  {venta.estado === "lista"
-                    ? `Tu comanda #${venta.numero_comanda.toString().padStart(4, "0")} está lista para su entrega.`
-                    : `Tu comanda #${venta.numero_comanda.toString().padStart(4, "0")} está siendo preparada con ingredientes frescos.`}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
 
         {/* Botones de Acción al Pie (No se imprimen) */}
         <div className="recibo-share-actions no-print">
