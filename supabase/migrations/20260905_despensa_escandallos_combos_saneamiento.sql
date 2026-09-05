@@ -7,12 +7,7 @@
 
 BEGIN;
 
--- 0. GUARD DE PRE-VALIDACIÓN: colisión UNIQUE(nombre) con insumos creados por la UI
--- public.insumos.nombre es VARCHAR(150) UNIQUE. Si el usuario creó por la UI un insumo con el
--- MISMO nombre canónico (pero id NO canónico), el ON CONFLICT (id) DO UPDATE de las secciones
--- 1.1-1.4 arrojaría error 23505 y REVERTIRÍA toda la transacción. Este guard aborta ANTES con
--- un mensaje claro listando las colisiones para resolverlas manualmente; si no hay colisión,
--- el bloque continúa silenciosamente (no genera salida de error).
+-- 0. GUARD DE PRE-VALIDACIÓN
 DO $$
 DECLARE
     v_colisiones TEXT := '';
@@ -49,7 +44,7 @@ BEGIN
     END LOOP;
 
     IF v_colisiones <> '' THEN
-        RAISE EXCEPTION 'COLISIÓN UNIQUE(nombre) DETECTADA: existen insumos con nombres canónicos pero id NO canónico. Resuélvelos manualmente (renombra/fusiona/elimina) antes de reejecutar la migración:%', v_colisiones;
+        RAISE EXCEPTION 'COLISIÓN UNIQUE(nombre) DETECTADA: existen insumos con nombres canónicos pero id NO canónico. Resuélvelos manualmente antes de reejecutar:%', v_colisiones;
     END IF;
 END $$;
 
@@ -109,7 +104,7 @@ UPDATE public.insumos
 SET activo = false, stock_actual = 0 
 WHERE id = 'b0000019-0000-0000-0000-000000000019' OR nombre ILIKE '%Especias Sachet%';
 
--- 1.5 Sincerar Adobo La Comadre 200g (quedan 180g reales de 200g comprados)
+-- 1.5 Sincerar Adobo La Comadre 200g
 UPDATE public.insumos
 SET stock_actual = 180.00,
     stock_minimo = 30.00,
@@ -118,7 +113,7 @@ SET stock_actual = 180.00,
     activo = true
 WHERE id = 'b0000016-0000-0000-0000-000000000016' OR nombre ILIKE '%Adobo La Comadre%';
 
--- 1.6 Sincerar Caldo de Pollo Maggi y Costilla Criolla (quedan 5 cubitos reales de 8 comprados)
+-- 1.6 Sincerar Caldo de Pollo Maggi y Costilla Criolla
 UPDATE public.insumos
 SET stock_actual = 5.00,
     stock_minimo = 2.00,
@@ -135,39 +130,34 @@ SET stock_actual = 5.00,
     activo = true
 WHERE id = 'b0000018-0000-0000-0000-000000000018' OR nombre ILIKE '%Caldo de Costilla Criolla Maggi%';
 
--- 1.7 Sincerar Salsas y Pre-elaborados (Botes de 360ml)
-UPDATE public.insumos SET stock_actual = 360.0, stock_minimo = 60.0, activo = true WHERE id = 'b0000048-0000-0000-0000-000000000048'; -- Salsa Ajo
-UPDATE public.insumos SET stock_actual = 360.0, stock_minimo = 60.0, activo = true WHERE id = 'b0000049-0000-0000-0000-000000000049'; -- Salsa Big Mac
-UPDATE public.insumos SET stock_actual = 360.0, stock_minimo = 60.0, activo = true WHERE id = 'b0000050-0000-0000-0000-000000000050'; -- Salsa Perejil
-
+-- 1.7 Sincerar Salsas y Pre-elaborados
+UPDATE public.insumos SET stock_actual = 360.0, stock_minimo = 60.0, activo = true WHERE id = 'b0000048-0000-0000-0000-000000000048';
+UPDATE public.insumos SET stock_actual = 360.0, stock_minimo = 60.0, activo = true WHERE id = 'b0000049-0000-0000-0000-000000000049';
+UPDATE public.insumos SET stock_actual = 360.0, stock_minimo = 60.0, activo = true WHERE id = 'b0000050-0000-0000-0000-000000000050';
 
 -- 2. VINCULAR PROVEEDORES A TODOS LOS INSUMOS (proveedor_insumos)
 
--- Proveedor 1: Super 900
+-- Super 900
 INSERT INTO public.proveedor_insumos (proveedor_id, insumo_id, precio_referencial_usd) VALUES
-('a0000001-0000-0000-0000-000000000001', 'b0000016-0000-0000-0000-000000000016', 1.69), -- Adobo La Comadre 200g
-('a0000001-0000-0000-0000-000000000001', 'b0000017-0000-0000-0000-000000000017', 2.19), -- Caldo de Pollo Maggi (8 und)
-('a0000001-0000-0000-0000-000000000001', 'b0000018-0000-0000-0000-000000000018', 2.19), -- Caldo de Costilla Maggi (8 und)
-('a0000001-0000-0000-0000-000000000001', 'b0000051-0000-0000-0000-000000000051', 0.75), -- Pepsi 1L
-('a0000001-0000-0000-0000-000000000001', 'b0000053-0000-0000-0000-000000000053', 1.90), -- Envoplast
-('a0000001-0000-0000-0000-000000000001', 'b0000054-0000-0000-0000-000000000054', 1.43), -- Papel Aluminio
-('a0000001-0000-0000-0000-000000000001', 'b0000055-0000-0000-0000-000000000055', 1.21), -- Pimienta Molida 30g
-('a0000001-0000-0000-0000-000000000001', 'b0000056-0000-0000-0000-000000000056', 0.35), -- Orégano 15g
-('a0000001-0000-0000-0000-000000000001', 'b0000057-0000-0000-0000-000000000057', 0.59), -- Laurel 10g
-('a0000001-0000-0000-0000-000000000001', 'b0000058-0000-0000-0000-000000000058', 1.50), -- Onoto 100g
-('a0000001-0000-0000-0000-000000000001', 'b0000059-0000-0000-0000-000000000059', 1.44)  -- Comino 50g
+('a0000001-0000-0000-0000-000000000001', 'b0000016-0000-0000-0000-000000000016', 1.69),
+('a0000001-0000-0000-0000-000000000001', 'b0000017-0000-0000-0000-000000000017', 2.19),
+('a0000001-0000-0000-0000-000000000001', 'b0000018-0000-0000-0000-000000000018', 2.19),
+('a0000001-0000-0000-0000-000000000001', 'b0000051-0000-0000-0000-000000000051', 0.75),
+('a0000001-0000-0000-0000-000000000001', 'b0000053-0000-0000-0000-000000000053', 1.90),
+('a0000001-0000-0000-0000-000000000001', 'b0000054-0000-0000-0000-000000000054', 1.43),
+('a0000001-0000-0000-0000-000000000001', 'b0000055-0000-0000-0000-000000000055', 1.21),
+('a0000001-0000-0000-0000-000000000001', 'b0000056-0000-0000-0000-000000000056', 0.35),
+('a0000001-0000-0000-0000-000000000001', 'b0000057-0000-0000-0000-000000000057', 0.59),
+('a0000001-0000-0000-0000-000000000001', 'b0000058-0000-0000-0000-000000000058', 1.50),
+('a0000001-0000-0000-0000-000000000001', 'b0000059-0000-0000-0000-000000000059', 1.44)
 ON CONFLICT (proveedor_id, insumo_id) DO UPDATE SET precio_referencial_usd = EXCLUDED.precio_referencial_usd;
 
--- Proveedor 4: Todo en Desechables C.A.
+-- Todo en Desechables C.A.
 INSERT INTO public.proveedor_insumos (proveedor_id, insumo_id, precio_referencial_usd) VALUES
-('a0000004-0000-0000-0000-000000000004', 'b0000052-0000-0000-0000-000000000052', 0.20) -- Vaso de refresco con tapa
+('a0000004-0000-0000-0000-000000000004', 'b0000052-0000-0000-0000-000000000052', 0.20)
 ON CONFLICT (proveedor_id, insumo_id) DO UPDATE SET precio_referencial_usd = EXCLUDED.precio_referencial_usd;
-
 
 -- 3. ACTUALIZAR ESCANDALLOS OFICIALES DE COMBOS EN recetas_ingredientes
--- Los guisos y masas se descuentan por las arepitas seleccionadas (extras_ingredientes).
--- El combo padre descuenta: LA BEBIDA OFICIAL, LA CAJA DE EMPAQUE Y LA BOLSA CONTENEDORA.
-
 DO $$
 DECLARE
     v_prod_antojo_id    UUID;
@@ -178,7 +168,6 @@ BEGIN
     SELECT id INTO v_prod_duo_id      FROM public.productos WHERE nombre ILIKE '%Dúo%' OR nombre ILIKE '%Duo%' OR nombre ILIKE '%combo%4%' OR nombre ILIKE '%compartir%' ORDER BY nombre ASC LIMIT 1;
     SELECT id INTO v_prod_familiar_id FROM public.productos WHERE nombre ILIKE '%Familiar%' OR nombre ILIKE '%Resuelve%' OR nombre ILIKE '%combo%10%' ORDER BY nombre ASC LIMIT 1;
 
-    -- Limpiar escandallos anteriores de los 3 combos para reconstruirlos perfectamente
     IF v_prod_antojo_id IS NOT NULL THEN
         DELETE FROM public.recetas_ingredientes WHERE producto_id = v_prod_antojo_id;
     END IF;
@@ -189,39 +178,34 @@ BEGIN
         DELETE FROM public.recetas_ingredientes WHERE producto_id = v_prod_familiar_id;
     END IF;
 
-    -- A. EL ANTOJO RÁPIDO (2 Arepas)
-    -- Incluye: 1 Vaso de Refresco (Bebida) + 1 Vaso y Tapa Desechable + 1 Caja Kraft 3 + 1 Bolsa
+    -- A. El Antojo Rápido (2 Arepas)
     IF v_prod_antojo_id IS NOT NULL THEN
         INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad, es_opcional) VALUES
-        (v_prod_antojo_id, 'b0000052-0000-0000-0000-000000000052', 1.00, false), -- Vaso de Refresco Bebida
-        (v_prod_antojo_id, 'b0000040-0000-0000-0000-000000000040', 1.00, false), -- Vaso Desechable y Tapa
-        (v_prod_antojo_id, 'b0000038-0000-0000-0000-000000000038', 1.00, false), -- Caja Dulce Kraft 3 (Mediana/Personal)
-        (v_prod_antojo_id, 'b0000041-0000-0000-0000-000000000041', 1.00, false); -- Bolsa Plástica
+        (v_prod_antojo_id, 'b0000052-0000-0000-0000-000000000052', 1.00, false),
+        (v_prod_antojo_id, 'b0000040-0000-0000-0000-000000000040', 1.00, false),
+        (v_prod_antojo_id, 'b0000038-0000-0000-0000-000000000038', 1.00, false),
+        (v_prod_antojo_id, 'b0000041-0000-0000-0000-000000000041', 1.00, false);
     END IF;
 
-    -- B. EL DÚO DINÁMICO (4 Arepas)
-    -- Incluye: 1 Refresco Pepsi 1L + 1 Caja Kraft 3 + 1 Bolsa Plástica
+    -- B. El Dúo Dinámico (4 Arepas)
     IF v_prod_duo_id IS NOT NULL THEN
         INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad, es_opcional) VALUES
-        (v_prod_duo_id, 'b0000051-0000-0000-0000-000000000051', 1.00, false), -- Refresco Pepsi 1L
-        (v_prod_duo_id, 'b0000038-0000-0000-0000-000000000038', 1.00, false), -- Caja Dulce Kraft 3 (Mediana/Personal)
-        (v_prod_duo_id, 'b0000041-0000-0000-0000-000000000041', 1.00, false); -- Bolsa Plástica
+        (v_prod_duo_id, 'b0000051-0000-0000-0000-000000000051', 1.00, false),
+        (v_prod_duo_id, 'b0000038-0000-0000-0000-000000000038', 1.00, false),
+        (v_prod_duo_id, 'b0000041-0000-0000-0000-000000000041', 1.00, false);
     END IF;
 
-    -- C. EL RESUELVE FAMILIAR (10 Arepas)
-    -- Incluye: 1 Refresco Pepsi 1.5L + 1 Caja Kraft 6 (Familiar) + 1 Bolsa Plástica
+    -- C. El Resuelve Familiar (10 Arepas)
     IF v_prod_familiar_id IS NOT NULL THEN
         INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad, es_opcional) VALUES
-        (v_prod_familiar_id, 'b0000044-0000-0000-0000-000000000044', 1.00, false), -- Pepsi Cola 1.5L
-        (v_prod_familiar_id, 'b0000037-0000-0000-0000-000000000037', 1.00, false), -- Caja Dulce Kraft 6 (Familiar)
-        (v_prod_familiar_id, 'b0000041-0000-0000-0000-000000000041', 1.00, false); -- Bolsa Plástica
+        (v_prod_familiar_id, 'b0000044-0000-0000-0000-000000000044', 1.00, false),
+        (v_prod_familiar_id, 'b0000037-0000-0000-0000-000000000037', 1.00, false),
+        (v_prod_familiar_id, 'b0000041-0000-0000-0000-000000000041', 1.00, false);
     END IF;
 
 END $$;
 
-
 -- 4. ACTUALIZAR extras_ingredientes PARA QUE USE LAS SALSAS PRE-ELABORADAS REALES
--- Evitar que la Arepa Especial de Pollo descuente Perejil en hoja en vez de Salsa de Perejil
 DO $$
 DECLARE
     v_ext_esp_pollo UUID;
@@ -230,21 +214,19 @@ BEGIN
     SELECT id INTO v_ext_esp_pollo FROM public.extras_modificadores WHERE nombre ILIKE '%Especial%Pollo%' LIMIT 1;
     SELECT id INTO v_ext_esp_carne FROM public.extras_modificadores WHERE nombre ILIKE '%Especial%Carne%' LIMIT 1;
 
-    -- Reemplazar perejil en hoja por salsa de perejil casera
     IF v_ext_esp_pollo IS NOT NULL THEN
         DELETE FROM public.extras_ingredientes 
         WHERE extra_id = v_ext_esp_pollo 
-          AND insumo_id = 'b0000028-0000-0000-0000-000000000028'; -- Perejil Liso
+          AND insumo_id = 'b0000028-0000-0000-0000-000000000028';
 
         INSERT INTO public.extras_ingredientes (extra_id, insumo_id, cantidad)
-        VALUES (v_ext_esp_pollo, 'b0000050-0000-0000-0000-000000000050', 9.00) -- Salsa Perejil Casera (ml)
+        VALUES (v_ext_esp_pollo, 'b0000050-0000-0000-0000-000000000050', 9.00)
         ON CONFLICT (extra_id, insumo_id) DO UPDATE SET cantidad = 9.00;
     END IF;
 
-    -- Asegurar Salsa Ajo Casera en Especial de Carne
     IF v_ext_esp_carne IS NOT NULL THEN
         INSERT INTO public.extras_ingredientes (extra_id, insumo_id, cantidad)
-        VALUES (v_ext_esp_carne, 'b0000048-0000-0000-0000-000000000048', 9.00) -- Salsa Ajo Casera (ml)
+        VALUES (v_ext_esp_carne, 'b0000048-0000-0000-0000-000000000048', 9.00)
         ON CONFLICT (extra_id, insumo_id) DO UPDATE SET cantidad = 9.00;
     END IF;
 END $$;
@@ -260,17 +242,17 @@ SELECT
     i.costo_unitario_usd
 FROM public.insumos i
 WHERE i.id IN (
-    'b0000016-0000-0000-0000-000000000016', -- Adobo
-    'b0000017-0000-0000-0000-000000000017', -- Caldo Pollo
-    'b0000018-0000-0000-0000-000000000018', -- Caldo Costilla
-    'b0000051-0000-0000-0000-000000000051', -- Pepsi 1L
-    'b0000052-0000-0000-0000-000000000052', -- Vaso Refresco
-    'b0000053-0000-0000-0000-000000000053', -- Envoplast
-    'b0000054-0000-0000-0000-000000000054', -- Papel Aluminio
-    'b0000055-0000-0000-0000-000000000055', -- Pimienta
-    'b0000056-0000-0000-0000-000000000056', -- Orégano
-    'b0000057-0000-0000-0000-000000000057', -- Laurel
-    'b0000058-0000-0000-0000-000000000058', -- Onoto
-    'b0000059-0000-0000-0000-000000000059'  -- Comino
+    'b0000016-0000-0000-0000-000000000016',
+    'b0000017-0000-0000-0000-000000000017',
+    'b0000018-0000-0000-0000-000000000018',
+    'b0000051-0000-0000-0000-000000000051',
+    'b0000052-0000-0000-0000-000000000052',
+    'b0000053-0000-0000-0000-000000000053',
+    'b0000054-0000-0000-0000-000000000054',
+    'b0000055-0000-0000-0000-000000000055',
+    'b0000056-0000-0000-0000-000000000056',
+    'b0000057-0000-0000-0000-000000000057',
+    'b0000058-0000-0000-0000-000000000058',
+    'b0000059-0000-0000-0000-000000000059'
 )
 ORDER BY i.categoria_insumo, i.nombre;
