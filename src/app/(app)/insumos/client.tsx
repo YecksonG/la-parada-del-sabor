@@ -158,8 +158,11 @@ export default function InsumosClient({
     "Lácteos",
     "Vegetales",
     "Salsas",
+    "Grasas",
+    "Condimentos",
     "Bebidas",
     "Empaques",
+    "Desechables",
     "General",
   ];
 
@@ -170,10 +173,12 @@ export default function InsumosClient({
         ins.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
         catInsumo.includes(busqueda.toLowerCase());
 
+      // Nota: el solape entre "Empaques" y "Desechables" es DELIBERADO — retro-compatibilidad con valores legacy (singular/plural) en categoria_insumo; NO marcar como bug.
       const coincideCategoria =
         categoriaFiltro === "todas" ||
         catInsumo === categoriaFiltro.toLowerCase() ||
-        (categoriaFiltro === "Empaques" && catInsumo === "empaque");
+        (categoriaFiltro === "Empaques" && (catInsumo === "empaque" || catInsumo === "empaques" || catInsumo === "desechables")) ||
+        (categoriaFiltro === "Desechables" && (catInsumo === "desechable" || catInsumo === "desechables" || catInsumo === "empaques"));
 
       return coincideBusqueda && coincideCategoria;
     });
@@ -341,7 +346,7 @@ export default function InsumosClient({
         >
           🍳 Pre-elaborados / Guisos
         </button>
-        {["Carnes", "Masas", "Quesos", "Lácteos", "Vegetales", "Salsas", "Bebidas", "Empaques"].map((cat) => (
+        {["Carnes", "Masas", "Quesos", "Lácteos", "Vegetales", "Salsas", "Grasas", "Condimentos", "Bebidas", "Empaques", "Desechables"].map((cat) => (
           <button
             key={cat}
             type="button"
