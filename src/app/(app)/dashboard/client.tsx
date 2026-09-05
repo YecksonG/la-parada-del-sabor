@@ -2,14 +2,64 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Venta, Cliente, Insumo, Producto } from "@/types/database";
-import { esMismaFechaEnCaracas } from "@/lib/date-vzla";
+import { Venta, Cliente, Insumo, Producto, SesionCaja } from "@/types/database";
+import { esMismaFechaEnCaracas, toFechaCaracasString } from "@/lib/date-vzla";
+
+export interface JornadaCierreItem {
+  id: string;
+  titulo: string;
+  fechaTexto: string;
+  fechaIso: string;
+  fechaApertura: string;
+  fechaCierre?: string | null;
+  estado: "abierta" | "cerrada";
+  fondoInicialUsd: number;
+  totalUsd: number;
+  totalBs: number;
+  efectivoUsd: number;
+  efectivoBs: number;
+  pagoMovilBs: number;
+  transferenciaBs: number;
+  puntoBs: number;
+  dolaresDigitalesUsd: number;
+  diferenciaUsd?: number | null;
+  notasCierre?: string | null;
+  comandas: Venta[];
+  esSesionFormal: boolean;
+}
+
+export function getMetodoPagoBadge(metodo?: string | null) {
+  switch (metodo) {
+    case "efectivo_usd":
+      return { label: "💵 Efectivo USD", color: "#16a34a", bg: "rgba(22, 163, 74, 0.12)" };
+    case "efectivo_bs":
+      return { label: "🇻🇪 Efectivo Bs", color: "#16a34a", bg: "rgba(22, 163, 74, 0.12)" };
+    case "pago_movil":
+    case "pago_movil_bs":
+      return { label: "📱 Pago Móvil Bs", color: "#0284c7", bg: "rgba(2, 132, 199, 0.12)" };
+    case "punto":
+    case "punto_bs":
+      return { label: "💳 Punto / POS", color: "#6366f1", bg: "rgba(99, 102, 241, 0.12)" };
+    case "transferencia":
+    case "transferencia_bs":
+      return { label: "🏦 Transferencia", color: "#0d9488", bg: "rgba(13, 148, 136, 0.12)" };
+    case "binance":
+      return { label: "🟡 Binance Pay", color: "#ca8a04", bg: "rgba(202, 138, 4, 0.12)" };
+    case "zelle":
+      return { label: "🟣 Zelle", color: "#9333ea", bg: "rgba(147, 51, 234, 0.12)" };
+    case "pesos_cop":
+      return { label: "🇨🇴 Pesos COP", color: "#ea580c", bg: "rgba(234, 88, 12, 0.12)" };
+    default:
+      return { label: metodo ? `💳 ${metodo}` : "💵 Efectivo USD", color: "var(--text)", bg: "var(--bg-subtle)" };
+  }
+}
 
 interface DashboardClientProps {
   ventas: Venta[];
   clientes: Cliente[];
   insumos: Insumo[];
   productos: Producto[];
+  historialCajas?: SesionCaja[];
   tasaBcv: number;
 }
 
@@ -18,6 +68,7 @@ export default function DashboardClient({
   clientes,
   insumos,
   productos,
+  historialCajas = [],
   tasaBcv,
 }: DashboardClientProps) {
   const [periodo, setPeriodo] = useState<"hoy" | "semana" | "mes" | "todo">("mes");
@@ -26,6 +77,10 @@ export default function DashboardClient({
   const [semanaDeliveryKey, setSemanaDeliveryKey] = useState<string>("");
   const [busquedaDelivery, setBusquedaDelivery] = useState<string>("");
   const [copiadoDelivery, setCopiadoDelivery] = useState(false);
+
+  // Modal para ver comandas del cierre seleccionado
+  const [cierreSeleccionado, setCierreSeleccionado] = useState<JornadaCierreItem | null>(null);
+  const [filtroEstadoModalCierre, setFiltroEstadoModalCierre] = useState<string>("todos");
 
   // Filtrar ventas por periodo
   const ventasFiltradas = useMemo(() => {
@@ -304,6 +359,203 @@ export default function DashboardClient({
         (v.direccion_delivery && v.direccion_delivery.toLowerCase().includes(q))
     );
   }, [semanaDeliveryActiva, busquedaDelivery]);
+
+  // Historial unificado de Cierres de Caja & Jornadas Diarias
+  const jornadasCierres = useMemo(() => {
+    const list: JornadaCierreItem[] = [];
+    const fechasCubiertas = new Set<string>();
+
+    // 1. Si hay sesiones formales en `historialCajas`, mapearlas
+    historialCajas.forEach((c) => {
+      const fechaIso = toFechaCaracasString(c.fecha_apertura);
+      fechasCubiertas.add(fechaIso);
+
+      const apertura = new Date(c.fecha_apertura);
+      const cierre = c.fecha_cierre ? new Date(c.fecha_cierre) : null;
+
+      // Filtrar comandas de este turno
+      // Sesiones abiertas: incluir todas las ventas desde apertura (sin límite superior)
+      // Sesiones cerradas: incluir solo ventas dentro del rango apertura ↔ cierre
+      const comandasTurno = ventas.filter((v) => {
+        if (v.estado === "cancelada") return false;
+        const f = new Date(v.fecha);
+        if (cierre) {
+          return f >= apertura && f <= cierre;
+        }
+        return f >= apertura;
+      });
+
+      // Cubrir TODAS las fechas a las que pertenecen las comandas de este turno formal.
+      // Esto evita que ventas de sesiones abiertas multi-día (o que cruzan medianoche)
+      // se filtren a jornadas sintéticas y se cuenten dos veces.
+      comandasTurno.forEach((v) => {
+        fechasCubiertas.add(toFechaCaracasString(v.fecha));
+      });
+
+      const totalVentasUsdCalc = comandasTurno.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+      const totalVentasBsCalc = comandasTurno.reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const efectivoCalc = comandasTurno
+        .filter((v) => v.metodo_pago === "efectivo_usd" || v.metodo_pago === "efectivo")
+        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+
+      const efectivoBsCalc = comandasTurno
+        .filter((v) => v.metodo_pago === "efectivo_bs")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const pagoMovilCalc = comandasTurno
+        .filter((v) => v.metodo_pago === "pago_movil" || v.metodo_pago === "pago_movil_bs")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const puntoCalc = comandasTurno
+        .filter((v) => v.metodo_pago === "punto" || v.metodo_pago === "punto_bs" || v.metodo_pago === "pos")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const transferenciaCalc = comandasTurno
+        .filter((v) => v.metodo_pago === "transferencia" || v.metodo_pago === "transferencia_bs")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const digitalesCalc = comandasTurno
+        .filter((v) => v.metodo_pago === "binance" || v.metodo_pago === "binance_usdt" || v.metodo_pago === "zelle")
+        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+
+      const d = new Date(c.fecha_apertura);
+      const fechaTexto = d.toLocaleDateString("es-VE", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "America/Caracas",
+      });
+      const horaTexto = d.toLocaleTimeString("es-VE", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Caracas",
+      });
+
+      list.push({
+        id: c.id,
+        titulo: c.estado === "abierta" ? "🟢 Turno Actual (En Operación)" : "🔒 Turno Cerrado (Arqueado)",
+        fechaTexto: `${fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1)} • ${horaTexto}`,
+        fechaIso,
+        fechaApertura: c.fecha_apertura,
+        fechaCierre: c.fecha_cierre,
+        estado: c.estado,
+        fondoInicialUsd: Number(c.monto_inicial_usd || 0),
+        totalUsd: totalVentasUsdCalc,
+        totalBs: totalVentasBsCalc,
+        efectivoUsd: c.estado === "cerrada" && c.total_ventas_efectivo_usd ? Number(c.total_ventas_efectivo_usd) : efectivoCalc,
+        efectivoBs: efectivoBsCalc,
+        pagoMovilBs: c.estado === "cerrada" && c.total_ventas_pago_movil_bs ? Number(c.total_ventas_pago_movil_bs) : pagoMovilCalc,
+        transferenciaBs: c.estado === "cerrada" && c.total_ventas_transferencia_bs ? Number(c.total_ventas_transferencia_bs) : transferenciaCalc,
+        puntoBs: c.estado === "cerrada" && c.total_ventas_punto_bs ? Number(c.total_ventas_punto_bs) : puntoCalc,
+        dolaresDigitalesUsd: c.estado === "cerrada" && c.total_ventas_binance_usd ? Number(c.total_ventas_binance_usd) : digitalesCalc,
+        diferenciaUsd: c.diferencia_usd,
+        notasCierre: c.notas_cierre,
+        comandas: comandasTurno,
+        esSesionFormal: true,
+      });
+    });
+
+    // 2. Agrupar ventas por día para las jornadas que no tengan sesión formal
+    const ventasPorDia = new Map<string, Venta[]>();
+    ventas.forEach((v) => {
+      if (v.estado === "cancelada") return;
+      const fIso = toFechaCaracasString(v.fecha);
+      if (!fechasCubiertas.has(fIso)) {
+        const arr = ventasPorDia.get(fIso) || [];
+        arr.push(v);
+        ventasPorDia.set(fIso, arr);
+      }
+    });
+
+    ventasPorDia.forEach((comandasDelDia, fIso) => {
+      const primeraVenta = comandasDelDia[0];
+      const d = new Date(primeraVenta.fecha);
+      const fechaTexto = d.toLocaleDateString("es-VE", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "America/Caracas",
+      });
+
+      const esHoy = esMismaFechaEnCaracas(primeraVenta.fecha);
+      const totalUsd = comandasDelDia.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+      const totalBs = comandasDelDia.reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const efectivoUsd = comandasDelDia
+        .filter((v) => v.metodo_pago === "efectivo_usd" || v.metodo_pago === "efectivo")
+        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+
+      const efectivoBs = comandasDelDia
+        .filter((v) => v.metodo_pago === "efectivo_bs")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const pagoMovilBs = comandasDelDia
+        .filter((v) => v.metodo_pago === "pago_movil" || v.metodo_pago === "pago_movil_bs")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const transferenciaBs = comandasDelDia
+        .filter((v) => v.metodo_pago === "transferencia" || v.metodo_pago === "transferencia_bs")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const puntoBs = comandasDelDia
+        .filter((v) => v.metodo_pago === "punto" || v.metodo_pago === "punto_bs" || v.metodo_pago === "pos")
+        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+
+      const dolaresDigitalesUsd = comandasDelDia
+        .filter((v) => v.metodo_pago === "binance" || v.metodo_pago === "binance_usdt" || v.metodo_pago === "zelle")
+        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+
+      list.push({
+        id: `jornada-${fIso}`,
+        titulo: esHoy ? "🟢 Jornada de Hoy" : `🔒 Jornada ${fIso}`,
+        fechaTexto: fechaTexto.charAt(0).toUpperCase() + fechaTexto.slice(1),
+        fechaIso: fIso,
+        fechaApertura: primeraVenta.fecha,
+        fechaCierre: null,
+        estado: esHoy ? "abierta" : "cerrada",
+        fondoInicialUsd: 0,
+        totalUsd,
+        totalBs,
+        efectivoUsd,
+        efectivoBs,
+        pagoMovilBs,
+        transferenciaBs,
+        puntoBs,
+        dolaresDigitalesUsd,
+        diferenciaUsd: null,
+        notasCierre: null,
+        comandas: comandasDelDia,
+        esSesionFormal: false,
+      });
+    });
+
+    // Ordenar de más reciente a más antigua
+    return list.sort((a, b) => new Date(b.fechaApertura).getTime() - new Date(a.fechaApertura).getTime());
+  }, [ventas, historialCajas]);
+
+  // Comandas filtradas dentro del modal de cierre
+  const comandasModalFiltradas = useMemo(() => {
+    if (!cierreSeleccionado) return [];
+    if (filtroEstadoModalCierre === "todos") return cierreSeleccionado.comandas;
+    return cierreSeleccionado.comandas.filter((v) => v.estado === filtroEstadoModalCierre);
+  }, [cierreSeleccionado, filtroEstadoModalCierre]);
+
+  // Conteos por estado para las pestañas del modal
+  const conteosModal = useMemo(() => {
+    if (!cierreSeleccionado) return { todos: 0, pendiente: 0, preparando: 0, lista: 0, completada: 0, cancelada: 0 };
+    const all = cierreSeleccionado.comandas;
+    return {
+      todos: all.length,
+      pendiente: all.filter((v) => v.estado === "pendiente").length,
+      preparando: all.filter((v) => v.estado === "preparando").length,
+      lista: all.filter((v) => v.estado === "lista").length,
+      completada: all.filter((v) => v.estado === "completada").length,
+      cancelada: all.filter((v) => v.estado === "cancelada").length,
+    };
+  }, [cierreSeleccionado]);
 
   // Métricas de Clientes
   const metricasClientes = useMemo(() => {
@@ -879,6 +1131,187 @@ export default function DashboardClient({
         )}
       </div>
 
+      {/* SECCIÓN DEDICADA: HISTORIAL DE CIERRES ANTERIORES & JORNADAS DIARIAS */}
+      <div className="receta-card" style={{ marginTop: 20 }}>
+        <div className="receta-card-header" style={{ flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <h3 className="receta-name" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              📋 Historial de Cierres Anteriores & Jornadas Diarias
+            </h3>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-muted)" }}>
+              Auditoría cronológica de turnos de caja y jornadas. Haz clic en cualquier tarjeta para abrir el modal con todas las comandas, facturas y detalle de platos.
+            </p>
+          </div>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: "var(--text-muted)",
+              background: "var(--bg-subtle)",
+              padding: "4px 12px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+            }}
+          >
+            {jornadasCierres.length} {jornadasCierres.length === 1 ? "Registro" : "Cierres / Jornadas"}
+          </span>
+        </div>
+
+        {jornadasCierres.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-muted)" }}>
+            <span style={{ fontSize: 36, display: "block", marginBottom: 8 }}>🔒</span>
+            <strong style={{ fontSize: 14, color: "var(--text)" }}>Sin jornadas ni cierres registrados</strong>
+            <p style={{ fontSize: 12, margin: "4px 0 0" }}>
+              Cuando se registren ventas o aperturas de caja, se listarán automáticamente aquí.
+            </p>
+          </div>
+        ) : (
+          <div className="comandas-grid" style={{ marginTop: 14 }}>
+            {jornadasCierres.map((c) => (
+              <div
+                key={c.id}
+                className="comanda-card"
+                onClick={() => {
+                  setCierreSeleccionado(c);
+                  setFiltroEstadoModalCierre("todos");
+                }}
+                style={{
+                  cursor: "pointer",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+                  borderColor: c.estado === "abierta" ? "var(--primary)" : undefined,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-3px)";
+                  e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.12)";
+                  e.currentTarget.style.borderColor = "var(--primary)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "none";
+                  e.currentTarget.style.boxShadow = "";
+                  e.currentTarget.style.borderColor = c.estado === "abierta" ? "var(--primary)" : "";
+                }}
+              >
+                <div className="comanda-card-header">
+                  <div>
+                    <h3 className="receta-name" style={{ fontSize: 15 }}>
+                      {c.titulo}
+                    </h3>
+                    <span className="comanda-time" style={{ fontSize: 11.5 }}>
+                      📅 {c.fechaTexto}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+                    <span className={`stock-badge ${c.estado === "abierta" ? "stock-badge-optimo" : "stock-badge-bajo"}`}>
+                      {c.estado.toUpperCase()}
+                    </span>
+                    {c.esSesionFormal ? (
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#10b981" }}>🛡️ Turno Caja</span>
+                    ) : (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)" }}>📅 Jornada</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="receta-metrics-row" style={{ marginTop: 10, marginBottom: 10 }}>
+                  <div className="metric-box">
+                    <span className="metric-label">Comandas:</span>
+                    <strong style={{ fontSize: 15 }}>{c.comandas.length} pedidos</strong>
+                  </div>
+                  <div className="metric-box">
+                    <span className="metric-label">Facturado USD:</span>
+                    <strong className="text-primary" style={{ fontSize: 15 }}>
+                      ${c.totalUsd.toFixed(2)}
+                    </strong>
+                  </div>
+                  <div className="metric-box">
+                    <span className="metric-label">Facturado Bs:</span>
+                    <strong className="text-green" style={{ fontSize: 14 }}>
+                      {c.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Desglose por método */}
+                <div
+                  style={{
+                    background: "var(--bg-subtle)",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                    gap: 6,
+                    fontSize: 11.5,
+                  }}
+                >
+                  <div>
+                    <span style={{ color: "var(--text-muted)", display: "block" }}>💵 Efectivo Gaveta:</span>
+                    <strong style={{ color: "#16a34a" }}>${c.efectivoUsd.toFixed(2)} USD</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "var(--text-muted)", display: "block" }}>🇻🇪 Efectivo Bs:</span>
+                    <strong style={{ color: "#16a34a" }}>
+                      {c.efectivoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "var(--text-muted)", display: "block" }}>📱 Pago Móvil:</span>
+                    <strong style={{ color: "#0284c7" }}>
+                      {c.pagoMovilBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "var(--text-muted)", display: "block" }}>🏦 Transferencia:</span>
+                    <strong style={{ color: "#0d9488" }}>
+                      {c.transferenciaBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Arqueo y Botón de Auditoría */}
+                <div
+                  style={{
+                    marginTop: 10,
+                    paddingTop: 8,
+                    borderTop: "1px solid var(--border-subtle)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: 12,
+                  }}
+                >
+                  {c.diferenciaUsd !== null && c.diferenciaUsd !== undefined ? (
+                    <span style={{ fontSize: 11, fontWeight: 700, color: c.diferenciaUsd >= 0 ? "var(--green)" : "var(--accent)" }}>
+                      ⚖️ Arqueo: {c.diferenciaUsd >= 0 ? `+${c.diferenciaUsd}` : c.diferenciaUsd} USD
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      🔍 Auditoría detallada
+                    </span>
+                  )}
+
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                      color: "var(--primary-dark)",
+                      background: "var(--primary-light)",
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      border: "1px solid var(--border)",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                    }}
+                  >
+                    Ver Comandas ({c.comandas.length}) →
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Modal de Gráficas Continuas Históricas (Semana a Semana / Mes a Mes) */}
       {modalGraficasHistoricas && (
         <div className="modal-overlay" onClick={() => setModalGraficasHistoricas(false)}>
@@ -1126,6 +1559,400 @@ export default function DashboardClient({
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Modal Detallado de Comandas y Facturas del Cierre Seleccionado */}
+      {cierreSeleccionado && (
+        <div
+          className="modal-overlay"
+          onClick={() => setCierreSeleccionado(null)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px",
+          }}
+        >
+          <div
+            className="modal-recipe-card"
+            style={{
+              maxWidth: 1060,
+              width: "100%",
+              maxHeight: "92vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              padding: 0,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              className="modal-recipe-header"
+              style={{
+                padding: "18px 24px",
+                borderBottom: "1px solid var(--border)",
+                background: "var(--bg-card)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 16,
+              }}
+            >
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                  <h2 style={{ fontSize: 19, fontWeight: 900, margin: 0, color: "var(--text)" }}>
+                    📋 {cierreSeleccionado.titulo}
+                  </h2>
+                  <span className={`stock-badge ${cierreSeleccionado.estado === "abierta" ? "stock-badge-optimo" : "stock-badge-bajo"}`}>
+                    {cierreSeleccionado.estado.toUpperCase()}
+                  </span>
+                  {cierreSeleccionado.esSesionFormal ? (
+                    <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(16, 185, 129, 0.15)", color: "#10b981", padding: "2px 8px", borderRadius: 6 }}>
+                      🛡️ Turno Oficial en Caja
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 800, background: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", padding: "2px 8px", borderRadius: 6 }}>
+                      📅 Jornada Diaria Registrada
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
+                  📅 {cierreSeleccionado.fechaTexto} • Facturación total:{" "}
+                  <strong className="text-primary">${cierreSeleccionado.totalUsd.toFixed(2)} USD</strong> (
+                  {cierreSeleccionado.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs)
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCierreSeleccionado(null)}
+                className="btn-modal-close"
+                style={{ fontSize: 18, width: 34, height: 34, borderRadius: "50%", cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Resumen Métricas Rápidas del Cierre */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
+                gap: 10,
+                padding: "12px 24px",
+                background: "var(--bg-subtle)",
+                borderBottom: "1px solid var(--border)",
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🧾 Comandas</span>
+                <strong style={{ fontSize: 15 }}>{cierreSeleccionado.comandas.length} pedidos</strong>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>💵 Efectivo Gaveta</span>
+                <strong style={{ fontSize: 15, color: "#16a34a" }}>${cierreSeleccionado.efectivoUsd.toFixed(2)} USD</strong>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🇻🇪 Efectivo Bs</span>
+                <strong style={{ fontSize: 15, color: "#16a34a" }}>
+                  {cierreSeleccionado.efectivoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                </strong>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>📱 Pago Móvil</span>
+                <strong style={{ fontSize: 15, color: "#0284c7" }}>
+                  {cierreSeleccionado.pagoMovilBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                </strong>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🏦 Transferencia</span>
+                <strong style={{ fontSize: 15, color: "#0d9488" }}>
+                  {cierreSeleccionado.transferenciaBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                </strong>
+              </div>
+              {cierreSeleccionado.fondoInicialUsd > 0 && (
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>💼 Fondo Inicial</span>
+                  <strong style={{ fontSize: 15 }}>${cierreSeleccionado.fondoInicialUsd.toFixed(2)} USD</strong>
+                </div>
+              )}
+              {cierreSeleccionado.diferenciaUsd !== null && cierreSeleccionado.diferenciaUsd !== undefined && (
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>⚖️ Dif. Arqueo</span>
+                  <strong style={{ fontSize: 15, color: cierreSeleccionado.diferenciaUsd >= 0 ? "#16a34a" : "#ef4444" }}>
+                    {cierreSeleccionado.diferenciaUsd >= 0 ? `+${cierreSeleccionado.diferenciaUsd}` : cierreSeleccionado.diferenciaUsd} USD
+                  </strong>
+                </div>
+              )}
+            </div>
+
+            {/* Barra de Filtros de Estado en Modal */}
+            <div
+              style={{
+                padding: "10px 24px",
+                background: "var(--bg)",
+                borderBottom: "1px solid var(--border-subtle)",
+                display: "flex",
+                gap: 8,
+                overflowX: "auto",
+              }}
+            >
+              {[
+                { id: "todos", label: "Todas", count: conteosModal.todos, icon: "📋" },
+                { id: "pendiente", label: "Por Confirmar", count: conteosModal.pendiente, icon: "🟡" },
+                { id: "preparando", label: "En Cocina", count: conteosModal.preparando, icon: "🍳" },
+                { id: "lista", label: "Listas / En Camino", count: conteosModal.lista, icon: "🛵" },
+                { id: "completada", label: "Entregadas", count: conteosModal.completada, icon: "✅" },
+                { id: "cancelada", label: "Canceladas", count: conteosModal.cancelada, icon: "❌" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFiltroEstadoModalCierre(f.id)}
+                  className={`cat-pill ${filtroEstadoModalCierre === f.id ? "cat-pill-active" : ""}`}
+                  style={{ fontSize: 12, padding: "5px 12px", whiteSpace: "nowrap" }}
+                >
+                  <span>{f.icon}</span> {f.label} ({f.count})
+                </button>
+              ))}
+            </div>
+
+            {/* Contenido scrolleable con Grid de Comandas */}
+            <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, maxHeight: "calc(92vh - 200px)" }}>
+              {comandasModalFiltradas.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 16px" }}>
+                  <Image
+                    src="/mascota/stickers/07_pulgar_arriba_confirmado.png"
+                    alt="Sin comandas"
+                    width={80}
+                    height={80}
+                    style={{ margin: "0 auto 12px", objectFit: "contain" }}
+                  />
+                  <h4 style={{ margin: "0 0 6px" }}>No hay comandas registradas en este estado</h4>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--text-muted)" }}>
+                    Selecciona otra pestaña o cambia el filtro superior.
+                  </p>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                    gap: 16,
+                  }}
+                >
+                  {comandasModalFiltradas.map((v) => {
+                    const metodoInfo = getMetodoPagoBadge(v.metodo_pago);
+                    const hora = new Date(v.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+                    return (
+                      <div key={v.id} className={`comanda-card comanda-${v.estado}`} style={{ margin: 0 }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
+                          {/* Header de la comanda */}
+                          <div className="comanda-card-header">
+                            <div>
+                              <span className="comanda-number">#{v.numero_comanda}</span>
+                              <span className="comanda-time">🕒 {hora}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <a
+                                href={`/recibo/${v.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-ticket-receipt-link"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  fontSize: 11,
+                                  fontWeight: 800,
+                                  color: "var(--primary-dark)",
+                                  textDecoration: "none",
+                                  padding: "3px 8px",
+                                  borderRadius: 8,
+                                  background: "var(--primary-light)",
+                                  border: "1px solid var(--border)",
+                                }}
+                                title="Ver o compartir factura digital gourmet"
+                              >
+                                🧾 Recibo
+                              </a>
+                              <span className={`comanda-status-pill status-${v.estado}`}>
+                                {v.estado === "pendiente"
+                                  ? "🟡 Por Confirmar"
+                                  : v.estado === "preparando"
+                                  ? "🍳 En Cocina"
+                                  : v.estado === "lista"
+                                  ? v.tipo_entrega === "delivery"
+                                    ? "🛵 En Camino"
+                                    : "🛍️ Lista"
+                                  : v.estado === "completada"
+                                  ? "✅ Entregada"
+                                  : "❌ Cancelada"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Cliente */}
+                          <div className="comanda-client-row">
+                            <span style={{ fontSize: 16 }}>👤</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <strong style={{ fontSize: 13, color: "var(--text)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {v.cliente?.nombre || (v.creado_por === "web_cliente" ? "Cliente Web" : "Cliente Mostrador")}
+                              </strong>
+                              {v.cliente?.telefono && (
+                                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
+                                  📞 {v.cliente.telefono}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Badges de Tipo, Método de Pago y Origen */}
+                          <div className="comanda-type-row" style={{ flexWrap: "wrap", gap: 6 }}>
+                            <span className="comanda-badge-type">{v.tipo_entrega.toUpperCase()}</span>
+                            <span
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 800,
+                                background: metodoInfo.bg,
+                                color: metodoInfo.color,
+                                padding: "2px 8px",
+                                borderRadius: 6,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
+                              {metodoInfo.label}
+                            </span>
+
+                            {v.origen_pedido === "instagram" ? (
+                              <span style={{ fontSize: 10.5, fontWeight: 800, background: "linear-gradient(135deg, #f09433 0%, #dc2743 50%, #bc1888 100%)", color: "#ffffff", padding: "2px 7px", borderRadius: 6 }}>
+                                📸 IG
+                              </span>
+                            ) : v.origen_pedido === "whatsapp" ? (
+                              <span style={{ fontSize: 10.5, fontWeight: 800, background: "#25D366", color: "#ffffff", padding: "2px 7px", borderRadius: 6 }}>
+                                💬 WA
+                              </span>
+                            ) : v.origen_pedido === "qr" ? (
+                              <span style={{ fontSize: 10.5, fontWeight: 800, background: "#06b6d4", color: "#ffffff", padding: "2px 7px", borderRadius: 6 }}>
+                                📲 QR
+                              </span>
+                            ) : v.creado_por === "web_cliente" ? (
+                              <span style={{ fontSize: 10.5, fontWeight: 700, background: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", padding: "2px 6px", borderRadius: 4 }}>
+                                🌐 Web
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 10.5, fontWeight: 700, background: "var(--bg-subtle)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: 4 }}>
+                                🖥️ POS
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Items de la Comanda */}
+                          <div className="comanda-items-list">
+                            {(v.items || []).map((item, iIdx) => (
+                              <div key={iIdx} className="comanda-item-entry">
+                                <div className="comanda-item-top">
+                                  <span>
+                                    <strong>{item.cantidad}x</strong> {item.producto?.nombre || "Producto"}
+                                  </span>
+                                  <span>${Number(item.subtotal_usd).toFixed(2)}</span>
+                                </div>
+                                {item.extras && item.extras.length > 0 && (
+                                  <div className="comanda-extras-line">
+                                    {item.extras.map((ext, eIdx) => (
+                                      <span key={eIdx} className="comanda-extra-tag">
+                                        +{ext.extra?.nombre || "Extra"} (${Number(ext.precio_unitario_usd).toFixed(2)})
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {(item.notas_item || item.notas) && (
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-dark)", background: "var(--primary-light)", padding: "3px 7px", borderRadius: 6, marginTop: 4 }}>
+                                    🍱 {item.notas_item || item.notas}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Detalle Delivery */}
+                          {v.tipo_entrega === "delivery" && (
+                            <div style={{ background: "rgba(248, 197, 66, 0.12)", border: "1px solid rgba(248, 197, 66, 0.35)", borderRadius: 8, padding: "8px 10px", marginTop: 6 }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                                <strong style={{ fontSize: 11.5, color: "var(--text)" }}>
+                                  🛵 {v.delivery_zona_nombre || "Delivery"}
+                                </strong>
+                                <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--primary-dark)" }}>
+                                  +${Number(v.delivery_monto_usd || 0).toFixed(2)} USD
+                                </span>
+                              </div>
+                              {v.direccion_delivery && (
+                                <p style={{ margin: "0 0 6px", fontSize: 11.5, color: "var(--text)", lineHeight: 1.3 }}>
+                                  📍 {v.direccion_delivery}
+                                </p>
+                              )}
+                              {v.direccion_delivery?.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/) && (
+                                <a
+                                  href={v.direccion_delivery.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/)?.[0]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: 6,
+                                    background: "var(--bg-card)",
+                                    color: "var(--text)",
+                                    border: "1px solid var(--border)",
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    textDecoration: "none",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                  }}
+                                >
+                                  🗺️ Ver Mapa
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {v.notas_comanda && (
+                            <div className="comanda-notes-box" style={{ marginTop: 6 }}>
+                              <span>📝 {v.notas_comanda}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Totales */}
+                        <div style={{ marginTop: "auto", paddingTop: 10 }}>
+                          <div className="comanda-totals">
+                            <div className="comanda-total-row">
+                              <span>Total:</span>
+                              <strong>${Number(v.total_usd).toFixed(2)} USD</strong>
+                            </div>
+                            <span className="comanda-bs-label">{Number(v.total_bs).toFixed(2)} Bs</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

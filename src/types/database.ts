@@ -137,7 +137,21 @@ export type TasaCambio = {
 };
 
 export type TipoEntrega = "puerta_cerrada" | "mesa" | "pickup" | "delivery";
-export type MetodoPago = "efectivo_usd" | "efectivo_bs" | "pago_movil" | "pago_movil_bs" | "transferencia" | "punto" | "punto_bs" | "binance" | "zelle" | "pesos_cop";
+export type MetodoPago =
+  | "efectivo_usd"
+  | "efectivo_bs"
+  | "efectivo"
+  | "pago_movil"
+  | "pago_movil_bs"
+  | "transferencia"
+  | "transferencia_bs"
+  | "punto"
+  | "punto_bs"
+  | "pos"
+  | "binance"
+  | "binance_usdt"
+  | "zelle"
+  | "pesos_cop";
 export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
 export type OrigenPedido = "instagram" | "whatsapp" | "tiktok" | "facebook" | "qr" | "directo" | "web" | "pos" | string;
 

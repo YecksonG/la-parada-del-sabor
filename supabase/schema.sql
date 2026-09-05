@@ -153,7 +153,7 @@ CREATE TABLE IF NOT EXISTS public.ventas (
     tasa_bcv NUMERIC(12, 4) NOT NULL DEFAULT 1 CHECK (tasa_bcv > 0),
     metodo_pago VARCHAR(50) NOT NULL DEFAULT 'efectivo_usd',
     tipo_entrega VARCHAR(30) NOT NULL DEFAULT 'puerta_cerrada' CHECK (tipo_entrega IN ('puerta_cerrada', 'mesa', 'pickup', 'delivery')),
-    estado VARCHAR(30) NOT NULL DEFAULT 'completada' CHECK (estado IN ('preparando', 'completada', 'cancelada')),
+    estado VARCHAR(30) NOT NULL DEFAULT 'completada' CHECK (estado IN ('pendiente', 'preparando', 'lista', 'completada', 'cancelada')),
     notas_comanda TEXT,
     creado_por VARCHAR(100) DEFAULT 'cajero'
 );
