@@ -1238,33 +1238,76 @@ export default function DashboardClient({
                     borderRadius: 8,
                     padding: "8px 10px",
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))",
                     gap: 6,
                     fontSize: 11.5,
                   }}
                 >
-                  <div>
-                    <span style={{ color: "var(--text-muted)", display: "block" }}>💵 Efectivo Gaveta:</span>
-                    <strong style={{ color: "#16a34a" }}>${c.efectivoUsd.toFixed(2)} USD</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: "var(--text-muted)", display: "block" }}>🇻🇪 Efectivo Bs:</span>
-                    <strong style={{ color: "#16a34a" }}>
-                      {c.efectivoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: "var(--text-muted)", display: "block" }}>📱 Pago Móvil:</span>
-                    <strong style={{ color: "#0284c7" }}>
-                      {c.pagoMovilBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
-                    </strong>
-                  </div>
-                  <div>
-                    <span style={{ color: "var(--text-muted)", display: "block" }}>🏦 Transferencia:</span>
-                    <strong style={{ color: "#0d9488" }}>
-                      {c.transferenciaBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
-                    </strong>
-                  </div>
+                  {/* Si hubo efectivo USD */}
+                  {c.efectivoUsd > 0 && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block" }}>💵 Efectivo USD:</span>
+                      <strong style={{ color: "#16a34a" }}>${c.efectivoUsd.toFixed(2)} USD</strong>
+                    </div>
+                  )}
+
+                  {/* Si hubo efectivo Bs */}
+                  {c.efectivoBs > 0 && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block" }}>🇻🇪 Efectivo Bs:</span>
+                      <strong style={{ color: "#16a34a" }}>
+                        {c.efectivoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                      </strong>
+                    </div>
+                  )}
+
+                  {/* Si NO hubo efectivo físico */}
+                  {c.efectivoUsd === 0 && c.efectivoBs === 0 && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block" }}>💵 Efectivo Físico:</span>
+                      <strong style={{ color: "var(--text-muted)" }}>$0.00 (Sin efectivo)</strong>
+                    </div>
+                  )}
+
+                  {/* Pago Móvil */}
+                  {c.pagoMovilBs > 0 && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block" }}>📱 Pago Móvil:</span>
+                      <strong style={{ color: "#0284c7" }}>
+                        {c.pagoMovilBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                      </strong>
+                    </div>
+                  )}
+
+                  {/* Transferencia */}
+                  {c.transferenciaBs > 0 && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block" }}>🏦 Transferencia:</span>
+                      <strong style={{ color: "#0d9488" }}>
+                        {c.transferenciaBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                      </strong>
+                    </div>
+                  )}
+
+                  {/* Punto POS */}
+                  {c.puntoBs > 0 && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block" }}>💳 Punto POS:</span>
+                      <strong style={{ color: "#6366f1" }}>
+                        {c.puntoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                      </strong>
+                    </div>
+                  )}
+
+                  {/* Dólares Digitales */}
+                  {c.dolaresDigitalesUsd > 0 && (
+                    <div>
+                      <span style={{ color: "var(--text-muted)", display: "block" }}>🟡 Cripto / Zelle:</span>
+                      <strong style={{ color: "#ca8a04" }}>
+                        ${c.dolaresDigitalesUsd.toFixed(2)} USD
+                      </strong>
+                    </div>
+                  )}
                 </div>
 
                 {/* Arqueo y Botón de Auditoría */}
@@ -1660,27 +1703,52 @@ export default function DashboardClient({
                 <strong style={{ fontSize: 15 }}>{cierreSeleccionado.comandas.length} pedidos</strong>
               </div>
               <div style={{ textAlign: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>💵 Efectivo Gaveta</span>
-                <strong style={{ fontSize: 15, color: "#16a34a" }}>${cierreSeleccionado.efectivoUsd.toFixed(2)} USD</strong>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🇻🇪 Efectivo Bs</span>
-                <strong style={{ fontSize: 15, color: "#16a34a" }}>
-                  {cierreSeleccionado.efectivoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>💵 Efectivo USD</span>
+                <strong style={{ fontSize: 15, color: cierreSeleccionado.efectivoUsd > 0 ? "#16a34a" : "var(--text-muted)" }}>
+                  ${cierreSeleccionado.efectivoUsd.toFixed(2)} USD
                 </strong>
+                {cierreSeleccionado.efectivoUsd === 0 && (
+                  <span style={{ display: "block", fontSize: 10, color: "var(--text-muted)" }}>Sin efectivo</span>
+                )}
               </div>
+              {cierreSeleccionado.efectivoBs > 0 && (
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🇻🇪 Efectivo Bs</span>
+                  <strong style={{ fontSize: 15, color: "#16a34a" }}>
+                    {cierreSeleccionado.efectivoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                  </strong>
+                </div>
+              )}
               <div style={{ textAlign: "center" }}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>📱 Pago Móvil</span>
                 <strong style={{ fontSize: 15, color: "#0284c7" }}>
                   {cierreSeleccionado.pagoMovilBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
                 </strong>
               </div>
-              <div style={{ textAlign: "center" }}>
-                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🏦 Transferencia</span>
-                <strong style={{ fontSize: 15, color: "#0d9488" }}>
-                  {cierreSeleccionado.transferenciaBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
-                </strong>
-              </div>
+              {cierreSeleccionado.transferenciaBs > 0 && (
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🏦 Transferencia</span>
+                  <strong style={{ fontSize: 15, color: "#0d9488" }}>
+                    {cierreSeleccionado.transferenciaBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                  </strong>
+                </div>
+              )}
+              {cierreSeleccionado.puntoBs > 0 && (
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>💳 Punto POS</span>
+                  <strong style={{ fontSize: 15, color: "#6366f1" }}>
+                    {cierreSeleccionado.puntoBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })} Bs
+                  </strong>
+                </div>
+              )}
+              {cierreSeleccionado.dolaresDigitalesUsd > 0 && (
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>🟡 Cripto/Zelle</span>
+                  <strong style={{ fontSize: 15, color: "#ca8a04" }}>
+                    ${cierreSeleccionado.dolaresDigitalesUsd.toFixed(2)} USD
+                  </strong>
+                </div>
+              )}
               {cierreSeleccionado.fondoInicialUsd > 0 && (
                 <div style={{ textAlign: "center" }}>
                   <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>💼 Fondo Inicial</span>
