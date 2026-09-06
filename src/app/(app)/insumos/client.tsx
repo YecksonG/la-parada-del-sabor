@@ -40,7 +40,9 @@ export default function InsumosClient({
       const { insumos_ids } = parseProveedorInsumos(p.notas);
       for (const id of insumos_ids) {
         const arr = map.get(id);
-        if (arr) arr.push(p);
+        if (arr && !arr.some((existing) => existing.id === p.id)) {
+          arr.push(p);
+        }
       }
     }
     return map;
