@@ -414,7 +414,7 @@ export default function MenuClienteView({
     setDireccionDelivery((prev) => {
       const gpsTag = `📍 Ubicación GPS: ${mapsUrl}`;
       if (!prev.trim()) {
-        return `${gpsTag}\n(Sector Puerta Maraven, Calle 5, Casa #12)`;
+        return gpsTag;
       }
       if (prev.includes("maps.google.com")) {
         return prev.replace(/📍 Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, gpsTag);
@@ -442,39 +442,86 @@ export default function MenuClienteView({
     setErrorMsg("");
     setGpsFalloAviso(false);
 
-    const solicitarPosicion = (highAccuracy: boolean) => {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          handleAsignarGpsSimulado(latitude, longitude);
-          setGpsFalloAviso(false);
-        },
-        (err) => {
-          // Si falló con alta precisión por timeout o red, intentar una vez con precisión estándar
-          if (highAccuracy && (err.code === 3 || err.code === 2)) {
-            solicitarPosicion(false);
-            return;
-          }
+    let finalizado = false;
 
-          setCargandoGps(false);
-          if (isLocal) {
-            handleAsignarGpsSimulado(11.69875, -70.19853);
-            return;
-          }
-
-          // Activamos el sticker explicativo y enfocamos el campo de dirección
-          setGpsFalloAviso(true);
-          setTimeout(() => {
-            if (refDireccionInput.current) {
-              refDireccionInput.current.focus();
-            }
-          }, 300);
-        },
-        { enableHighAccuracy: highAccuracy, timeout: highAccuracy ? 10000 : 15000, maximumAge: 60000 }
-      );
+    const onExito = (position: GeolocationPosition) => {
+      if (finalizado) return;
+      finalizado = true;
+      const { latitude, longitude } = position.coords;
+      handleAsignarGpsSimulado(latitude, longitude);
+      setGpsFalloAviso(false);
     };
 
-    solicitarPosicion(true);
+    const onFallo = () => {
+      if (finalizado) return;
+      finalizado = true;
+      setCargandoGps(false);
+      if (isLocal) {
+        handleAsignarGpsSimulado(11.69875, -70.19853);
+        return;
+      }
+      setGpsFalloAviso(true);
+      setTimeout(() => {
+        if (refDireccionInput.current) {
+          refDireccionInput.current.focus();
+        }
+      }, 300);
+    };
+
+    // Paso 1: Intentar obtener posición rápida (incluye ubicación reciente en caché de Android de los últimos 5 min)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        onExito(pos);
+      },
+      (err) => {
+        // Si el usuario denegó explícitamente el permiso (code 1 = PERMISSION_DENIED)
+        if (err.code === 1) {
+          onFallo();
+          return;
+        }
+
+        // Paso 2 (Especial para Android): Si getCurrentPosition falló por timeout o red, usar watchPosition
+        // Muchos chips GPS en Android no enganchan con un único ping frío, pero sí responden de inmediato con watchPosition.
+        try {
+          let watchId: number | null = null;
+          const fallbackTimeout = setTimeout(() => {
+            if (watchId !== null) {
+              navigator.geolocation.clearWatch(watchId);
+            }
+            onFallo();
+          }, 12000);
+
+          watchId = navigator.geolocation.watchPosition(
+            (watchPos) => {
+              clearTimeout(fallbackTimeout);
+              if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+              }
+              onExito(watchPos);
+            },
+            () => {
+              clearTimeout(fallbackTimeout);
+              if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+              }
+              onFallo();
+            },
+            {
+              enableHighAccuracy: false, // Precisión de red/torre celular (infalible en móviles si GPS está en interior)
+              timeout: 10000,
+              maximumAge: 600000, // hasta 10 minutos de caché
+            }
+          );
+        } catch {
+          onFallo();
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 300000, // 5 minutos de caché: devuelve instantáneamente la ubicación si se usó Google Maps o WhatsApp recientemente
+      }
+    );
   };
 
   const productosFiltrados = useMemo(() => {
