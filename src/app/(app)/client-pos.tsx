@@ -963,7 +963,6 @@ ${estadoPago}`;
               <option value="pago_movil">📱 Pago Móvil (Bs)</option>
               <option value="efectivo_usd">💵 Efectivo (USD)</option>
               <option value="efectivo_bs">🇻🇪 Efectivo (Bs)</option>
-              <option value="punto">💳 Tarjeta / Punto de Venta (Bs)</option>
               <option value="transferencia">🏦 Transferencia Bancaria (Bs)</option>
               <option value="binance">🟡 Binance Pay (USDT)</option>
               <option value="zelle">🟣 Zelle (USD)</option>
