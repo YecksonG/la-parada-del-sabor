@@ -229,6 +229,7 @@ export default function MenuClienteView({
   const [zonaDeliveryId, setZonaDeliveryId] = useState<string>(zonasDelivery[0]?.id || "");
   const [direccionDelivery, setDireccionDelivery] = useState("");
   const [gpsFalloAviso, setGpsFalloAviso] = useState(false);
+  const [gpsDetalleError, setGpsDetalleError] = useState<string>("");
   const refDireccionInput = useRef<HTMLTextAreaElement | null>(null);
   const [metodoPago, setMetodoPago] = useState("pago_movil");
   const [darVueltoWeb, setDarVueltoWeb] = useState(false);
@@ -452,7 +453,7 @@ export default function MenuClienteView({
       setGpsFalloAviso(false);
     };
 
-    const onFallo = () => {
+    const onFallo = (errObj?: GeolocationPositionError | any) => {
       if (finalizado) return;
       finalizado = true;
       setCargandoGps(false);
@@ -460,6 +461,14 @@ export default function MenuClienteView({
         handleAsignarGpsSimulado(11.69875, -70.19853);
         return;
       }
+      let razon = "";
+      if (errObj) {
+        if (errObj.code === 1) razon = "Permiso de ubicación denegado en tu navegador.";
+        else if (errObj.code === 2) razon = "Señal GPS no disponible. Verifica que la 'Ubicación' de tu teléfono esté encendida.";
+        else if (errObj.code === 3) razon = "Tiempo de espera agotado buscando satélites.";
+        else razon = errObj.message || "Error desconocido.";
+      }
+      setGpsDetalleError(razon);
       setGpsFalloAviso(true);
       setTimeout(() => {
         if (refDireccionInput.current) {
@@ -476,7 +485,7 @@ export default function MenuClienteView({
       (err) => {
         // Si el usuario denegó explícitamente el permiso (code 1 = PERMISSION_DENIED)
         if (err.code === 1) {
-          onFallo();
+          onFallo(err);
           return;
         }
 
@@ -488,7 +497,7 @@ export default function MenuClienteView({
             if (watchId !== null) {
               navigator.geolocation.clearWatch(watchId);
             }
-            onFallo();
+            onFallo(err);
           }, 12000);
 
           watchId = navigator.geolocation.watchPosition(
@@ -499,12 +508,12 @@ export default function MenuClienteView({
               }
               onExito(watchPos);
             },
-            () => {
+            (watchErr) => {
               clearTimeout(fallbackTimeout);
               if (watchId !== null) {
                 navigator.geolocation.clearWatch(watchId);
               }
-              onFallo();
+              onFallo(watchErr || err);
             },
             {
               enableHighAccuracy: false, // Precisión de red/torre celular (infalible en móviles si GPS está en interior)
@@ -512,8 +521,8 @@ export default function MenuClienteView({
               maximumAge: 600000, // hasta 10 minutos de caché
             }
           );
-        } catch {
-          onFallo();
+        } catch (catchedErr) {
+          onFallo(catchedErr || err);
         }
       },
       {
@@ -1509,7 +1518,12 @@ export default function MenuClienteView({
                             <strong style={{ color: "var(--primary-dark)", display: "block", marginBottom: 2 }}>
                               ¡No te preocupes por el GPS! 🛵
                             </strong>
-                            No pudimos obtener la ubicación automática de tu navegador. Escribe tu dirección abajo con puntos de referencia, y <strong>al finalizar tu pedido podrás compartirnos tu ubicación por WhatsApp</strong> junto con tu comprobante.
+                            {gpsDetalleError && (
+                              <p style={{ margin: "0 0 6px", fontSize: 12, color: "#dc2626", fontWeight: 800 }}>
+                                Motivo: {gpsDetalleError}
+                              </p>
+                            )}
+                            Escribe tu dirección abajo con puntos de referencia, y <strong>al finalizar tu pedido podrás compartirnos tu ubicación por WhatsApp</strong> junto con tu comprobante.
                           </div>
                         </div>
                       )}
