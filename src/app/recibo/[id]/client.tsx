@@ -79,6 +79,10 @@ const TIPOS_ENTREGA_LABEL: Record<string, { label: string; icon: string }> = {
   delivery: { label: "Servicio Delivery", icon: "🛵" },
 };
 
+// Detección estricta de tags de vuelto generados por POS (`[Vuelto: ...]`) o web (`[Cliente paga con $X | Requiere vuelto: ...]`).
+// Requiere que la cadena tenga corchetes y la palabra "Vuelto:"/"vuelto:" para evitar falsos positivos en texto libre.
+const ES_TAG_VUELTO = /\[[^\]]*(?:[Vv]uelto\s*:)[^\]]*\]/;
+
 const ESTADOS_CONFIG: Record<
   string,
   { label: string; icon: string; bg: string; color: string; desc: string }
@@ -1058,9 +1062,20 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                 );
               })() : (
                 <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, textAlign: "center" }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                    💵 ¡Tu orden está registrada en caja! Por favor ten a mano el monto exacto (${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}) al recibir o retirar tu pedido.
-                  </p>
+                  {venta.notas_comanda && ES_TAG_VUELTO.test(venta.notas_comanda) ? (
+                    <div style={{ background: "rgba(16, 185, 129, 0.1)", border: "1.5px dashed #10b981", borderRadius: 14, padding: "12px 14px" }}>
+                      <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#047857" }}>
+                        💵 Pedido registrado con solicitud de cambio / vuelto.
+                      </p>
+                      <p style={{ margin: "4px 0 0 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
+                        {venta.notas_comanda}
+                      </p>
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
+                      💵 ¡Tu orden está registrada en caja! Por favor ten a mano el monto exacto (${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}) al recibir o retirar tu pedido.
+                    </p>
+                  )}
                 </div>
               )}
             </div>

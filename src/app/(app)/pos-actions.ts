@@ -162,7 +162,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
       delivery_monto_bs: deliveryBs,
       direccion_delivery: payload.direccion_delivery || null,
       estado: "preparando",
-      notas_comanda: payload.notas_comanda || null,
+      notas_comanda: payload.notas_comanda ? payload.notas_comanda.trim().slice(0, 500) : null,
       creado_por: nombreOperador,
       origen_pedido: "pos",
       total_usd: totalUsdCalculado,

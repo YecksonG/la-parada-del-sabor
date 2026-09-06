@@ -180,6 +180,8 @@ type CarritoItemWeb = {
   extras: ExtraModificador[];
 };
 
+type MetodoVueltoWeb = "pago_movil" | "efectivo_bs" | "efectivo_usd";
+
 export default function MenuClienteView({
   categorias,
   productos,
@@ -229,6 +231,9 @@ export default function MenuClienteView({
   const [gpsFalloAviso, setGpsFalloAviso] = useState(false);
   const refDireccionInput = useRef<HTMLTextAreaElement | null>(null);
   const [metodoPago, setMetodoPago] = useState("pago_movil");
+  const [darVueltoWeb, setDarVueltoWeb] = useState(false);
+  const [billeteRecibidoUsdWeb, setBilleteRecibidoUsdWeb] = useState<number | "">("");
+  const [metodoVueltoWeb, setMetodoVueltoWeb] = useState<"pago_movil" | "efectivo_bs" | "efectivo_usd">("pago_movil");
   const [notasGenerales, setNotasGenerales] = useState("");
   const [origenPedido, setOrigenPedido] = useState<string>("directo");
   const [pasoCheckout, setPasoCheckout] = useState<1 | 2 | 3>(1);
@@ -525,6 +530,12 @@ export default function MenuClienteView({
   const totalCarritoBs = Number((totalCarritoUsd * tasaBcv).toFixed(2));
   const totalItemsCount = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
+  // Bloquear confirmación si el cliente declaró vuelto en efectivo USD pero el billete no cubre el total
+  const vueltoInsuficienteWeb =
+    metodoPago === "efectivo_usd" &&
+    darVueltoWeb &&
+    (Number(billeteRecibidoUsdWeb) <= 0 || Number(billeteRecibidoUsdWeb) < totalCarritoUsd);
+
   // Agregar al carrito directamente (Límite máximo 25 por producto)
   const handleAgregarProductoDirecto = (prod: Producto) => {
     const comboArepas = getComboArepasCount(prod);
@@ -732,6 +743,35 @@ export default function MenuClienteView({
 
     const telefonoCompleto = getTelefonoCompleto();
 
+    let notasFinalesWeb = notasGenerales.trim();
+
+    if (metodoPago === "efectivo_usd" && darVueltoWeb) {
+      const b = Number(billeteRecibidoUsdWeb);
+      // Bloquear si el billete declarado no cubre el total o si no se ha declarado ningún billete
+      if (b <= 0) {
+        setErrorMsg("Por favor indica con cuánto pagas en efectivo para calcular el vuelto.");
+        setEnviando(false);
+        return;
+      }
+      if (b < totalCarritoUsd) {
+        setErrorMsg(`El billete indicado ($${b.toFixed(2)}) no alcanza el total del pedido ($${totalCarritoUsd.toFixed(2)}). Por favor verifica el monto con el que pagarás.`);
+        setEnviando(false);
+        return;
+      }
+      const vUsd = Number((b - totalCarritoUsd).toFixed(2));
+      const vBs = Number((vUsd * tasaBcv).toFixed(2));
+      const mText = metodoVueltoWeb === "pago_movil" ? "Pago Móvil" : metodoVueltoWeb === "efectivo_bs" ? "Efectivo Bs" : "Efectivo USD";
+      const tag = `[Cliente paga con $${b.toFixed(2)} | Requiere vuelto: $${vUsd.toFixed(2)} (~Bs. ${vBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) vía ${mText}]`;
+      notasFinalesWeb = notasFinalesWeb ? `${notasFinalesWeb} • ${tag}` : tag;
+    }
+
+    // Validar longitud de las notas concatenadas (límite server de 500). Dejamos margen para el tag del vuelto.
+    if (notasFinalesWeb.length > 500) {
+      setErrorMsg("Los comentarios del pedido son demasiado largos (máximo 480 caracteres). Por favor acórtalos.");
+      setEnviando(false);
+      return;
+    }
+
     const res = await crearPedidoWebPublico({
       nombre_cliente: nombreLimpio,
       telefono: telefonoCompleto,
@@ -739,7 +779,7 @@ export default function MenuClienteView({
       delivery_zona_id: tipoEntrega === "delivery" ? (zonaDeliverySeleccionada?.id || zonaDeliveryId) : undefined,
       direccion_delivery: direccionDelivery,
       metodo_pago: metodoPago,
-      notas_pedido: notasGenerales,
+      notas_pedido: notasFinalesWeb,
       origen_pedido: origenPedido,
       items: itemsPayload,
     });
@@ -1538,7 +1578,12 @@ export default function MenuClienteView({
                     <select
                       id="metodoPagoSelect"
                       value={metodoPago}
-                      onChange={(e) => setMetodoPago(e.target.value)}
+                      onChange={(e) => {
+                        setMetodoPago(e.target.value);
+                        if (e.target.value !== "efectivo_usd") {
+                          setDarVueltoWeb(false);
+                        }
+                      }}
                       className="pedir-form-input"
                       style={{ fontSize: 14, fontWeight: 700, padding: "12px 14px" }}
                     >
@@ -1551,6 +1596,160 @@ export default function MenuClienteView({
                     </select>
                   </div>
 
+                  {/* Calculadora de Vuelto / Cambio para Efectivo Dólares */}
+                  {metodoPago === "efectivo_usd" && (
+                    <div
+                      style={{
+                        background: darVueltoWeb ? "rgba(245, 158, 11, 0.08)" : "var(--bg-subtle)",
+                        border: darVueltoWeb ? "1.5px solid #f59e0b" : "1px solid var(--border)",
+                        borderRadius: 14,
+                        padding: "12px 14px",
+                        marginBottom: 12,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setDarVueltoWeb(!darVueltoWeb)}
+                      >
+                        <label
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 800,
+                            color: darVueltoWeb ? "#d97706" : "var(--text)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span>🪙</span> ¿Pagas con billete y necesitas vuelto?
+                        </label>
+                        <input
+                          type="checkbox"
+                          checked={darVueltoWeb}
+                          onChange={(e) => setDarVueltoWeb(e.target.checked)}
+                          style={{ width: 18, height: 18, cursor: "pointer", accentColor: "var(--primary)" }}
+                        />
+                      </div>
+
+                      {darVueltoWeb && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
+                          <div>
+                            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                              ¿Con qué billete vas a pagar? (USD):
+                            </span>
+                            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+                              {[5, 10, 20, 50, 100].map((b) => (
+                                <button
+                                  key={b}
+                                  type="button"
+                                  onClick={() => setBilleteRecibidoUsdWeb(b)}
+                                  style={{
+                                    flex: 1,
+                                    minWidth: 46,
+                                    padding: "7px 0",
+                                    borderRadius: 10,
+                                    border: billeteRecibidoUsdWeb === b ? "1.5px solid var(--primary)" : "1px solid var(--border)",
+                                    background: billeteRecibidoUsdWeb === b ? "var(--primary-light)" : "var(--bg-card)",
+                                    color: billeteRecibidoUsdWeb === b ? "var(--primary-dark)" : "var(--text)",
+                                    fontSize: 13,
+                                    fontWeight: 800,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  ${b}
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              placeholder="Otro monto en billete ($)..."
+                              value={billeteRecibidoUsdWeb}
+                              onChange={(e) => setBilleteRecibidoUsdWeb(parseFloat(e.target.value) || "")}
+                              className="pedir-form-input"
+                              style={{ fontSize: 13, fontWeight: 800 }}
+                            />
+                          </div>
+
+                          <div>
+                            <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                              ¿Cómo prefieres recibir tu vuelto?:
+                            </span>
+                            <select
+                              value={metodoVueltoWeb}
+                              onChange={(e) => setMetodoVueltoWeb(e.target.value as MetodoVueltoWeb)}
+                              className="pedir-form-input"
+                              style={{ fontSize: 13, fontWeight: 700 }}
+                            >
+                              <option value="pago_movil">📱 Pago Móvil (a mi teléfono/banco)</option>
+                              <option value="efectivo_bs">🇻🇪 Efectivo Bolívares (en físico)</option>
+                              <option value="efectivo_usd">💵 Efectivo Dólares (en físico si hay cambio)</option>
+                            </select>
+                          </div>
+
+                          {Number(billeteRecibidoUsdWeb) > 0 && (() => {
+                            const billete = Number(billeteRecibidoUsdWeb);
+                            const total = totalCarritoUsd;
+                            const difUsd = Number((billete - total).toFixed(2));
+                            const difBs = Number((difUsd * tasaBcv).toFixed(2));
+
+                            if (difUsd < 0) {
+                              return (
+                                <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444", borderRadius: 10, padding: "8px 12px", fontSize: 12, color: "#dc2626", fontWeight: 700 }}>
+                                  ⚠️ El billete (${billete.toFixed(2)}) es menor al total del pedido (${total.toFixed(2)} USD).
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                style={{
+                                  background: "rgba(34, 197, 94, 0.1)",
+                                  border: "1.5px solid rgba(34, 197, 94, 0.4)",
+                                  borderRadius: 12,
+                                  padding: "10px 12px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 3,
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>
+                                  <span>Tu billete: ${billete.toFixed(2)} USD</span>
+                                  <span>Total pedido: ${total.toFixed(2)} USD</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                                  <strong style={{ fontSize: 13, color: "#16a34a" }}>
+                                    Tu Vuelto Estimado:
+                                  </strong>
+                                  <strong style={{ fontSize: 17, color: "#16a34a", fontWeight: 900 }}>
+                                    {metodoVueltoWeb === "efectivo_usd"
+                                      ? `$${difUsd.toFixed(2)} USD`
+                                      : `Bs. ${difBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                  </strong>
+                                </div>
+                                {metodoVueltoWeb !== "efectivo_usd" && (
+                                  <span style={{ fontSize: 11.5, color: "var(--text-muted)", textAlign: "right" }}>
+                                    Equivale a: <strong>${difUsd.toFixed(2)} USD</strong> (Tasa: {tasaBcv.toFixed(2)})
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Notas / Comentarios adicionales */}
                   <div className="pedir-form-group">
                     <label>Comentarios adicionales (Opcional)</label>
@@ -1559,6 +1758,7 @@ export default function MenuClienteView({
                       placeholder="Ej: Tengo billete de $20 para vuelto..."
                       value={notasGenerales}
                       onChange={(e) => setNotasGenerales(e.target.value)}
+                      maxLength={480}
                       className="pedir-form-input"
                     />
                   </div>
@@ -1711,7 +1911,7 @@ export default function MenuClienteView({
                     <button
                       type="button"
                       onClick={handleConfirmarPedido}
-                      disabled={enviando || carrito.length === 0}
+                      disabled={enviando || carrito.length === 0 || vueltoInsuficienteWeb}
                       className="pedir-btn-submit-order"
                       style={{ flex: 1 }}
                     >
