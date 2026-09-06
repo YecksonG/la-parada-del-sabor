@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Insumo, UnidadMedida, Proveedor } from "@/types/database";
 import { guardarInsumo, ajustarStockInsumo, eliminarInsumo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
@@ -19,14 +19,20 @@ export default function InsumosClient({
   proveedores = [],
   preciosReferenciales = {},
 }: InsumosClientProps) {
-  const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
+  const [modoVista, setModoVista] = useState<"grid" | "filas">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("vista_insumos");
+      if (saved === "grid" || saved === "filas") return saved;
+    }
+    return "grid";
+  });
   const [busqueda, setBusqueda] = useState("");
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [modalAjusteAbierto, setModalAjusteAbierto] = useState(false);
-  const [modalRecargaAbierto, setModalRecargaAbierto] = useState(false);
+  const [modalGestionAbierto, setModalGestionAbierto] = useState(false);
+  const [modoGestionStock, setModoGestionStock] = useState<"recargar" | "ajustar">("recargar");
+  const [insumoGestion, setInsumoGestion] = useState<Insumo | null>(null);
   const [insumoSeleccionado, setInsumoSeleccionado] = useState<Insumo | null>(null);
   const [nuevoStockAjuste, setNuevoStockAjuste] = useState<number>(0);
-  const [insumoRecargaId, setInsumoRecargaId] = useState<string>("");
   const [cantidadRecarga, setCantidadRecarga] = useState<number>(1000);
   const [guardando, setGuardando] = useState(false);
 
@@ -47,14 +53,6 @@ export default function InsumosClient({
     }
     return map;
   }, [insumos, proveedores]);
-
-  // Cargar preferencia guardada al montar
-  useEffect(() => {
-    const saved = localStorage.getItem("vista_insumos");
-    if (saved === "grid" || saved === "filas") {
-      setModoVista(saved);
-    }
-  }, []);
 
   const cambiarModoVista = (modo: "grid" | "filas") => {
     sounds.playPop();
@@ -113,42 +111,59 @@ export default function InsumosClient({
     );
   };
 
-  const abrirAjuste = (ins: Insumo) => {
-    sounds.playPop();
-    setInsumoSeleccionado(ins);
-    setNuevoStockAjuste(Number(ins.stock_actual));
-    setModalAjusteAbierto(true);
-  };
-
+  // Insumos clasificados como pre-elaborados (tolerante a espacios/saltos de línea en DB)
   const insumosPreelaborados = useMemo(() => {
-    return insumos.filter(
-      (ins) => (ins.categoria_insumo || "").toLowerCase().includes("pre-elaborado")
-    );
+    return insumos.filter((ins) => {
+      const cat = (ins.categoria_insumo || "").toLowerCase().replace(/\s+/g, "");
+      return cat.includes("pre-elaborado") || cat.includes("preelaborado");
+    });
   }, [insumos]);
 
-  const abrirModalRecarga = (insDefault?: Insumo) => {
+  const abrirModalGestion = (ins: Insumo, modoInicial: "recargar" | "ajustar" = "recargar") => {
     sounds.playPop();
-    const target = insDefault || insumosPreelaborados[0] || null;
-    setInsumoRecargaId(target ? target.id : "");
-    setCantidadRecarga(1000);
-    setModalRecargaAbierto(true);
+    setInsumoGestion(ins);
+    setModoGestionStock(modoInicial);
+    setNuevoStockAjuste(Number(ins.stock_actual));
+    // Default sugerido para recarga: 1000g para peso, 1000ml para volumen, 10 para unidades
+    setCantidadRecarga(ins.unidad_medida === "und" ? 10 : 1000);
+    setModalGestionAbierto(true);
   };
 
-  const handleRecargarPreelaborado = async (e: React.FormEvent) => {
+  const handleGuardarGestionStock = async (e: React.FormEvent) => {
     e.preventDefault();
-    const insumoTarget = insumos.find((i) => i.id === insumoRecargaId);
-    if (!insumoTarget || cantidadRecarga <= 0 || guardando) return;
+    if (!insumoGestion || guardando) return;
 
     setGuardando(true);
-    const nuevoTotal = Number(insumoTarget.stock_actual) + Number(cantidadRecarga);
-    const res = await ajustarStockInsumo(insumoTarget.id, nuevoTotal);
+    let nuevoTotal = Number(insumoGestion.stock_actual);
+
+    if (modoGestionStock === "recargar") {
+      if (cantidadRecarga <= 0) {
+        setGuardando(false);
+        alert("La cantidad a recargar debe ser mayor a 0.");
+        return;
+      }
+      nuevoTotal = Number(insumoGestion.stock_actual) + Number(cantidadRecarga);
+    } else {
+      if (nuevoStockAjuste < 0) {
+        setGuardando(false);
+        alert("El stock físico no puede ser negativo.");
+        return;
+      }
+      nuevoTotal = Number(nuevoStockAjuste);
+    }
+
+    const res = await ajustarStockInsumo(insumoGestion.id, nuevoTotal);
     setGuardando(false);
 
     if (res.ok) {
-      sounds.playKitchenBell();
-      setModalRecargaAbierto(false);
+      if (modoGestionStock === "recargar") {
+        sounds.playKitchenBell();
+      } else {
+        sounds.playPop();
+      }
+      setModalGestionAbierto(false);
     } else {
-      alert(res.error || "Error al registrar la recarga.");
+      alert(res.error || "Error al actualizar el stock del insumo.");
     }
   };
 
@@ -218,21 +233,6 @@ export default function InsumosClient({
     }
   };
 
-  const handleAjustarStock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!insumoSeleccionado || guardando) return;
-
-    setGuardando(true);
-    const res = await ajustarStockInsumo(insumoSeleccionado.id, Number(nuevoStockAjuste));
-    setGuardando(false);
-
-    if (res.ok) {
-      sounds.playPop();
-      setModalAjusteAbierto(false);
-    } else {
-      alert(res.error || "Error al ajustar el inventario.");
-    }
-  };
 
   const handleEliminarInsumo = async (insumo: Insumo) => {
     if (
@@ -291,10 +291,13 @@ export default function InsumosClient({
 
           <button
             type="button"
-            onClick={() => abrirModalRecarga()}
+            onClick={() => {
+              const primerPre = insumosPreelaborados[0] || insumos[0];
+              if (primerPre) abrirModalGestion(primerPre, "recargar");
+            }}
             className="btn-primary-action"
             style={{ background: "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)", color: "#fff" }}
-            title="Registrar preparación de guiso en cocina (Carne mechada, pollo mechado, etc.)"
+            title="Registrar preparación de guiso o producción en cocina"
           >
             <span>🍲</span> Recargar Guiso
           </button>
@@ -524,14 +527,14 @@ export default function InsumosClient({
                   );
                 })()}
 
-                {/* Footer Inferior: Botón Amplio de Ajuste / Merma */}
+                {/* Footer Inferior: Botón Amplio de Recargar / Ajustar */}
                 <div className="insumo-card-footer">
                   <button
                     type="button"
-                    onClick={() => abrirAjuste(ins)}
+                    onClick={() => abrirModalGestion(ins, "recargar")}
                     className="btn-insumo-adjust"
                   >
-                    ⚖️ Ajustar Stock / Merma
+                    🍲 Recargar / Ajustar
                   </button>
                 </div>
               </div>
@@ -680,11 +683,12 @@ export default function InsumosClient({
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         <button
                           type="button"
-                          onClick={() => abrirAjuste(ins)}
+                          onClick={() => abrirModalGestion(ins, "recargar")}
                           className="btn-insumo-adjust"
                           style={{ padding: "6px 12px", fontSize: 12, width: "auto" }}
+                          title="Recargar stock producido o ajustar por merma/inventario"
                         >
-                          ⚖️ Ajustar
+                          🍲 Recargar / Ajustar
                         </button>
                         <button
                           type="button"
@@ -884,46 +888,261 @@ export default function InsumosClient({
         </div>
       )}
 
-      {/* Modal Ajuste Rápido de Stock / Merma */}
-      {modalAjusteAbierto && insumoSeleccionado && (
+      {/* Modal Unificado: Recargar / Ajustar Inventario */}
+      {modalGestionAbierto && insumoGestion && (
         <div className="modal-overlay">
-          <div className="modal-recipe-card" style={{ maxWidth: 440 }}>
+          <div className="modal-recipe-card" style={{ maxWidth: 490 }}>
             <div className="modal-recipe-header">
-              <h2>Ajustar Inventario: {insumoSeleccionado.nombre}</h2>
+              <div>
+                <h2 style={{ fontSize: 18, marginBottom: 2 }}>
+                  {modoGestionStock === "recargar" ? "🍲 Recargar Stock / Producción" : "⚖️ Ajuste Directo / Merma"}
+                </h2>
+                <span style={{ fontSize: 13, color: "var(--primary-dark)", fontWeight: 800 }}>
+                  {insumoGestion.nombre}
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={() => setModalAjusteAbierto(false)}
+                onClick={() => setModalGestionAbierto(false)}
                 className="btn-modal-close"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleAjustarStock} className="recipe-form">
+            {/* Pestañas / Tabs Segmentadas: Recargar vs Ajustar */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 6,
+                background: "var(--bg-subtle)",
+                padding: 4,
+                borderRadius: 14,
+                border: "1px solid var(--border-subtle)",
+                marginTop: 10,
+                marginBottom: 14,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playPop();
+                  setModoGestionStock("recargar");
+                }}
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: 10,
+                  border: "none",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  transition: "all 0.15s ease",
+                  background: modoGestionStock === "recargar" ? "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)" : "transparent",
+                  color: modoGestionStock === "recargar" ? "#ffffff" : "var(--text-muted)",
+                  boxShadow: modoGestionStock === "recargar" ? "0 2px 8px rgba(234, 88, 12, 0.3)" : "none",
+                }}
+              >
+                <span>🍲</span> Recargar / Sumar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.playPop();
+                  setModoGestionStock("ajustar");
+                  setNuevoStockAjuste(Number(insumoGestion.stock_actual));
+                }}
+                style={{
+                  padding: "9px 12px",
+                  borderRadius: 10,
+                  border: "none",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  transition: "all 0.15s ease",
+                  background: modoGestionStock === "ajustar" ? "var(--bg-card)" : "transparent",
+                  color: modoGestionStock === "ajustar" ? "var(--text)" : "var(--text-muted)",
+                  boxShadow: modoGestionStock === "ajustar" ? "0 2px 8px rgba(0, 0, 0, 0.08)" : "none",
+                  borderWidth: modoGestionStock === "ajustar" ? "1px" : "0",
+                  borderColor: "var(--border)",
+                  borderStyle: "solid",
+                }}
+              >
+                <span>⚖️</span> Ajustar / Merma
+              </button>
+            </div>
+
+            <form onSubmit={handleGuardarGestionStock} className="recipe-form">
+              {/* Selector de Insumo (permite alternar si se abrió desde el encabezado general) */}
               <div className="form-field">
-                <label>
-                  Nuevo Stock Real en Despensa ({insumoSeleccionado.unidad_medida}):
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  min="0"
-                  required
-                  value={nuevoStockAjuste}
-                  onChange={(e) => setNuevoStockAjuste(parseFloat(e.target.value) || 0)}
+                <label>Insumo a gestionar:</label>
+                <select
+                  value={insumoGestion.id}
+                  onChange={(e) => {
+                    const sel = insumos.find((i) => i.id === e.target.value);
+                    if (sel) {
+                      setInsumoGestion(sel);
+                      setNuevoStockAjuste(Number(sel.stock_actual));
+                      setCantidadRecarga(sel.unidad_medida === "und" ? 10 : 1000);
+                    }
+                  }}
                   className="form-input"
-                  style={{ fontSize: 20, fontWeight: 800 }}
-                />
+                  style={{ fontSize: 14, fontWeight: 700 }}
+                  required
+                >
+                  <optgroup label="🍳 Pre-elaborados (Guisos & Preparados)">
+                    {insumosPreelaborados.map((ins) => (
+                      <option key={ins.id} value={ins.id}>
+                        {ins.nombre} (Stock actual: {Number(ins.stock_actual).toLocaleString()} {ins.unidad_medida})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="📦 Todos los demás Insumos">
+                    {insumos
+                      .filter((ins) => !insumosPreelaborados.some((p) => p.id === ins.id))
+                      .map((ins) => (
+                        <option key={ins.id} value={ins.id}>
+                          {ins.nombre} ({Number(ins.stock_actual).toLocaleString()} {ins.unidad_medida})
+                        </option>
+                      ))}
+                  </optgroup>
+                </select>
               </div>
 
-              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                💡 Usa este ajuste al realizar conteo físico al final de jornada o registrar mermas imprevistas.
-              </p>
+              {modoGestionStock === "recargar" ? (
+                /* VISTA: SUMAR RECARGA */
+                <>
+                  <div className="form-field">
+                    <label>
+                      Cantidad producida o ingresada a SUMAR ({insumoGestion.unidad_medida}):
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0.01"
+                      required
+                      value={cantidadRecarga}
+                      onChange={(e) => setCantidadRecarga(parseFloat(e.target.value) || 0)}
+                      className="form-input"
+                      style={{ fontSize: 22, fontWeight: 900, color: "var(--primary-dark)" }}
+                      placeholder={insumoGestion.unidad_medida === "g" ? "Ej. 3500 para 3.5 kg" : "Ej. 24"}
+                      autoFocus
+                    />
+                    {insumoGestion.unidad_medida === "g" && (
+                      <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
+                        Equivale a: <strong>{((Number(cantidadRecarga) || 0) / 1000).toFixed(2)} kg</strong>
+                      </span>
+                    )}
+                  </div>
+
+                  {(() => {
+                    const stockActualNum = Number(insumoGestion.stock_actual || 0);
+                    const cantNum = Number(cantidadRecarga) || 0;
+                    const nuevoProyectado = stockActualNum + cantNum;
+                    const unidad = insumoGestion.unidad_medida;
+
+                    return (
+                      <div
+                        style={{
+                          background: "rgba(34, 197, 94, 0.08)",
+                          border: "1px solid rgba(34, 197, 94, 0.3)",
+                          borderRadius: 12,
+                          padding: "12px 14px",
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                          Stock proyectado tras la recarga:
+                        </div>
+                        <div style={{ fontSize: 16, fontWeight: 900, color: "#16a34a" }}>
+                          {stockActualNum.toLocaleString()} {unidad} + {cantNum.toLocaleString()} {unidad} ={" "}
+                          <span>{nuevoProyectado.toLocaleString()} {unidad}</span>
+                          {unidad === "g" && nuevoProyectado >= 1000 && ` (${(nuevoProyectado / 1000).toFixed(2)} kg)`}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              ) : (
+                /* VISTA: AJUSTE DIRECTO / MERMA */
+                <>
+                  <div className="form-field">
+                    <label>
+                      Nuevo Stock Físico Real en Despensa ({insumoGestion.unidad_medida}):
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      required
+                      value={nuevoStockAjuste}
+                      onChange={(e) => setNuevoStockAjuste(parseFloat(e.target.value) || 0)}
+                      className="form-input"
+                      style={{ fontSize: 22, fontWeight: 900 }}
+                      placeholder="0"
+                      autoFocus
+                    />
+                    {insumoGestion.unidad_medida === "g" && (
+                      <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
+                        Equivale a: <strong>{((Number(nuevoStockAjuste) || 0) / 1000).toFixed(2)} kg</strong>
+                      </span>
+                    )}
+                  </div>
+
+                  {(() => {
+                    const actual = Number(insumoGestion.stock_actual || 0);
+                    const nuevo = Number(nuevoStockAjuste) || 0;
+                    const dif = nuevo - actual;
+                    const esNegativo = dif < 0;
+                    const unidad = insumoGestion.unidad_medida;
+
+                    return (
+                      <div
+                        style={{
+                          background: esNegativo ? "rgba(239, 68, 68, 0.08)" : "rgba(59, 130, 246, 0.08)",
+                          border: `1px solid ${esNegativo ? "rgba(239, 68, 68, 0.3)" : "rgba(59, 130, 246, 0.3)"}`,
+                          borderRadius: 12,
+                          padding: "12px 14px",
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                          Diferencia respecto al inventario registrado:
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 900,
+                            color: esNegativo ? "#dc2626" : dif > 0 ? "#2563eb" : "var(--text)",
+                          }}
+                        >
+                          {actual.toLocaleString()} {unidad} → {nuevo.toLocaleString()} {unidad}
+                          {" ("}
+                          {dif > 0 ? `+${dif.toLocaleString()}` : dif.toLocaleString()} {unidad}
+                          {esNegativo ? " 📉 Merma detectada" : dif > 0 ? " 📈 Ajuste positivo" : " Sin cambios"}
+                          {")"}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: 0 }}>
+                    💡 Usa esta opción durante el cierre diario para registrar el pesaje físico real o asentar mermas imprevistas.
+                  </p>
+                </>
+              )}
 
               <div className="modal-recipe-actions">
                 <button
                   type="button"
-                  onClick={() => setModalAjusteAbierto(false)}
+                  onClick={() => setModalGestionAbierto(false)}
                   className="btn-cancel"
                 >
                   Cancelar
@@ -932,110 +1151,19 @@ export default function InsumosClient({
                   type="submit"
                   disabled={guardando}
                   className="btn-submit-recipe"
+                  style={{
+                    background:
+                      modoGestionStock === "recargar"
+                        ? "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)"
+                        : "var(--primary)",
+                    color: "#ffffff",
+                  }}
                 >
-                  {guardando ? "Guardando..." : "⚖️ Confirmar Ajuste"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Recarga / Preparación de Pre-elaborados (Guisos) */}
-      {modalRecargaAbierto && (
-        <div className="modal-overlay">
-          <div className="modal-recipe-card" style={{ maxWidth: 480 }}>
-            <div className="modal-recipe-header">
-              <h2>🍲 Registrar Producción de Guiso / Pre-elaborado</h2>
-              <button
-                type="button"
-                onClick={() => setModalRecargaAbierto(false)}
-                className="btn-modal-close"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleRecargarPreelaborado} className="recipe-form">
-              <div className="form-field">
-                <label>Selecciona el Guiso / Pre-elaborado producido:</label>
-                <select
-                  value={insumoRecargaId}
-                  onChange={(e) => setInsumoRecargaId(e.target.value)}
-                  className="form-input"
-                  style={{ fontSize: 15, fontWeight: 700 }}
-                  required
-                >
-                  {insumosPreelaborados.map((ins) => (
-                    <option key={ins.id} value={ins.id}>
-                      🍳 {ins.nombre} (Stock actual: {Number(ins.stock_actual).toLocaleString()} {ins.unidad_medida})
-                    </option>
-                  ))}
-                  {insumosPreelaborados.length === 0 && (
-                    <option value="">No hay insumos clasificados como Pre-elaborados</option>
-                  )}
-                </select>
-              </div>
-
-              {(() => {
-                const insTarget = insumos.find((i) => i.id === insumoRecargaId);
-                const unidad = insTarget?.unidad_medida || "g";
-                const stockActualNum = Number(insTarget?.stock_actual || 0);
-                const nuevoProyectado = stockActualNum + (Number(cantidadRecarga) || 0);
-
-                return (
-                  <>
-                    <div className="form-field">
-                      <label>
-                        Cantidad Producida / Cocinada a SUMAR ({unidad}):
-                      </label>
-                      <input
-                        type="number"
-                        step="any"
-                        min="1"
-                        required
-                        value={cantidadRecarga}
-                        onChange={(e) => setCantidadRecarga(parseFloat(e.target.value) || 0)}
-                        className="form-input"
-                        style={{ fontSize: 22, fontWeight: 900, color: "var(--primary-dark)" }}
-                        placeholder="Ej. 3500 para 3.5 kg"
-                      />
-                      {unidad === "g" && (
-                        <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 4 }}>
-                          Equivale a: <strong>{(cantidadRecarga / 1000).toFixed(2)} kg</strong>
-                        </span>
-                      )}
-                    </div>
-
-                    <div style={{ background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.3)", borderRadius: 12, padding: "10px 14px" }}>
-                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 2 }}>
-                        Resultado en Despensa tras la recarga:
-                      </div>
-                      <div style={{ fontSize: 16, fontWeight: 900, color: "#16a34a" }}>
-                        {stockActualNum.toLocaleString()} {unidad} + {cantidadRecarga.toLocaleString()} {unidad} ={" "}
-                        <span>{nuevoProyectado.toLocaleString()} {unidad}</span>
-                        {unidad === "g" && nuevoProyectado >= 1000 && ` (${(nuevoProyectado / 1000).toFixed(2)} kg)`}
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-
-              <div className="modal-recipe-actions">
-                <button
-                  type="button"
-                  onClick={() => setModalRecargaAbierto(false)}
-                  className="btn-cancel"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={guardando || !insumoRecargaId}
-                  className="btn-submit-recipe"
-                  style={{ background: "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)", color: "#fff" }}
-                >
-                  {guardando ? "Sumando al stock..." : "🍳 Sumar al Inventario"}
+                  {guardando
+                    ? "Guardando..."
+                    : modoGestionStock === "recargar"
+                    ? "🍲 Confirmar Recarga"
+                    : "⚖️ Confirmar Ajuste"}
                 </button>
               </div>
             </form>

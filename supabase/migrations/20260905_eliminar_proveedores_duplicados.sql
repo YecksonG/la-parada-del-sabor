@@ -24,6 +24,11 @@ WHERE id IN (
     '5f5df818-0431-4648-956e-6d50814c2afc'
 );
 
+-- 3. Normalizar categoria_insumo para Guiso de Pollo Mechado y otros pre-elaborados (limpiar saltos de línea y espacios residuales)
+UPDATE public.insumos
+SET categoria_insumo = 'Pre-elaborados'
+WHERE LOWER(categoria_insumo) LIKE '%pre%elaborado%';
+
 COMMIT;
 
 -- VERIFICACIÓN INMEDIATA
