@@ -682,9 +682,31 @@ export default function CajaClient({
               </div>
 
               {c.estado === "abierta" ? (
-                <div style={{ fontSize: 12, display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border-subtle)", paddingTop: 8, color: "var(--primary)" }}>
-                  <span>Estado del Turno:</span>
-                  <strong>🔴 En operación (Calculando en vivo)</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: 8 }}>
+                  <div style={{ fontSize: 12, color: "var(--primary)" }}>
+                    <span>Estado: </span>
+                    <strong>🔴 En operación</strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setArqueoUsd(resumenTurno.teoricoEfectivoUsd);
+                      setArqueoBs(resumenTurno.teoricoEfectivoBs);
+                      setModalCerrar(true);
+                    }}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 6,
+                      border: "none",
+                      background: "linear-gradient(135deg, #e11d48 0%, #be123c 100%)",
+                      color: "#fff",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    🔒 Cerrar Turno
+                  </button>
                 </div>
               ) : c.diferencia_usd !== null ? (
                 <div style={{ fontSize: 12, display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--border-subtle)", paddingTop: 8 }}>
