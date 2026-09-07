@@ -1940,8 +1940,31 @@ export default function GastosClient({
                       const res = await extraerInsumosFactura(base64Data, file.type, tasaBcv);
                       if (res.ok && res.data?.items) {
                         const nuevosItems = res.data.items.map((it: any) => {
-                          let und = UNIDADES_COMPRA.find(u => u.label.toLowerCase().startsWith(it.unidad?.toLowerCase()))?.id || "kilo";
-                          if (it.unidad === "unidad") und = "unidad";
+                          const insumoObj = insumos.find((ins) => ins.id === it.insumo_id);
+                          let und = "kilo";
+                          const uStr = (it.unidad || "").toLowerCase();
+
+                          if (insumoObj) {
+                            if (insumoObj.unidad_medida === "und") {
+                              und = "unidad";
+                            } else if (insumoObj.unidad_medida === "ml") {
+                              und = uStr.includes("galon") ? "galon_3_78l" : "litro";
+                            } else if (insumoObj.unidad_medida === "g") {
+                              if (uStr.includes("bulto")) {
+                                und = insumoObj.nombre.toLowerCase().includes("harina") ? "bulto_24kg" : "bulto_20kg";
+                              } else if (uStr.includes("saco")) {
+                                und = "saco_50kg";
+                              } else if (uStr.includes("500")) {
+                                und = "paquete_500g";
+                              } else {
+                                und = "kilo";
+                              }
+                            }
+                          } else {
+                            if (uStr.includes("unidad")) und = "unidad";
+                            else if (uStr.includes("litro")) und = "litro";
+                            else und = "kilo";
+                          }
                           
                           return {
                             id: crypto.randomUUID(),

@@ -229,6 +229,65 @@ export async function eliminarGasto(id: string) {
   const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
+  // 1. Obtener detalles del gasto para verificar si proviene de una compra de insumos
+  const { data: gasto } = await supabase
+    .from("gastos")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (gasto) {
+    let compraIdAEliminar: string | null = null;
+
+    // Buscar si tiene el tag directo compra_id en notas
+    const match = gasto.notas?.match(/compra_id:([0-9a-fA-F-]{36})/);
+    if (match) {
+      compraIdAEliminar = match[1];
+    } else {
+      // Si no tiene el tag (compras anteriores), buscar coincidencia por monto, fecha y proveedor
+      const esCompra =
+        gasto.categoria === "proveedores" ||
+        gasto.subcategoria?.toLowerCase().includes("despensa") ||
+        gasto.subcategoria?.toLowerCase().includes("insumos") ||
+        gasto.descripcion?.toLowerCase().includes("ingreso de stock");
+
+      if (esCompra) {
+        let query = supabase
+          .from("compras")
+          .select("id")
+          .eq("total_usd", gasto.monto_usd)
+          .eq("fecha", gasto.fecha);
+
+        if (gasto.proveedor_id) {
+          query = query.eq("proveedor_id", gasto.proveedor_id);
+        }
+
+        const { data: comprasRel } = await query
+          .order("creado_el", { ascending: false })
+          .limit(1);
+
+        if (comprasRel && comprasRel.length > 0) {
+          compraIdAEliminar = comprasRel[0].id;
+        }
+      }
+    }
+
+    // Si se encontró la compra, eliminarla.
+    // Al eliminar de compras, PostgreSQL aplica ON DELETE CASCADE en compras_items,
+    // lo que activa el trigger trg_revertir_stock_compra y resta del inventario el stock sumado.
+    if (compraIdAEliminar) {
+      const { error: errCompra } = await supabase
+        .from("compras")
+        .delete()
+        .eq("id", compraIdAEliminar);
+
+      if (errCompra) {
+        console.error("Error al eliminar compra asociada para reversión:", errCompra);
+      }
+    }
+  }
+
+  // 2. Eliminar el gasto
   const { error } = await supabase.from("gastos").delete().eq("id", id);
 
   if (error) {
@@ -237,6 +296,9 @@ export async function eliminarGasto(id: string) {
 
   revalidatePath("/gastos");
   revalidatePath("/compras");
+  revalidatePath("/insumos");
+  revalidatePath("/despensa");
+  revalidatePath("/recetas");
   revalidatePath("/caja");
   revalidatePath("/dashboard");
 
@@ -375,7 +437,7 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     comprobante_url: payload.comprobante_url || null,
     estado: "pagado",
     sesion_caja_id: sesion_caja_id,
-    notas: payload.notas?.trim() || null,
+    notas: `compra_id:${compra.id}${payload.notas ? ` | ${payload.notas.trim()}` : ""}`,
     creado_por: auth.user.email || "admin",
   });
 
@@ -493,7 +555,7 @@ export async function registrarIngresoInsumo(payload: RegistrarCompraInsumoPaylo
     comprobante_url: payload.comprobante_url || null,
     estado: "pagado",
     sesion_caja_id: sesion_caja_id,
-    notas: payload.notas?.trim() || null,
+    notas: `compra_id:${compra.id}${payload.notas ? ` | ${payload.notas.trim()}` : ""}`,
     creado_por: auth.user.email || "admin",
   });
 
