@@ -981,10 +981,10 @@ export default function InsumosClient({
           <div className="modal-recipe-card" style={{ maxWidth: 520 }}>
             <div className="modal-recipe-header">
               <div>
-                <h2 style={{ fontSize: 18, marginBottom: 2 }}>
+                <h2 style={{ fontSize: 18, marginBottom: 2, color: "var(--text)" }}>
                   {modoGestionStock === "recargar" ? "🍲 Recargar Stock / Producción" : "⚖️ Ajuste Directo / Merma"}
                 </h2>
-                <span style={{ fontSize: 13, color: "var(--primary-dark)", fontWeight: 800 }}>
+                <span style={{ fontSize: 13, color: "#f97316", fontWeight: 800 }}>
                   {insumoGestion.nombre}
                 </span>
               </div>
@@ -1071,7 +1071,7 @@ export default function InsumosClient({
             <form onSubmit={handleGuardarGestionStock} className="recipe-form">
               {/* Selector de Insumo (permite alternar si se abrió desde el encabezado general) */}
               <div className="form-field">
-                <label>Insumo o Guiso a Producir / Gestionar:</label>
+                <label style={{ color: "var(--text)" }}>Insumo o Guiso a Producir / Gestionar:</label>
                 <select
                   value={insumoGestion.id}
                   onChange={(e) => {
@@ -1119,7 +1119,7 @@ export default function InsumosClient({
                 <>
                   {/* Selector de Materia Prima a Descontar */}
                   <div className="form-field">
-                    <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text)" }}>
                       <span>🥩 Materia Prima de Origen (a descontar de despensa):</span>
                       {materiaPrimaSeleccionada && (
                         <span
@@ -1127,8 +1127,8 @@ export default function InsumosClient({
                             fontSize: 11.5,
                             color:
                               Number(materiaPrimaSeleccionada.stock_actual) <= 0
-                                ? "#dc2626"
-                                : "var(--primary-dark)",
+                                ? "#ef4444"
+                                : "#f97316",
                             fontWeight: 700,
                           }}
                         >
@@ -1198,8 +1198,8 @@ export default function InsumosClient({
                     /* BLOQUE DE PRODUCCIÓN EN COCINA: MATERIA PRIMA + GUISO + MERMA */
                     <div
                       style={{
-                        background: "rgba(234, 88, 12, 0.04)",
-                        border: "1px solid rgba(234, 88, 12, 0.25)",
+                        background: "rgba(249, 115, 22, 0.05)",
+                        border: "1px solid rgba(249, 115, 22, 0.25)",
                         borderRadius: 14,
                         padding: 14,
                         display: "flex",
@@ -1237,32 +1237,37 @@ export default function InsumosClient({
                         </div>
                         {/* Atajos de balanza para materia prima */}
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
-                          {[1000, 1500, 2000, 3000].map((gr) => (
-                            <button
-                              key={gr}
-                              type="button"
-                              onClick={() => {
-                                sounds.playPop();
-                                setCantidadMateriaPrima(gr);
-                                setCantidadRecarga(Math.round(gr * 0.9));
-                              }}
-                              style={{
-                                fontSize: 11,
-                                padding: "3px 8px",
-                                borderRadius: 6,
-                                border: "1px solid var(--border)",
-                                background: cantidadMateriaPrima === gr ? "rgba(234, 88, 12, 0.2)" : "var(--bg-card)",
-                                fontWeight: cantidadMateriaPrima === gr ? 800 : 600,
-                                cursor: "pointer",
-                              }}
-                            >
-                              {materiaPrimaSeleccionada.unidad_medida === "g"
-                                ? `${gr / 1000} kg (${gr}g)`
-                                : materiaPrimaSeleccionada.unidad_medida === "ml"
-                                ? `${gr / 1000} L (${gr}ml)`
-                                : `${gr} und`}
-                            </button>
-                          ))}
+                          {[1000, 1500, 2000, 3000].map((gr) => {
+                            const isSelected = cantidadMateriaPrima === gr;
+                            return (
+                              <button
+                                key={gr}
+                                type="button"
+                                onClick={() => {
+                                  sounds.playPop();
+                                  setCantidadMateriaPrima(gr);
+                                  setCantidadRecarga(Math.round(gr * 0.9));
+                                }}
+                                style={{
+                                  fontSize: 11,
+                                  padding: "4px 9px",
+                                  borderRadius: 6,
+                                  border: isSelected ? "1px solid #ea580c" : "1px solid var(--border)",
+                                  background: isSelected ? "rgba(234, 88, 12, 0.25)" : "var(--bg-subtle)",
+                                  color: isSelected ? "#f97316" : "var(--text)",
+                                  fontWeight: isSelected ? 800 : 600,
+                                  cursor: "pointer",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                {materiaPrimaSeleccionada.unidad_medida === "g"
+                                  ? `${gr / 1000} kg (${gr}g)`
+                                  : materiaPrimaSeleccionada.unidad_medida === "ml"
+                                  ? `${gr / 1000} L (${gr}ml)`
+                                  : `${gr} und`}
+                              </button>
+                            );
+                          })}
                           {Number(materiaPrimaSeleccionada.stock_actual) > 0 && (
                             <button
                               type="button"
@@ -1274,13 +1279,14 @@ export default function InsumosClient({
                               }}
                               style={{
                                 fontSize: 11,
-                                padding: "3px 8px",
+                                padding: "4px 9px",
                                 borderRadius: 6,
                                 border: "1px solid #ea580c",
-                                background: "rgba(234, 88, 12, 0.1)",
-                                color: "#ea580c",
+                                background: "rgba(234, 88, 12, 0.15)",
+                                color: "#f97316",
                                 fontWeight: 800,
                                 cursor: "pointer",
+                                transition: "all 0.15s ease",
                               }}
                             >
                               Todo el stock ({materiaPrimaSeleccionada.stock_actual} {materiaPrimaSeleccionada.unidad_medida})
@@ -1303,7 +1309,7 @@ export default function InsumosClient({
                             value={cantidadRecarga}
                             onChange={(e) => setCantidadRecarga(parseFloat(e.target.value) || 0)}
                             className="form-input"
-                            style={{ fontSize: 20, fontWeight: 900, color: "var(--primary-dark)" }}
+                            style={{ fontSize: 20, fontWeight: 900, color: "#f97316" }}
                             placeholder="1800"
                           />
                           <span style={{ fontSize: 12, fontWeight: 800, minWidth: 65, color: "var(--text-muted)" }}>
@@ -1324,6 +1330,7 @@ export default function InsumosClient({
                               { pct: 1.0, label: "100% (Sin merma)" },
                             ].map((op) => {
                               const calc = Math.round(cantidadMateriaPrima * op.pct);
+                              const isSelected = cantidadRecarga === calc;
                               return (
                                 <button
                                   key={op.pct}
@@ -1334,12 +1341,14 @@ export default function InsumosClient({
                                   }}
                                   style={{
                                     fontSize: 11,
-                                    padding: "3px 7px",
+                                    padding: "4px 8px",
                                     borderRadius: 6,
-                                    border: "1px solid var(--border)",
-                                    background: cantidadRecarga === calc ? "rgba(234, 88, 12, 0.2)" : "var(--bg-card)",
-                                    fontWeight: cantidadRecarga === calc ? 800 : 600,
+                                    border: isSelected ? "1px solid #ea580c" : "1px solid var(--border)",
+                                    background: isSelected ? "rgba(234, 88, 12, 0.25)" : "var(--bg-subtle)",
+                                    color: isSelected ? "#f97316" : "var(--text)",
+                                    fontWeight: isSelected ? 800 : 600,
                                     cursor: "pointer",
+                                    transition: "all 0.15s ease",
                                   }}
                                 >
                                   {op.label}
@@ -1368,7 +1377,7 @@ export default function InsumosClient({
                         return (
                           <div
                             style={{
-                              background: "var(--bg-card)",
+                              background: "var(--bg-subtle)",
                               border: "1px solid var(--border)",
                               borderRadius: 12,
                               padding: "10px 12px",
@@ -1379,11 +1388,11 @@ export default function InsumosClient({
                                 display: "flex",
                                 justifyContent: "space-between",
                                 fontSize: 12,
-                                marginBottom: 4,
+                                marginBottom: 5,
                               }}
                             >
-                              <span>Merma de cocción / evaporación:</span>
-                              <strong style={{ color: mermaG > 0 ? "#ea580c" : "#16a34a" }}>
+                              <span style={{ color: "var(--text-muted)" }}>Merma de cocción / evaporación:</span>
+                              <strong style={{ color: mermaG > 0 ? "#f97316" : "#22c55e" }}>
                                 {mermaG > 0
                                   ? `${mermaG.toLocaleString()} g (${mermaPct.toFixed(1)}%)`
                                   : mermaG < 0
@@ -1397,11 +1406,11 @@ export default function InsumosClient({
                                   display: "flex",
                                   justifyContent: "space-between",
                                   fontSize: 12,
-                                  marginBottom: 4,
+                                  marginBottom: 5,
                                 }}
                               >
-                                <span>Costo absorbido en guiso:</span>
-                                <strong style={{ color: "var(--primary-dark)" }}>
+                                <span style={{ color: "var(--text-muted)" }}>Costo absorbido en guiso:</span>
+                                <strong style={{ color: "#f97316" }}>
                                   ${(nuevoCostoUnitGuiso * 1000).toFixed(2)}/kg (${nuevoCostoUnitGuiso.toFixed(4)}/g)
                                 </strong>
                               </div>
@@ -1409,18 +1418,21 @@ export default function InsumosClient({
                             <div
                               style={{
                                 borderTop: "1px dashed var(--border)",
-                                paddingTop: 6,
+                                paddingTop: 8,
                                 marginTop: 6,
                                 fontSize: 11.5,
                                 color: "var(--text-muted)",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 3,
                               }}
                             >
                               <div>
-                                🥩 <strong>{materiaPrimaSeleccionada.nombre}:</strong> {mpStockActual.toLocaleString()}
+                                🥩 <strong style={{ color: "var(--text)" }}>{materiaPrimaSeleccionada.nombre}:</strong> {mpStockActual.toLocaleString()}
                                 g ➡️{" "}
                                 <span
                                   style={{
-                                    color: mpStockNuevo < 0 ? "#dc2626" : "var(--text)",
+                                    color: mpStockNuevo < 0 ? "#ef4444" : "var(--text)",
                                     fontWeight: 800,
                                   }}
                                 >
@@ -1428,8 +1440,8 @@ export default function InsumosClient({
                                 </span>
                               </div>
                               <div>
-                                🍲 <strong>{insumoGestion.nombre}:</strong> {prodStockActual.toLocaleString()}g ➡️{" "}
-                                <span style={{ color: "#16a34a", fontWeight: 800 }}>
+                                🍲 <strong style={{ color: "var(--text)" }}>{insumoGestion.nombre}:</strong> {prodStockActual.toLocaleString()}g ➡️{" "}
+                                <span style={{ color: "#22c55e", fontWeight: 800 }}>
                                   {prodStockNuevo.toLocaleString()}g
                                 </span>
                               </div>
@@ -1442,7 +1454,7 @@ export default function InsumosClient({
                     /* VISTA SIMPLE (SIN MATERIA PRIMA) */
                     <>
                       <div className="form-field">
-                        <label>
+                        <label style={{ color: "var(--text)" }}>
                           Cantidad producida o ingresada a SUMAR ({insumoGestion.unidad_medida}):
                         </label>
                         <input
@@ -1453,13 +1465,13 @@ export default function InsumosClient({
                           value={cantidadRecarga}
                           onChange={(e) => setCantidadRecarga(parseFloat(e.target.value) || 0)}
                           className="form-input"
-                          style={{ fontSize: 22, fontWeight: 900, color: "var(--primary-dark)" }}
+                          style={{ fontSize: 22, fontWeight: 900, color: "#f97316" }}
                           placeholder={insumoGestion.unidad_medida === "g" ? "Ej. 3500 para 3.5 kg" : "Ej. 24"}
                           autoFocus
                         />
                         {insumoGestion.unidad_medida === "g" && (
                           <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
-                            Equivale a: <strong>{((Number(cantidadRecarga) || 0) / 1000).toFixed(2)} kg</strong>
+                            Equivale a: <strong style={{ color: "var(--text)" }}>{((Number(cantidadRecarga) || 0) / 1000).toFixed(2)} kg</strong>
                           </span>
                         )}
                       </div>
@@ -1482,7 +1494,7 @@ export default function InsumosClient({
                             <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
                               Stock proyectado tras la recarga:
                             </div>
-                            <div style={{ fontSize: 16, fontWeight: 900, color: "#16a34a" }}>
+                            <div style={{ fontSize: 16, fontWeight: 900, color: "#22c55e" }}>
                               {stockActualNum.toLocaleString()} {unidad} + {cantNum.toLocaleString()} {unidad} ={" "}
                               <span>
                                 {nuevoProyectado.toLocaleString()} {unidad}
@@ -1501,7 +1513,7 @@ export default function InsumosClient({
                 /* VISTA: AJUSTE DIRECTO / MERMA */
                 <>
                   <div className="form-field">
-                    <label>
+                    <label style={{ color: "var(--text)" }}>
                       Nuevo Stock Físico Real en Despensa ({insumoGestion.unidad_medida}):
                     </label>
                     <input
@@ -1546,7 +1558,7 @@ export default function InsumosClient({
                           style={{
                             fontSize: 15,
                             fontWeight: 900,
-                            color: esNegativo ? "#dc2626" : dif > 0 ? "#2563eb" : "var(--text)",
+                            color: esNegativo ? "#ef4444" : dif > 0 ? "#3b82f6" : "var(--text)",
                           }}
                         >
                           {actual.toLocaleString()} {unidad} → {nuevo.toLocaleString()} {unidad}
