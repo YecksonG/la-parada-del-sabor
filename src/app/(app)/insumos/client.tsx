@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { Insumo, UnidadMedida, Proveedor } from "@/types/database";
-import { guardarInsumo, ajustarStockInsumo, eliminarInsumo } from "./actions";
+import { guardarInsumo, ajustarStockInsumo, eliminarInsumo, registrarProduccionGuiso } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import {
   parseProveedorInsumos,
@@ -33,7 +33,9 @@ export default function InsumosClient({
   const [insumoGestion, setInsumoGestion] = useState<Insumo | null>(null);
   const [insumoSeleccionado, setInsumoSeleccionado] = useState<Insumo | null>(null);
   const [nuevoStockAjuste, setNuevoStockAjuste] = useState<number>(0);
-  const [cantidadRecarga, setCantidadRecarga] = useState<number>(1000);
+  const [cantidadRecarga, setCantidadRecarga] = useState<number>(1800);
+  const [materiaPrimaId, setMateriaPrimaId] = useState<string>("");
+  const [cantidadMateriaPrima, setCantidadMateriaPrima] = useState<number>(2000);
   const [guardando, setGuardando] = useState(false);
 
   // Mapa memoizado de proveedores por insumo para evitar O(N·M) parses por render
@@ -119,13 +121,65 @@ export default function InsumosClient({
     });
   }, [insumos]);
 
+  const detectarMateriaPrimaSugerida = (ins: Insumo, lista: Insumo[]): Insumo | null => {
+    const nombreLower = (ins.nombre || "").toLowerCase();
+    if (nombreLower.includes("carne")) {
+      return (
+        lista.find(
+          (i) =>
+            i.id !== ins.id &&
+            (i.categoria_insumo?.toLowerCase() === "carnes" || i.nombre.toLowerCase().includes("carne")) &&
+            !i.categoria_insumo?.toLowerCase().includes("pre")
+        ) || null
+      );
+    }
+    if (nombreLower.includes("pollo")) {
+      return (
+        lista.find(
+          (i) =>
+            i.id !== ins.id &&
+            (i.nombre.toLowerCase().includes("pechuga") || i.nombre.toLowerCase().includes("pollo")) &&
+            !i.categoria_insumo?.toLowerCase().includes("pre")
+        ) || null
+      );
+    }
+    if (nombreLower.includes("reina") || nombreLower.includes("pepiada")) {
+      return (
+        lista.find(
+          (i) =>
+            i.id !== ins.id &&
+            (i.nombre.toLowerCase().includes("pechuga") || i.nombre.toLowerCase().includes("pollo"))
+        ) || null
+      );
+    }
+    return null;
+  };
+
+  const materiaPrimaSeleccionada = useMemo(
+    () => insumos.find((i) => i.id === materiaPrimaId) || null,
+    [insumos, materiaPrimaId]
+  );
+  const materiaPrimaSugerida = useMemo(
+    () => (insumoGestion ? detectarMateriaPrimaSugerida(insumoGestion, insumos) : null),
+    [insumoGestion, insumos]
+  );
+
   const abrirModalGestion = (ins: Insumo, modoInicial: "recargar" | "ajustar" = "recargar") => {
     sounds.playPop();
     setInsumoGestion(ins);
     setModoGestionStock(modoInicial);
     setNuevoStockAjuste(Number(ins.stock_actual));
-    // Default sugerido para recarga: 1000g para peso, 1000ml para volumen, 10 para unidades
-    setCantidadRecarga(ins.unidad_medida === "und" ? 10 : 1000);
+
+    const sug = detectarMateriaPrimaSugerida(ins, insumos);
+    if (sug) {
+      setMateriaPrimaId(sug.id);
+      setCantidadMateriaPrima(2000);
+      setCantidadRecarga(1800);
+    } else {
+      setMateriaPrimaId("");
+      setCantidadMateriaPrima(0);
+      setCantidadRecarga(ins.unidad_medida === "und" ? 10 : 1000);
+    }
     setModalGestionAbierto(true);
   };
 
@@ -134,36 +188,63 @@ export default function InsumosClient({
     if (!insumoGestion || guardando) return;
 
     setGuardando(true);
-    let nuevoTotal = Number(insumoGestion.stock_actual);
-
-    if (modoGestionStock === "recargar") {
-      if (cantidadRecarga <= 0) {
-        setGuardando(false);
-        alert("La cantidad a recargar debe ser mayor a 0.");
-        return;
-      }
-      nuevoTotal = Number(insumoGestion.stock_actual) + Number(cantidadRecarga);
-    } else {
-      if (nuevoStockAjuste < 0) {
-        setGuardando(false);
-        alert("El stock físico no puede ser negativo.");
-        return;
-      }
-      nuevoTotal = Number(nuevoStockAjuste);
-    }
-
-    const res = await ajustarStockInsumo(insumoGestion.id, nuevoTotal);
-    setGuardando(false);
-
-    if (res.ok) {
+    try {
       if (modoGestionStock === "recargar") {
-        sounds.playKitchenBell();
+        if (cantidadRecarga <= 0) {
+          alert("La cantidad de guiso o insumo producido debe ser mayor a 0.");
+          return;
+        }
+
+        let res;
+        if (materiaPrimaId) {
+          if (cantidadMateriaPrima <= 0) {
+            alert("La cantidad de materia prima utilizada debe ser mayor a 0.");
+            return;
+          }
+
+          const mpObj = insumos.find((i) => i.id === materiaPrimaId);
+          const costoMpTotal = (Number(mpObj?.costo_unitario_usd) || 0) * Number(cantidadMateriaPrima);
+          const nuevoCostoUnitarioUsd = costoMpTotal > 0 && cantidadRecarga > 0 ? costoMpTotal / cantidadRecarga : null;
+
+          res = await registrarProduccionGuiso({
+            insumoProducidoId: insumoGestion.id,
+            cantidadProducida: Number(cantidadRecarga),
+            insumoMateriaPrimaId: materiaPrimaId,
+            cantidadMateriaPrima: Number(cantidadMateriaPrima),
+            nuevoCostoUnitarioUsd,
+          });
+        } else {
+          res = await registrarProduccionGuiso({
+            insumoProducidoId: insumoGestion.id,
+            cantidadProducida: Number(cantidadRecarga),
+          });
+        }
+
+        if (res.ok) {
+          sounds.playKitchenBell();
+          setModalGestionAbierto(false);
+        } else {
+          alert(res.error || "Error al registrar la producción.");
+        }
       } else {
-        sounds.playPop();
+        if (nuevoStockAjuste < 0) {
+          alert("El stock físico no puede ser negativo.");
+          return;
+        }
+        const res = await ajustarStockInsumo(insumoGestion.id, Number(nuevoStockAjuste));
+
+        if (res.ok) {
+          sounds.playPop();
+          setModalGestionAbierto(false);
+        } else {
+          alert(res.error || "Error al actualizar el stock del insumo.");
+        }
       }
-      setModalGestionAbierto(false);
-    } else {
-      alert(res.error || "Error al actualizar el stock del insumo.");
+    } catch (err: unknown) {
+      console.error("Error al guardar gestión de stock:", err);
+      alert("Ocurrió un error inesperado al procesar la solicitud.");
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -213,23 +294,29 @@ export default function InsumosClient({
     if (!nombre.trim() || guardando) return;
 
     setGuardando(true);
-    const res = await guardarInsumo({
-      id: insumoSeleccionado?.id,
-      nombre,
-      unidad_medida: unidadMedida,
-      stock_actual: Number(stockActual),
-      stock_minimo: Number(stockMinimo),
-      costo_unitario_usd: Number(costoUnitario),
-      categoria_insumo: categoriaInsumo,
-      proveedores_ids: proveedoresSeleccionados,
-    });
-    setGuardando(false);
+    try {
+      const res = await guardarInsumo({
+        id: insumoSeleccionado?.id,
+        nombre,
+        unidad_medida: unidadMedida,
+        stock_actual: Number(stockActual),
+        stock_minimo: Number(stockMinimo),
+        costo_unitario_usd: Number(costoUnitario),
+        categoria_insumo: categoriaInsumo,
+        proveedores_ids: proveedoresSeleccionados,
+      });
 
-    if (res.ok) {
-      sounds.playKitchenBell();
-      setModalAbierto(false);
-    } else {
-      alert(res.error || "Error al guardar el insumo.");
+      if (res.ok) {
+        sounds.playKitchenBell();
+        setModalAbierto(false);
+      } else {
+        alert(res.error || "Error al guardar el insumo.");
+      }
+    } catch (err: unknown) {
+      console.error("Error al guardar insumo:", err);
+      alert("Ocurrió un error inesperado al guardar el insumo.");
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -891,7 +978,7 @@ export default function InsumosClient({
       {/* Modal Unificado: Recargar / Ajustar Inventario */}
       {modalGestionAbierto && insumoGestion && (
         <div className="modal-overlay">
-          <div className="modal-recipe-card" style={{ maxWidth: 490 }}>
+          <div className="modal-recipe-card" style={{ maxWidth: 520 }}>
             <div className="modal-recipe-header">
               <div>
                 <h2 style={{ fontSize: 18, marginBottom: 2 }}>
@@ -947,7 +1034,7 @@ export default function InsumosClient({
                   boxShadow: modoGestionStock === "recargar" ? "0 2px 8px rgba(234, 88, 12, 0.3)" : "none",
                 }}
               >
-                <span>🍲</span> Recargar / Sumar
+                <span>🍲</span> Recargar / Producción
               </button>
 
               <button
@@ -977,14 +1064,14 @@ export default function InsumosClient({
                   borderStyle: "solid",
                 }}
               >
-                <span>⚖️</span> Ajustar / Merma
+                <span>⚖️</span> Ajuste Físico / Cierre
               </button>
             </div>
 
             <form onSubmit={handleGuardarGestionStock} className="recipe-form">
               {/* Selector de Insumo (permite alternar si se abrió desde el encabezado general) */}
               <div className="form-field">
-                <label>Insumo a gestionar:</label>
+                <label>Insumo o Guiso a Producir / Gestionar:</label>
                 <select
                   value={insumoGestion.id}
                   onChange={(e) => {
@@ -992,7 +1079,16 @@ export default function InsumosClient({
                     if (sel) {
                       setInsumoGestion(sel);
                       setNuevoStockAjuste(Number(sel.stock_actual));
-                      setCantidadRecarga(sel.unidad_medida === "und" ? 10 : 1000);
+                      const sug = detectarMateriaPrimaSugerida(sel, insumos);
+                      if (sug) {
+                        setMateriaPrimaId(sug.id);
+                        setCantidadMateriaPrima(2000);
+                        setCantidadRecarga(1800);
+                      } else {
+                        setMateriaPrimaId("");
+                        setCantidadMateriaPrima(0);
+                        setCantidadRecarga(sel.unidad_medida === "und" ? 10 : 1000);
+                      }
                     }
                   }}
                   className="form-input"
@@ -1019,57 +1115,387 @@ export default function InsumosClient({
               </div>
 
               {modoGestionStock === "recargar" ? (
-                /* VISTA: SUMAR RECARGA */
+                /* VISTA: PRODUCCIÓN / RECARGA GUISOS */
                 <>
+                  {/* Selector de Materia Prima a Descontar */}
                   <div className="form-field">
-                    <label>
-                      Cantidad producida o ingresada a SUMAR ({insumoGestion.unidad_medida}):
+                    <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>🥩 Materia Prima de Origen (a descontar de despensa):</span>
+                      {materiaPrimaSeleccionada && (
+                        <span
+                          style={{
+                            fontSize: 11.5,
+                            color:
+                              Number(materiaPrimaSeleccionada.stock_actual) <= 0
+                                ? "#dc2626"
+                                : "var(--primary-dark)",
+                            fontWeight: 700,
+                          }}
+                        >
+                          En despensa: {Number(materiaPrimaSeleccionada.stock_actual).toLocaleString()}{" "}
+                          {materiaPrimaSeleccionada.unidad_medida}
+                        </span>
+                      )}
                     </label>
-                    <input
-                      type="number"
-                      step="any"
-                      min="0.01"
-                      required
-                      value={cantidadRecarga}
-                      onChange={(e) => setCantidadRecarga(parseFloat(e.target.value) || 0)}
+                    <select
+                      value={materiaPrimaId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMateriaPrimaId(val);
+                        if (val) {
+                          if (!cantidadMateriaPrima || cantidadMateriaPrima <= 0) {
+                            setCantidadMateriaPrima(2000);
+                            setCantidadRecarga(1800);
+                          }
+                        }
+                      }}
                       className="form-input"
-                      style={{ fontSize: 22, fontWeight: 900, color: "var(--primary-dark)" }}
-                      placeholder={insumoGestion.unidad_medida === "g" ? "Ej. 3500 para 3.5 kg" : "Ej. 24"}
-                      autoFocus
-                    />
-                    {insumoGestion.unidad_medida === "g" && (
-                      <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
-                        Equivale a: <strong>{((Number(cantidadRecarga) || 0) / 1000).toFixed(2)} kg</strong>
-                      </span>
-                    )}
+                      style={{ fontSize: 13, fontWeight: 600 }}
+                    >
+                      <option value="">🚫 Ninguna (Ingreso directo sin descontar materia prima)</option>
+                      {materiaPrimaSugerida && (
+                        <optgroup label="✨ Sugerencia Automática">
+                          <option value={materiaPrimaSugerida.id}>
+                            {materiaPrimaSugerida.nombre} (Stock:{" "}
+                            {Number(materiaPrimaSugerida.stock_actual).toLocaleString()}{" "}
+                            {materiaPrimaSugerida.unidad_medida})
+                          </option>
+                        </optgroup>
+                      )}
+                      <optgroup label="🥩 Carnes & Proteínas">
+                        {insumos
+                          .filter(
+                            (i) =>
+                              i.categoria_insumo?.toLowerCase() === "carnes" &&
+                              i.id !== materiaPrimaSugerida?.id &&
+                              i.id !== insumoGestion.id
+                          )
+                          .map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.nombre} (Stock: {Number(i.stock_actual).toLocaleString()} {i.unidad_medida})
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="📦 Otros Insumos del Catálogo">
+                        {insumos
+                          .filter(
+                            (i) =>
+                              i.categoria_insumo?.toLowerCase() !== "carnes" &&
+                              !i.categoria_insumo?.toLowerCase().includes("pre") &&
+                              i.id !== materiaPrimaSugerida?.id &&
+                              i.id !== insumoGestion.id
+                          )
+                          .map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.nombre} ({i.categoria_insumo || "General"})
+                            </option>
+                          ))}
+                      </optgroup>
+                    </select>
                   </div>
 
-                  {(() => {
-                    const stockActualNum = Number(insumoGestion.stock_actual || 0);
-                    const cantNum = Number(cantidadRecarga) || 0;
-                    const nuevoProyectado = stockActualNum + cantNum;
-                    const unidad = insumoGestion.unidad_medida;
-
-                    return (
-                      <div
-                        style={{
-                          background: "rgba(34, 197, 94, 0.08)",
-                          border: "1px solid rgba(34, 197, 94, 0.3)",
-                          borderRadius: 12,
-                          padding: "12px 14px",
-                        }}
-                      >
-                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
-                          Stock proyectado tras la recarga:
+                  {materiaPrimaId && materiaPrimaSeleccionada ? (
+                    /* BLOQUE DE PRODUCCIÓN EN COCINA: MATERIA PRIMA + GUISO + MERMA */
+                    <div
+                      style={{
+                        background: "rgba(234, 88, 12, 0.04)",
+                        border: "1px solid rgba(234, 88, 12, 0.25)",
+                        borderRadius: 14,
+                        padding: 14,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 12,
+                      }}
+                    >
+                      {/* Campo 1: Carne cruda */}
+                      <div className="form-field" style={{ margin: 0 }}>
+                        <label style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text)" }}>
+                          🥩 1. Carne / Materia Prima Cruda utilizada ({materiaPrimaSeleccionada.unidad_medida}):
+                        </label>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            required
+                            value={cantidadMateriaPrima}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setCantidadMateriaPrima(val);
+                            }}
+                            className="form-input"
+                            style={{ fontSize: 18, fontWeight: 900 }}
+                            placeholder="2000"
+                          />
+                          <span style={{ fontSize: 12, fontWeight: 800, minWidth: 65, color: "var(--text-muted)" }}>
+                            {materiaPrimaSeleccionada.unidad_medida === "g"
+                              ? `${((Number(cantidadMateriaPrima) || 0) / 1000).toFixed(2)} kg`
+                              : materiaPrimaSeleccionada.unidad_medida === "ml"
+                              ? `${((Number(cantidadMateriaPrima) || 0) / 1000).toFixed(2)} L`
+                              : `${Number(cantidadMateriaPrima) || 0} und`}
+                          </span>
                         </div>
-                        <div style={{ fontSize: 16, fontWeight: 900, color: "#16a34a" }}>
-                          {stockActualNum.toLocaleString()} {unidad} + {cantNum.toLocaleString()} {unidad} ={" "}
-                          <span>{nuevoProyectado.toLocaleString()} {unidad}</span>
-                          {unidad === "g" && nuevoProyectado >= 1000 && ` (${(nuevoProyectado / 1000).toFixed(2)} kg)`}
+                        {/* Atajos de balanza para materia prima */}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                          {[1000, 1500, 2000, 3000].map((gr) => (
+                            <button
+                              key={gr}
+                              type="button"
+                              onClick={() => {
+                                sounds.playPop();
+                                setCantidadMateriaPrima(gr);
+                                setCantidadRecarga(Math.round(gr * 0.9));
+                              }}
+                              style={{
+                                fontSize: 11,
+                                padding: "3px 8px",
+                                borderRadius: 6,
+                                border: "1px solid var(--border)",
+                                background: cantidadMateriaPrima === gr ? "rgba(234, 88, 12, 0.2)" : "var(--bg-card)",
+                                fontWeight: cantidadMateriaPrima === gr ? 800 : 600,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {materiaPrimaSeleccionada.unidad_medida === "g"
+                                ? `${gr / 1000} kg (${gr}g)`
+                                : materiaPrimaSeleccionada.unidad_medida === "ml"
+                                ? `${gr / 1000} L (${gr}ml)`
+                                : `${gr} und`}
+                            </button>
+                          ))}
+                          {Number(materiaPrimaSeleccionada.stock_actual) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                sounds.playPop();
+                                const gr = Number(materiaPrimaSeleccionada.stock_actual);
+                                setCantidadMateriaPrima(gr);
+                                setCantidadRecarga(Math.round(gr * 0.9));
+                              }}
+                              style={{
+                                fontSize: 11,
+                                padding: "3px 8px",
+                                borderRadius: 6,
+                                border: "1px solid #ea580c",
+                                background: "rgba(234, 88, 12, 0.1)",
+                                color: "#ea580c",
+                                fontWeight: 800,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Todo el stock ({materiaPrimaSeleccionada.stock_actual} {materiaPrimaSeleccionada.unidad_medida})
+                            </button>
+                          )}
                         </div>
                       </div>
-                    );
-                  })()}
+
+                      {/* Campo 2: Guiso terminado */}
+                      <div className="form-field" style={{ margin: 0 }}>
+                        <label style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text)" }}>
+                          🍲 2. Guiso final obtenido ({insumoGestion.unidad_medida}):
+                        </label>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <input
+                            type="number"
+                            step="any"
+                            min="0.01"
+                            required
+                            value={cantidadRecarga}
+                            onChange={(e) => setCantidadRecarga(parseFloat(e.target.value) || 0)}
+                            className="form-input"
+                            style={{ fontSize: 20, fontWeight: 900, color: "var(--primary-dark)" }}
+                            placeholder="1800"
+                          />
+                          <span style={{ fontSize: 12, fontWeight: 800, minWidth: 65, color: "var(--text-muted)" }}>
+                            {insumoGestion.unidad_medida === "g"
+                              ? `${((Number(cantidadRecarga) || 0) / 1000).toFixed(2)} kg`
+                              : insumoGestion.unidad_medida === "ml"
+                              ? `${((Number(cantidadRecarga) || 0) / 1000).toFixed(2)} L`
+                              : `${Number(cantidadRecarga) || 0} und`}
+                          </span>
+                        </div>
+                        {/* Atajos de Rendimiento / Merma */}
+                        {cantidadMateriaPrima > 0 && (
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+                            {[
+                              { pct: 0.9, label: "90% (Merma 10%)" },
+                              { pct: 0.85, label: "85% (Merma 15%)" },
+                              { pct: 0.8, label: "80% (Merma 20%)" },
+                              { pct: 1.0, label: "100% (Sin merma)" },
+                            ].map((op) => {
+                              const calc = Math.round(cantidadMateriaPrima * op.pct);
+                              return (
+                                <button
+                                  key={op.pct}
+                                  type="button"
+                                  onClick={() => {
+                                    sounds.playPop();
+                                    setCantidadRecarga(calc);
+                                  }}
+                                  style={{
+                                    fontSize: 11,
+                                    padding: "3px 7px",
+                                    borderRadius: 6,
+                                    border: "1px solid var(--border)",
+                                    background: cantidadRecarga === calc ? "rgba(234, 88, 12, 0.2)" : "var(--bg-card)",
+                                    fontWeight: cantidadRecarga === calc ? 800 : 600,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {op.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Resumen de Rendimiento, Merma y Costo Absorbido */}
+                      {(() => {
+                        const mpCant = Number(cantidadMateriaPrima) || 0;
+                        const prodCant = Number(cantidadRecarga) || 0;
+                        const mermaG = mpCant - prodCant;
+                        const mermaPct = mpCant > 0 ? (mermaG / mpCant) * 100 : 0;
+                        const costoUnitMp = Number(materiaPrimaSeleccionada.costo_unitario_usd || 0);
+                        const costoTotalMp = mpCant * costoUnitMp;
+                        const nuevoCostoUnitGuiso = prodCant > 0 ? costoTotalMp / prodCant : 0;
+
+                        const mpStockActual = Number(materiaPrimaSeleccionada.stock_actual || 0);
+                        const mpStockNuevo = mpStockActual - mpCant;
+                        const prodStockActual = Number(insumoGestion.stock_actual || 0);
+                        const prodStockNuevo = prodStockActual + prodCant;
+
+                        return (
+                          <div
+                            style={{
+                              background: "var(--bg-card)",
+                              border: "1px solid var(--border)",
+                              borderRadius: 12,
+                              padding: "10px 12px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                fontSize: 12,
+                                marginBottom: 4,
+                              }}
+                            >
+                              <span>Merma de cocción / evaporación:</span>
+                              <strong style={{ color: mermaG > 0 ? "#ea580c" : "#16a34a" }}>
+                                {mermaG > 0
+                                  ? `${mermaG.toLocaleString()} g (${mermaPct.toFixed(1)}%)`
+                                  : mermaG < 0
+                                  ? `+${Math.abs(mermaG).toLocaleString()} g (Ganancia)`
+                                  : "0 g (0%)"}
+                              </strong>
+                            </div>
+                            {costoTotalMp > 0 && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  fontSize: 12,
+                                  marginBottom: 4,
+                                }}
+                              >
+                                <span>Costo absorbido en guiso:</span>
+                                <strong style={{ color: "var(--primary-dark)" }}>
+                                  ${(nuevoCostoUnitGuiso * 1000).toFixed(2)}/kg (${nuevoCostoUnitGuiso.toFixed(4)}/g)
+                                </strong>
+                              </div>
+                            )}
+                            <div
+                              style={{
+                                borderTop: "1px dashed var(--border)",
+                                paddingTop: 6,
+                                marginTop: 6,
+                                fontSize: 11.5,
+                                color: "var(--text-muted)",
+                              }}
+                            >
+                              <div>
+                                🥩 <strong>{materiaPrimaSeleccionada.nombre}:</strong> {mpStockActual.toLocaleString()}
+                                g ➡️{" "}
+                                <span
+                                  style={{
+                                    color: mpStockNuevo < 0 ? "#dc2626" : "var(--text)",
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  {mpStockNuevo.toLocaleString()}g
+                                </span>
+                              </div>
+                              <div>
+                                🍲 <strong>{insumoGestion.nombre}:</strong> {prodStockActual.toLocaleString()}g ➡️{" "}
+                                <span style={{ color: "#16a34a", fontWeight: 800 }}>
+                                  {prodStockNuevo.toLocaleString()}g
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    /* VISTA SIMPLE (SIN MATERIA PRIMA) */
+                    <>
+                      <div className="form-field">
+                        <label>
+                          Cantidad producida o ingresada a SUMAR ({insumoGestion.unidad_medida}):
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0.01"
+                          required
+                          value={cantidadRecarga}
+                          onChange={(e) => setCantidadRecarga(parseFloat(e.target.value) || 0)}
+                          className="form-input"
+                          style={{ fontSize: 22, fontWeight: 900, color: "var(--primary-dark)" }}
+                          placeholder={insumoGestion.unidad_medida === "g" ? "Ej. 3500 para 3.5 kg" : "Ej. 24"}
+                          autoFocus
+                        />
+                        {insumoGestion.unidad_medida === "g" && (
+                          <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
+                            Equivale a: <strong>{((Number(cantidadRecarga) || 0) / 1000).toFixed(2)} kg</strong>
+                          </span>
+                        )}
+                      </div>
+
+                      {(() => {
+                        const stockActualNum = Number(insumoGestion.stock_actual || 0);
+                        const cantNum = Number(cantidadRecarga) || 0;
+                        const nuevoProyectado = stockActualNum + cantNum;
+                        const unidad = insumoGestion.unidad_medida;
+
+                        return (
+                          <div
+                            style={{
+                              background: "rgba(34, 197, 94, 0.08)",
+                              border: "1px solid rgba(34, 197, 94, 0.3)",
+                              borderRadius: 12,
+                              padding: "12px 14px",
+                            }}
+                          >
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                              Stock proyectado tras la recarga:
+                            </div>
+                            <div style={{ fontSize: 16, fontWeight: 900, color: "#16a34a" }}>
+                              {stockActualNum.toLocaleString()} {unidad} + {cantNum.toLocaleString()} {unidad} ={" "}
+                              <span>
+                                {nuevoProyectado.toLocaleString()} {unidad}
+                              </span>
+                              {unidad === "g" &&
+                                nuevoProyectado >= 1000 &&
+                                ` (${(nuevoProyectado / 1000).toFixed(2)} kg)`}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
                 </>
               ) : (
                 /* VISTA: AJUSTE DIRECTO / MERMA */
@@ -1147,24 +1573,41 @@ export default function InsumosClient({
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={guardando}
-                  className="btn-submit-recipe"
-                  style={{
-                    background:
-                      modoGestionStock === "recargar"
-                        ? "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)"
-                        : "var(--primary)",
-                    color: "#ffffff",
-                  }}
-                >
-                  {guardando
-                    ? "Guardando..."
-                    : modoGestionStock === "recargar"
-                    ? "🍲 Confirmar Recarga"
-                    : "⚖️ Confirmar Ajuste"}
-                </button>
+                {(() => {
+                  const stockMpInsuficiente =
+                    modoGestionStock === "recargar" &&
+                    !!materiaPrimaId &&
+                    !!materiaPrimaSeleccionada &&
+                    Number(cantidadMateriaPrima) > Number(materiaPrimaSeleccionada.stock_actual || 0);
+
+                  return (
+                    <button
+                      type="submit"
+                      disabled={guardando || stockMpInsuficiente}
+                      className="btn-submit-recipe"
+                      style={{
+                        background: stockMpInsuficiente
+                          ? "#9ca3af"
+                          : modoGestionStock === "recargar"
+                          ? "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)"
+                          : "var(--primary)",
+                        color: "#ffffff",
+                        cursor: stockMpInsuficiente ? "not-allowed" : "pointer",
+                      }}
+                      title={stockMpInsuficiente ? "Stock insuficiente de materia prima en despensa" : undefined}
+                    >
+                      {guardando
+                        ? "Guardando..."
+                        : stockMpInsuficiente
+                        ? "⚠️ Stock MP Insuficiente"
+                        : modoGestionStock === "recargar"
+                        ? materiaPrimaId
+                          ? "🍲 Registrar Producción (Cocina)"
+                          : "🍲 Confirmar Recarga"
+                        : "⚖️ Confirmar Ajuste"}
+                    </button>
+                  );
+                })()}
               </div>
             </form>
           </div>

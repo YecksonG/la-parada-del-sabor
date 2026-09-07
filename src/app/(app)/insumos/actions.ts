@@ -189,6 +189,194 @@ export async function ajustarStockInsumo(id: string, nuevoStock: number) {
   return { ok: true };
 }
 
+export type RegistrarProduccionPayload = {
+  insumoProducidoId: string;
+  cantidadProducida: number;
+  insumoMateriaPrimaId?: string | null;
+  cantidadMateriaPrima?: number;
+  nuevoCostoUnitarioUsd?: number | null;
+};
+
+export async function registrarProduccionGuiso(payload: RegistrarProduccionPayload) {
+  if (!payload.insumoProducidoId || typeof payload.insumoProducidoId !== "string") {
+    return { ok: false, error: "ID de insumo producido no proporcionado." };
+  }
+  if (
+    typeof payload.cantidadProducida !== "number" ||
+    payload.cantidadProducida <= 0 ||
+    !Number.isFinite(payload.cantidadProducida)
+  ) {
+    return { ok: false, error: "La cantidad producida debe ser un número mayor a 0." };
+  }
+  if (
+    payload.insumoMateriaPrimaId &&
+    payload.insumoMateriaPrimaId === payload.insumoProducidoId
+  ) {
+    return { ok: false, error: "La materia prima no puede ser el mismo insumo producido." };
+  }
+  if (
+    payload.insumoMateriaPrimaId &&
+    (typeof payload.cantidadMateriaPrima !== "number" ||
+      payload.cantidadMateriaPrima <= 0 ||
+      !Number.isFinite(payload.cantidadMateriaPrima))
+  ) {
+    return { ok: false, error: "La cantidad de materia prima utilizada debe ser un número válido mayor a 0." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // 1. Intentar RPC transaccional atómica en PostgreSQL
+  const { data: rpcData, error: rpcError } = await supabase.rpc("fn_registrar_produccion_guiso", {
+    p_insumo_producido_id: payload.insumoProducidoId,
+    p_cantidad_producida: payload.cantidadProducida,
+    p_insumo_materia_prima_id: payload.insumoMateriaPrimaId || null,
+    p_cantidad_materia_prima: payload.cantidadMateriaPrima || null,
+    p_costo_lote_usd: payload.nuevoCostoUnitarioUsd || null,
+  });
+
+  if (!rpcError && rpcData) {
+    if (rpcData.ok === false) {
+      return { ok: false, error: rpcData.error || "Error al procesar la producción en base de datos." };
+    }
+    revalidatePath("/insumos");
+    revalidatePath("/recetas");
+    revalidatePath("/");
+    return { ok: true };
+  }
+
+  // Si hubo un error en RPC que NO sea "función no encontrada" (PGRST202), abortar directamente
+  if (rpcError && rpcError.code !== "PGRST202") {
+    return { ok: false, error: rpcError.message || "Error al ejecutar producción en base de datos." };
+  }
+
+  // 2. Fallback transaccional estricto y tipado (si la función RPC aún no ha sido creada en Supabase)
+  // Paso A: Validar existencia del insumo producido antes de cualquier DML
+  const { data: prodData, error: prodErr } = await supabase
+    .from("insumos")
+    .select("id, nombre, stock_actual, costo_unitario_usd")
+    .eq("id", payload.insumoProducidoId)
+    .single();
+
+  if (prodErr || !prodData) {
+    return { ok: false, error: prodErr?.message || "Insumo producido no encontrado." };
+  }
+
+  let mpOriginalStock: number | null = null;
+  let nuevoStockMp: number | null = null;
+
+  // Paso B: Validar existencia y disponibilidad de la materia prima antes de cualquier DML
+  if (payload.insumoMateriaPrimaId && payload.cantidadMateriaPrima) {
+    const { data: mpData, error: mpErr } = await supabase
+      .from("insumos")
+      .select("id, nombre, stock_actual")
+      .eq("id", payload.insumoMateriaPrimaId)
+      .single();
+
+    if (mpErr || !mpData) {
+      return { ok: false, error: mpErr?.message || "Insumo de materia prima no encontrado." };
+    }
+
+    mpOriginalStock = Number(mpData.stock_actual || 0);
+    nuevoStockMp = mpOriginalStock - Number(payload.cantidadMateriaPrima);
+
+    if (nuevoStockMp < 0) {
+      return {
+        ok: false,
+        error: `Stock insuficiente de materia prima (${mpData.nombre}): disponible ${mpOriginalStock}, requerido ${payload.cantidadMateriaPrima}.`,
+      };
+    }
+  }
+
+  // Paso C: Ejecutar descuento de materia prima con bloqueo optimista
+  if (payload.insumoMateriaPrimaId && nuevoStockMp !== null && mpOriginalStock !== null) {
+    const { data: updatedMpRows, error: errUpdateMp } = await supabase
+      .from("insumos")
+      .update({
+        stock_actual: nuevoStockMp,
+        actualizado_el: new Date().toISOString(),
+      })
+      .eq("id", payload.insumoMateriaPrimaId)
+      .eq("stock_actual", mpOriginalStock)
+      .select("id");
+
+    if (errUpdateMp || !updatedMpRows || updatedMpRows.length === 0) {
+      return {
+        ok: false,
+        error: errUpdateMp
+          ? `Error al descontar materia prima: ${errUpdateMp.message}`
+          : "Conflicto de concurrencia: el stock de la materia prima fue modificado simultáneamente por otra operación.",
+      };
+    }
+  }
+
+  // Paso D: Calcular nuevo stock y costo PPMC del insumo producido
+  const nuevoStockProducido = Number(prodData.stock_actual || 0) + Number(payload.cantidadProducida);
+
+  let nuevoCostoFinal: number | undefined;
+  if (
+    typeof payload.nuevoCostoUnitarioUsd === "number" &&
+    payload.nuevoCostoUnitarioUsd > 0 &&
+    Number.isFinite(payload.nuevoCostoUnitarioUsd)
+  ) {
+    const stockPrevio = Number(prodData.stock_actual || 0);
+    const costoPrevio = Number(prodData.costo_unitario_usd || 0);
+    if (stockPrevio > 0 && costoPrevio > 0) {
+      nuevoCostoFinal = Number(
+        (((stockPrevio * costoPrevio) + (payload.cantidadProducida * payload.nuevoCostoUnitarioUsd)) / nuevoStockProducido).toFixed(6)
+      );
+    } else {
+      nuevoCostoFinal = Number(payload.nuevoCostoUnitarioUsd.toFixed(6));
+    }
+  }
+
+  type InsumoUpdateFields = {
+    stock_actual: number;
+    actualizado_el: string;
+    costo_unitario_usd?: number;
+  };
+
+  const updateProd: InsumoUpdateFields = {
+    stock_actual: nuevoStockProducido,
+    actualizado_el: new Date().toISOString(),
+  };
+
+  if (nuevoCostoFinal !== undefined && nuevoCostoFinal > 0) {
+    updateProd.costo_unitario_usd = nuevoCostoFinal;
+  }
+
+  const { error: errUpdateProd } = await supabase
+    .from("insumos")
+    .update(updateProd)
+    .eq("id", payload.insumoProducidoId);
+
+  if (errUpdateProd) {
+    // Reversión compensatoria en caso de fallo con captura estricta de error
+    if (payload.insumoMateriaPrimaId && mpOriginalStock !== null && nuevoStockMp !== null) {
+      const { error: errRollback } = await supabase
+        .from("insumos")
+        .update({ stock_actual: mpOriginalStock, actualizado_el: new Date().toISOString() })
+        .eq("id", payload.insumoMateriaPrimaId)
+        .eq("stock_actual", nuevoStockMp);
+
+      if (errRollback) {
+        return {
+          ok: false,
+          error: `Error crítico: falló registrar producción (${errUpdateProd.message}) y falló reversión de materia prima (${errRollback.message}).`,
+        };
+      }
+    }
+    return { ok: false, error: `Error al registrar producción: ${errUpdateProd.message}` };
+  }
+
+  revalidatePath("/insumos");
+  revalidatePath("/recetas");
+  revalidatePath("/");
+
+  return { ok: true };
+}
+
 export async function eliminarInsumo(id: string) {
   if (!id || typeof id !== "string") {
     return { ok: false, error: "ID de insumo no proporcionado." };
