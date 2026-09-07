@@ -22,7 +22,7 @@ export async function extraerInsumosFactura(base64Image: string, mimeType: strin
   const { data: insumos } = await supabase.from("insumos").select("id, nombre, unidad_medida");
   
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
 
   const prompt = `
 Eres un asistente experto para un restaurante (La Parada del Sabor).
