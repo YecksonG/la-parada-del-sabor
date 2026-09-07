@@ -428,7 +428,7 @@ export default function ProveedoresClient({
                           type="button"
                           onClick={() => abrirEditar(p)}
                           className="btn-insumo-adjust"
-                          style={{ padding: "5px 10px", fontSize: 12 }}
+                          style={{ padding: "6px 12px", fontSize: 12, borderRadius: 10 }}
                         >
                           ✏️ Editar
                         </button>
@@ -436,7 +436,7 @@ export default function ProveedoresClient({
                           type="button"
                           onClick={() => handleEliminar(p.id, p.nombre)}
                           className="btn-danger-outline"
-                          style={{ padding: "5px 9px", fontSize: 12, borderRadius: 6 }}
+                          style={{ padding: "6px 10px", fontSize: 13, borderRadius: 10 }}
                           title="Eliminar Proveedor"
                         >
                           🗑️
