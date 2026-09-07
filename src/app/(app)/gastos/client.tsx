@@ -436,6 +436,7 @@ export default function GastosClient({
       cuenta_id: ctaSel?.id || undefined,
       cuenta_origen: ctaSel?.codigo || "efectivo_usd",
       numero_factura: compraFactura,
+      comprobante_url: comprobanteUrl || undefined,
       notas: compraNotas,
       items: itemsProcesados,
     });
@@ -1920,6 +1921,20 @@ export default function GastosClient({
                   reader.onloadend = async () => {
                     const base64Data = (reader.result as string).split(',')[1];
                     setGuardando(true);
+                    
+                    // Subir archivo a Supabase Storage en segundo plano
+                    const supabase = createClient();
+                    const fileExt = file.name.split(".").pop() || "jpg";
+                    const fileName = `gasto_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                    const filePath = `facturas/${fileName}`;
+                    supabase.storage.from("comprobantes-gastos").upload(filePath, file, { cacheControl: "3600", upsert: false })
+                      .then(({ error }) => {
+                        if (!error) {
+                          const { data: pData } = supabase.storage.from("comprobantes-gastos").getPublicUrl(filePath);
+                          if (pData?.publicUrl) setComprobanteUrl(pData.publicUrl);
+                        }
+                      });
+
                     try {
                       const { extraerInsumosFactura } = await import("./gemini-actions");
                       const res = await extraerInsumosFactura(base64Data, file.type, tasaBcv);
