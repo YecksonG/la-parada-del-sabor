@@ -15,7 +15,7 @@ export default async function ProveedoresPage() {
   ] = await Promise.all([
     supabase.from("proveedores").select("*").order("nombre", { ascending: true }),
     supabase.from("gastos").select("id, proveedor_id, beneficiario, monto_usd, monto_bs, estado, notas"),
-    supabase.from("compras").select("id, proveedor_id, total_usd, total_bs"),
+    supabase.from("compras").select("id, proveedor_id, total_usd, total_bs, compras_items(insumo_id, precio_unitario_usd)"),
     supabase
       .from("insumos")
       .select("*")
@@ -39,15 +39,54 @@ export default async function ProveedoresPage() {
     });
   }
 
+  // Complementar relMap y preciosMap con insumos comprados en compras_items
+  (comprasData || []).forEach((c: any) => {
+    if (c.proveedor_id && c.compras_items && Array.isArray(c.compras_items)) {
+      c.compras_items.forEach((it: any) => {
+        if (it.insumo_id) {
+          if (!relMap[c.proveedor_id]) relMap[c.proveedor_id] = [];
+          if (!relMap[c.proveedor_id].includes(it.insumo_id)) {
+            relMap[c.proveedor_id].push(it.insumo_id);
+          }
+          if (!preciosMap[c.proveedor_id]) preciosMap[c.proveedor_id] = {};
+          if (preciosMap[c.proveedor_id][it.insumo_id] === undefined && it.precio_unitario_usd) {
+            preciosMap[c.proveedor_id][it.insumo_id] = Number(it.precio_unitario_usd);
+          }
+        }
+      });
+    }
+  });
+
   const proveedoresHydrated = (proveedores || []).map((p) => {
+    let direccion = p.direccion;
+    let contacto = p.contacto;
+
+    // Enriquecer datos de Corporación Hermanos Moncada si estaban en blanco
+    if (p.nombre.toLowerCase().includes("moncada")) {
+      if (!direccion) {
+        direccion = "Av. Ollarvides esq. Maracas, Local S/N, Sector Puerta Maraven, Punto Fijo, Falcón";
+        supabase.from("proveedores").update({ direccion }).eq("id", p.id).then(() => {});
+      }
+      if (!contacto) {
+        contacto = "Vendedor Tienda";
+        supabase.from("proveedores").update({ contacto }).eq("id", p.id).then(() => {});
+      }
+    }
+
     if (relMap[p.id]) {
       const { notas_texto } = parseProveedorInsumos(p.notas);
       return {
         ...p,
+        direccion,
+        contacto,
         notas: serializeProveedorInsumos(relMap[p.id], notas_texto),
       };
     }
-    return p;
+    return {
+      ...p,
+      direccion,
+      contacto,
+    };
   });
 
   // Asociar compras y gastos a cada proveedor

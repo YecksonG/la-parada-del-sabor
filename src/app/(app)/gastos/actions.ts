@@ -403,6 +403,21 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     return { ok: false, error: itemsError.message };
   }
 
+  // 2.1 Sincronizar catálogo del proveedor en proveedor_insumos
+  if (payload.proveedor_id && payload.items.length > 0) {
+    for (const it of payload.items) {
+      if (it.insumo_id) {
+        const cant = it.cantidad_comprada || 1;
+        const precioRef = it.total_usd > 0 ? Number((it.total_usd / cant).toFixed(2)) : undefined;
+        await supabase.from("proveedor_insumos").upsert({
+          proveedor_id: payload.proveedor_id,
+          insumo_id: it.insumo_id,
+          ...(precioRef !== undefined ? { precio_referencial_usd: precioRef } : {}),
+        }, { onConflict: "proveedor_id,insumo_id" });
+      }
+    }
+  }
+
   // 3. Asentar también en la tabla de Gastos
   let sesion_caja_id: string | null = null;
   if (["efectivo_usd", "efectivo_bs", "caja_chica"].includes(ctaOrigen)) {
@@ -447,6 +462,9 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
 
   revalidatePath("/gastos");
   revalidatePath("/despensa");
+  revalidatePath("/insumos");
+  revalidatePath("/compras");
+  revalidatePath("/proveedores");
   return { ok: true };
 }
 

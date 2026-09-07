@@ -80,6 +80,7 @@ export default function GastosClient({
   const [gastos, setGastos] = useState<Gasto[]>(gastosIniciales);
   const [compras, setCompras] = useState<any[]>(comprasIniciales);
   const [listaProveedores, setListaProveedores] = useState<Proveedor[]>(proveedores);
+  const [listaInsumos, setListaInsumos] = useState<Insumo[]>(insumos);
 
   // Modales
   const [modalGasto, setModalGasto] = useState(false);
@@ -330,7 +331,7 @@ export default function GastosClient({
     let totalUsdCompra = 0;
 
     for (const it of compraItems) {
-      const ins = insumos.find((i) => i.id === it.insumo_id);
+      const ins = listaInsumos.find((i) => i.id === it.insumo_id);
       const und = UNIDADES_COMPRA.find((u) => u.id === it.unidadId) || UNIDADES_COMPRA[3];
       const c = parseFloat(it.cantidad);
       const u = parseFloat(it.totalUsd);
@@ -1226,6 +1227,15 @@ export default function GastosClient({
                             totalUsd: it.monto_usd?.toString() || ""
                           };
                         });
+                        // Si la IA creó nuevos insumos en la base de datos, incorporarlos a la lista local
+                        if (res.data?.insumos_creados && Array.isArray(res.data.insumos_creados) && res.data.insumos_creados.length > 0) {
+                          setListaInsumos((prev) => {
+                            const ids = new Set(prev.map((i) => i.id));
+                            const faltantes = res.data.insumos_creados.filter((i: any) => !ids.has(i.id));
+                            return [...prev, ...faltantes];
+                          });
+                        }
+
                         if (nuevosItems.length > 0) {
                           setCompraItems(nuevosItems);
                         }
@@ -1290,7 +1300,7 @@ export default function GastosClient({
                         onChange={(e) => {
                           const arr = [...compraItems];
                           arr[idx].insumo_id = e.target.value;
-                          const nuevoIns = insumos.find(i => i.id === e.target.value);
+                          const nuevoIns = listaInsumos.find(i => i.id === e.target.value);
                           if (nuevoIns) {
                             if (nuevoIns.unidad_medida === "und") arr[idx].unidadId = "unidad";
                             else if (nuevoIns.unidad_medida === "ml") arr[idx].unidadId = "litro";
@@ -1301,7 +1311,7 @@ export default function GastosClient({
                         className="form-input"
                         style={{ padding: "8px 6px" }}
                       >
-                        {insumos.map((ins) => (
+                        {listaInsumos.map((ins) => (
                           <option key={ins.id} value={ins.id}>
                             {ins.nombre} ({ins.unidad_medida})
                           </option>
@@ -1319,7 +1329,7 @@ export default function GastosClient({
                     <div className="form-field" style={{ margin: 0 }}>
                       {idx === 0 && <label style={{ fontSize: 11 }}>Und.</label>}
                       {(() => {
-                        const insRow = insumos.find(i => i.id === it.insumo_id);
+                        const insRow = listaInsumos.find(i => i.id === it.insumo_id);
                         const unidadesValidas = insRow 
                           ? UNIDADES_COMPRA.filter(u => u.unidadBase === insRow.unidad_medida)
                           : UNIDADES_COMPRA;
@@ -1358,7 +1368,7 @@ export default function GastosClient({
                 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                   <button type="button" onClick={() => {
-                    setCompraItems([...compraItems, { id: crypto.randomUUID(), insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "" }]);
+                    setCompraItems([...compraItems, { id: crypto.randomUUID(), insumo_id: listaInsumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "" }]);
                   }} style={{ background: "var(--primary-light)", color: "var(--primary-dark)", padding: "6px 12px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
                     + Agregar Otro Insumo
                   </button>
