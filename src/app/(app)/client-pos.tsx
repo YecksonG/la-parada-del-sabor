@@ -550,8 +550,8 @@ ${estadoPago}`;
                   border: pedidosPendientes.length > 0 ? "1px solid #eab308" : "1px solid var(--border)",
                 }}
               >
-                <span>{pedidosPendientes.length > 0 ? "🔔" : "📱"}</span>
-                <span>Pedidos Web ({pedidosPendientes.length})</span>
+                <span>{pedidosPendientes.length > 0 ? "🔔" : "📋"}</span>
+                <span>Por Confirmar ({pedidosPendientes.length})</span>
               </button>
 
               {/* Toggle de Vistas POS */}
@@ -1201,6 +1201,7 @@ ${estadoPago}`;
             placeholder="Notas (ej. sin cebolla, bien tostada, extra salsa)..."
             value={notasComanda}
             onChange={(e) => setNotasComanda(e.target.value)}
+            maxLength={300}
             className="cart-notes-input"
           />
 
@@ -1235,7 +1236,7 @@ ${estadoPago}`;
             onClick={handleEnviarComanda}
             className="btn-submit-comanda"
           >
-            {procesando ? "Enviando a Cocina..." : vueltoInsuficiente ? "⚠️ El billete no alcanza el total" : "🍳 Enviar Comanda a Cocina"}
+            {procesando ? "Registrando Comanda..." : vueltoInsuficiente ? "⚠️ El billete no alcanza el total" : "📝 Registrar Comanda (Por Confirmar)"}
           </button>
         </div>
       </aside>
@@ -1254,9 +1255,9 @@ ${estadoPago}`;
               />
             </div>
             <div className="ticket-header">
-              <h2>¡Comanda #{comandaExitosa.numero} en Cocina!</h2>
+              <h2>¡Comanda #{comandaExitosa.numero} Registrada!</h2>
               <p className="ticket-subtitle">
-                Los ingredientes y extras fueron descontados de la despensa en gramos.
+                Quedó en estado <strong>🟡 Por Confirmar</strong>. Al confirmarla pasará a cocina y se descontará el stock de la despensa.
               </p>
             </div>
 
@@ -1660,7 +1661,7 @@ ${estadoPago}`;
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, flexShrink: 0 }}>
               <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>
-                📱 Bandeja de Pedidos Web / WhatsApp
+                📋 Comandas y Pedidos Por Confirmar
               </h2>
               <button
                 type="button"
@@ -1675,10 +1676,10 @@ ${estadoPago}`;
               <div style={{ textAlign: "center", padding: "30px 10px", color: "var(--text-muted)" }}>
                 <span style={{ fontSize: 40, display: "block", marginBottom: 6 }}>📭</span>
                 <strong style={{ display: "block", fontSize: 15, color: "var(--text)" }}>
-                  No hay pedidos web pendientes
+                  No hay comandas pendientes por confirmar
                 </strong>
                 <p style={{ fontSize: 12, marginTop: 4 }}>
-                  Los pedidos que tus clientes hagan desde <code>/pedir</code> o WhatsApp aparecerán aquí al instante para ser confirmados.
+                  Las comandas registradas en el POS o pedidos entrantes desde <code>/pedir</code> y WhatsApp aparecerán aquí para ser confirmados y enviados a cocina.
                 </p>
               </div>
             ) : (
@@ -1710,7 +1711,7 @@ ${estadoPago}`;
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <div>
                           <strong style={{ fontSize: 14, color: "var(--text)" }}>
-                            #{p.numero_comanda} • {p.cliente?.nombre || "Cliente Web"}
+                            #{p.numero_comanda} • {p.cliente?.nombre || (p.creado_por === "web_cliente" ? "Cliente Web" : "Cliente Mostrador (POS)")}
                           </strong>
                           {p.cliente?.telefono && (
                             <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
@@ -1732,57 +1733,62 @@ ${estadoPago}`;
                         </span>
                       </div>
 
-                      {p.cliente?.direccion_delivery && p.tipo_entrega === "delivery" && (
-                        <div style={{ background: "rgba(248, 197, 66, 0.12)", border: "1px solid rgba(248, 197, 66, 0.35)", borderRadius: 8, padding: "6px 8px" }}>
-                          <p style={{ fontSize: 11, color: "var(--text)", margin: "0 0 6px", lineHeight: 1.3 }}>
-                            📍 Dirección: {p.cliente.direccion_delivery}
-                          </p>
-                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            <button
-                              type="button"
-                              onClick={() => handleEnviarWhatsAppDeliveryPOS(p)}
-                              style={{
-                                flex: 1,
-                                padding: "5px 8px",
-                                borderRadius: 6,
-                                background: "#25D366",
-                                color: "#ffffff",
-                                border: "none",
-                                fontSize: 11,
-                                fontWeight: 800,
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                gap: 4,
-                              }}
-                            >
-                              📲 Enviar al Delivery
-                            </button>
-                            {p.cliente.direccion_delivery.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/) && (
-                              <a
-                                href={p.cliente.direccion_delivery.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/)?.[0]}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                      {(() => {
+                        const dirTexto = p.direccion_delivery || p.cliente?.direccion_delivery || "";
+                        if (!dirTexto || p.tipo_entrega !== "delivery") return null;
+                        const matchMap = dirTexto.match(/https:\/\/maps\.google\.com\/\?q=[^\s]+/);
+                        return (
+                          <div style={{ background: "rgba(248, 197, 66, 0.12)", border: "1px solid rgba(248, 197, 66, 0.35)", borderRadius: 8, padding: "6px 8px" }}>
+                            <p style={{ fontSize: 11, color: "var(--text)", margin: "0 0 6px", lineHeight: 1.3 }}>
+                              📍 Dirección: {dirTexto}
+                            </p>
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleEnviarWhatsAppDeliveryPOS(p)}
                                 style={{
+                                  flex: 1,
                                   padding: "5px 8px",
                                   borderRadius: 6,
-                                  background: "var(--bg-card)",
-                                  color: "var(--text)",
-                                  border: "1px solid var(--border)",
+                                  background: "#25D366",
+                                  color: "#ffffff",
+                                  border: "none",
                                   fontSize: 11,
                                   fontWeight: 800,
-                                  textDecoration: "none",
+                                  cursor: "pointer",
                                   display: "inline-flex",
                                   alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 4,
                                 }}
                               >
-                                🗺️ Mapa
-                              </a>
-                            )}
+                                📲 Enviar al Delivery
+                              </button>
+                              {matchMap && (
+                                <a
+                                  href={matchMap[0]}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    padding: "5px 8px",
+                                    borderRadius: 6,
+                                    background: "var(--bg-card)",
+                                    color: "var(--text)",
+                                    border: "1px solid var(--border)",
+                                    fontSize: 11,
+                                    fontWeight: 800,
+                                    textDecoration: "none",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  🗺️ Mapa
+                                </a>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Items del pedido */}
                       <div style={{ borderTop: "1px dashed var(--border)", paddingTop: 6 }}>

@@ -232,8 +232,13 @@ export type PedidoPendiente = {
   total_bs: number;
   metodo_pago?: MetodoPago | null;
   tipo_entrega: TipoEntrega;
+  direccion_delivery?: string | null;
+  delivery_zona_nombre?: string | null;
+  delivery_monto_usd?: number | null;
   notas_comanda?: string | null;
   estado: EstadoVenta;
+  creado_por?: string | null;
+  origen_pedido?: string | null;
   cliente?: Cliente | null;
   items?: PedidoPendienteItem[];
 };

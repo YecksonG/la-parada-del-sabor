@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guard";
+import { getComboArepasCount } from "@/lib/combo-helper";
 
 export type CartItemExtra = {
   extra_id: string;
@@ -97,9 +98,24 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
     .in("id", productIds);
 
   const productPriceMap = new Map<string, number>();
+  const productObjMap = new Map<string, any>();
   (dbProducts || []).forEach((p) => {
     productPriceMap.set(p.id, Number(p.precio_usd) || 0);
+    productObjMap.set(p.id, p);
   });
+
+  // Validar en servidor que los combos incluyan sus rellenos oficiales
+  for (const item of payload.items) {
+    const pObj = productObjMap.get(item.producto_id);
+    if (pObj && getComboArepasCount(pObj) !== null) {
+      if (!item.notas_item || !item.notas_item.trim().toLowerCase().includes("rellenos:")) {
+        return {
+          ok: false,
+          error: `Debes personalizar los rellenos del combo '${pObj.nombre}' antes de registrar la comanda.`,
+        };
+      }
+    }
+  }
 
   const extraIds = Array.from(
     new Set(
@@ -161,7 +177,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
       delivery_monto_usd: tarifaDeliveryUsd > 0 ? tarifaDeliveryUsd : null,
       delivery_monto_bs: deliveryBs,
       direccion_delivery: payload.direccion_delivery || null,
-      estado: "preparando",
+      estado: "pendiente",
       notas_comanda: payload.notas_comanda ? payload.notas_comanda.trim().slice(0, 500) : null,
       creado_por: nombreOperador,
       origen_pedido: "pos",
@@ -201,7 +217,9 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 
     if (itemError || !ventaItem) {
       console.error("Error insertando item de venta:", itemError);
-      continue;
+      // Abortar y revertir cabecera para evitar comanda huérfana o incompleta
+      await supabase.from("ventas").delete().eq("id", venta.id);
+      return { ok: false, error: `Error al registrar producto en comanda: ${itemError?.message || "error desconocido"}` };
     }
 
     // 3. Insertar Extras si tiene (Disparará la deducción de gramos de extras)
@@ -224,7 +242,12 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
         };
       });
 
-      await supabase.from("ventas_items_extras").insert(extrasInsert);
+      const { error: extrasError } = await supabase.from("ventas_items_extras").insert(extrasInsert);
+      if (extrasError) {
+        console.error("Error insertando extras de venta:", extrasError);
+        await supabase.from("ventas").delete().eq("id", venta.id);
+        return { ok: false, error: `Error al registrar modificadores en comanda: ${extrasError.message}` };
+      }
     }
   }
 
@@ -282,45 +305,11 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 }
 
 export async function aceptarPedidoWeb(ventaId: string) {
-  const supabase = await createClient();
-  const auth = await requireAuth();
-  if (!auth.ok) return { ok: false, error: auth.error };
-
-  // Al pasar a 'preparando', el trigger PostgreSQL `trg_confirmar_pedido_web`
-  // descontará automáticamente los insumos en gramos de la despensa
-  const { error } = await supabase
-    .from("ventas")
-    .update({ estado: "preparando" })
-    .eq("id", ventaId);
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath("/");
-  revalidatePath("/ventas");
-  revalidatePath("/caja");
-  revalidatePath("/dashboard");
-  revalidatePath("/insumos");
-
-  return { ok: true };
+  const { cambiarEstadoVenta } = await import("./ventas/actions");
+  return cambiarEstadoVenta(ventaId, "preparando");
 }
 
 export async function rechazarPedidoWeb(ventaId: string) {
-  const supabase = await createClient();
-  const auth = await requireAuth();
-  if (!auth.ok) return { ok: false, error: auth.error };
-
-  const { error } = await supabase
-    .from("ventas")
-    .update({ estado: "cancelada" })
-    .eq("id", ventaId);
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath("/");
-  revalidatePath("/ventas");
-  revalidatePath("/caja");
-  revalidatePath("/dashboard");
-  revalidatePath("/insumos");
-
-  return { ok: true };
+  const { cambiarEstadoVenta } = await import("./ventas/actions");
+  return cambiarEstadoVenta(ventaId, "cancelada");
 }

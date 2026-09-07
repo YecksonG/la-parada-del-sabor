@@ -51,8 +51,10 @@ Este flujo reemplaza al orquestador(auditor-externo) y mantiene la misma discipl
 
 ## 🚨 REGLAS NO NEGOCIABLES:
 
-### 1. Auditoría Obligatoria con OpenCode (`opencode run`)
+### 1. Auditoría Obligatoria con OpenCode (`opencode run`) — Modo Solo Lectura
 **Toda modificación de código, adición de componentes, refactorización o cambio en la web (`src/app/`, `src/lib/`, `src/components/`, `globals.css`, etc.) DEBE ser auditada exhaustivamente con OpenCode antes de darse por completada.**
+- OpenCode opera estrictamente como **AUDITOR DE SOLO LECTURA** (permiso de edición desactivado).
+- No ejecuta bucles de codificación autónomos con su coder local: si OpenCode reporta hallazgos, el informe técnico se entrega a Antigravity para que las correcciones se realicen con precisión y control total.
 ```bash
 opencode run "Auditoría de código para [descripción]. Revisar consistencia de tipos, edge cases, seguridad, SSR guards y performance."
 ```

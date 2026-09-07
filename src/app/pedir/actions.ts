@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { getComboArepasCount } from "@/lib/combo-helper";
 
 // Mapa de control de tasa en memoria por IP (máximo 4 pedidos por minuto, 20 por hora)
 const ipRateLimitMap = new Map<string, number[]>();
@@ -81,8 +82,13 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   if (!payload.items || payload.items.length === 0) {
     return { ok: false, error: "Tu pedido no tiene productos seleccionados." };
   }
-  if (payload.tipo_entrega === "delivery" && !payload.direccion_delivery?.trim()) {
-    return { ok: false, error: "Por favor ingresa la dirección exacta para el delivery." };
+  if (payload.tipo_entrega === "delivery") {
+    if (!payload.delivery_zona_id?.trim()) {
+      return { ok: false, error: "Por favor selecciona el sector o zona de delivery de la lista." };
+    }
+    if (!payload.direccion_delivery?.trim()) {
+      return { ok: false, error: "Por favor ingresa la dirección exacta para el delivery." };
+    }
   }
 
   // Validación estricta de cantidades en el servidor (rango 1..50, enteros)
@@ -98,6 +104,23 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   }
 
   const supabase = await createClient();
+
+  // Validación de combos de arepas: exigir que se hayan seleccionado los rellenos
+  const pIds = Array.from(new Set(payload.items.map((it) => it.producto_id)));
+  const { data: prodsData } = await supabase.from("productos").select("id, nombre").in("id", pIds);
+  const prodMapVal = new Map((prodsData || []).map((p) => [p.id, p]));
+
+  for (const item of payload.items) {
+    const prodObj = prodMapVal.get(item.producto_id);
+    if (prodObj && getComboArepasCount(prodObj as any) !== null) {
+      if (!item.notas_item || !item.notas_item.trim().toLowerCase().includes("rellenos:")) {
+        return {
+          ok: false,
+          error: `Por favor personaliza los rellenos de '${prodObj.nombre}' antes de enviar tu comanda.`,
+        };
+      }
+    }
+  }
 
   // Inserción atómica autoritativa mediante RPC con SECURITY DEFINER
   const { data: rpcRes, error: rpcError } = await supabase.rpc("fn_crear_pedido_web", {

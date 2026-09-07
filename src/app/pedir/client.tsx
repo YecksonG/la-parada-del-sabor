@@ -681,6 +681,13 @@ export default function MenuClienteView({
       setErrorMsg("Tu carrito está vacío. Agrega al menos un producto.");
       return;
     }
+    const comboSinRellenos = carrito.find(
+      (item) => getComboArepasCount(item.producto) !== null && (!item.notas_item || !item.notas_item.trim().toLowerCase().includes("rellenos:"))
+    );
+    if (comboSinRellenos) {
+      setErrorMsg(`Debes personalizar los rellenos de '${comboSinRellenos.producto.nombre}'. Haz clic en 'Armar Rellenos'.`);
+      return;
+    }
     const nombreLimpio = nombreCliente.trim();
     const totalLetrasNombre = (nombreLimpio.match(/[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ]/g) || []).length;
     if (!nombreLimpio || totalLetrasNombre < 2) {
@@ -736,6 +743,14 @@ export default function MenuClienteView({
 
     if (carrito.length === 0) {
       setErrorMsg("Tu carrito está vacío.");
+      setPasoCheckout(1);
+      return;
+    }
+    const comboSinRellenos = carrito.find(
+      (item) => getComboArepasCount(item.producto) !== null && (!item.notas_item || !item.notas_item.trim().toLowerCase().includes("rellenos:"))
+    );
+    if (comboSinRellenos) {
+      setErrorMsg(`Debes personalizar los rellenos de '${comboSinRellenos.producto.nombre}'.`);
       setPasoCheckout(1);
       return;
     }

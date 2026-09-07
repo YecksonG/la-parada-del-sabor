@@ -86,6 +86,7 @@ export default function DashboardClient({
   const ventasFiltradas = useMemo(() => {
     const ahora = new Date();
     return ventas.filter((v) => {
+      if (v.estado === "cancelada" || v.estado === "pendiente") return false;
       const fechaVenta = new Date(v.fecha);
       if (periodo === "hoy") {
         return esMismaFechaEnCaracas(v.fecha);
@@ -122,7 +123,7 @@ export default function DashboardClient({
     });
 
     ventas.forEach((v) => {
-      if (v.estado === "cancelada") return;
+      if (v.estado === "cancelada" || v.estado === "pendiente") return;
       const fecha = new Date(v.fecha);
       const montoVenta = Number(v.total_usd) || 0;
 
