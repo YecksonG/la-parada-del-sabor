@@ -1,66 +1,51 @@
---- src/app/(app)/gastos/client.tsx
-+++ src/app/(app)/gastos/client.tsx
-@@ -1942,2 +1942,66 @@
+--- src/app/(app)/gastos/gemini-actions.ts
++++ src/app/(app)/gastos/gemini-actions.ts
+@@ -21,6 +21,3 @@
+   
+   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+-  const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
  
-+            {/* BOTÓN IA PARA CARGAR FACTURAS */}
-+            <div style={{ padding: "14px", background: "var(--bg-subtle)", borderRadius: 12, marginBottom: 16, display: "flex", gap: 12, alignItems: "center", border: "1px dashed var(--primary)" }}>
-+              <div style={{ flex: 1 }}>
-+                <h4 style={{ margin: 0, fontSize: 14, color: "var(--primary)", fontWeight: 800 }}>✨ Lector de Facturas Inteligente</h4>
-+                <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Sube una foto del ticket y la IA extraerá los insumos automáticamente.</p>
-+              </div>
-+              <input
-+                type="file"
-+                accept="image/*"
-+                id="ai-invoice-upload"
-+                style={{ display: "none" }}
-+                onChange={async (e) => {
-+                  const file = e.target.files?.[0];
-+                  if (!file) return;
-+                  if (file.size > 4 * 1024 * 1024) {
-+                    setErrorMsg("La imagen no puede pesar más de 4MB.");
-+                    return;
-+                  }
-+                  
-+                  setErrorMsg("");
-+                  const reader = new FileReader();
-+                  reader.onloadend = async () => {
-+                    const base64Data = (reader.result as string).split(',')[1];
-+                    setGuardando(true);
-+                    try {
-+                      const { extraerInsumosFactura } = await import("./gemini-actions");
-+                      const res = await extraerInsumosFactura(base64Data, file.type);
-+                      if (res.ok && res.data?.items) {
-+                        const nuevosItems = res.data.items.map((it: any) => {
-+                          // Mapear unidad devuelta por gemini a unidad local
-+                          let und = UNIDADES_COMPRA.find(u => u.label.toLowerCase().startsWith(it.unidad?.toLowerCase()))?.id || "kilo";
-+                          if (it.unidad === "unidad") und = "unidad";
-+                          
-+                          return {
-+                            id: crypto.randomUUID(),
-+                            insumo_id: it.insumo_id || "",
-+                            cantidad: it.cantidad?.toString() || "1",
-+                            unidadId: und,
-+                            totalUsd: it.monto_usd?.toString() || ""
-+                          };
-+                        });
-+                        if (nuevosItems.length > 0) {
-+                          setCompraItems(nuevosItems);
-+                        }
-+                      } else {
-+                        setErrorMsg(res.error || "No se pudieron extraer los ítems.");
-+                      }
-+                    } catch (err: any) {
-+                      setErrorMsg("Error al procesar: " + err.message);
-+                    } finally {
-+                      setGuardando(false);
-+                    }
-+                  };
-+                  reader.readAsDataURL(file);
-+                }}
-+              />
-+              <label htmlFor="ai-invoice-upload" className="btn-primary-action" style={{ cursor: "pointer", fontSize: 12, padding: "8px 12px", margin: 0 }}>
-+                📸 Subir Factura
-+              </label>
-+            </div>
+   const prompt = `
+@@ -48,7 +45,15 @@
+ 
++  // Implementar fallback de modelos si hay alta demanda
++  const modelNames = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"];
++  
+   try {
+-    const result = await model.generateContent([
+-      prompt,
+-      {
+-        inlineData: {
+-          data: base64Image,
+-          mimeType: mimeType
+-        }
+-      }
+-    ]);
+-    const response = await result.response;
+-    let text = response.text();
++    let result = null;
++    for (const modelName of modelNames) {
++      try {
++        const model = genAI.getGenerativeModel({ model: modelName });
++        result = await model.generateContent([
++          prompt,
++          {
++            inlineData: {
++              data: base64Image,
++              mimeType: mimeType
++            }
++          }
++        ]);
++        break; // Éxito, salir del loop
++      } catch (e: any) {
++        console.warn(\`El modelo \${modelName} falló: \${e.message}\`);
++        if (modelName === modelNames[modelNames.length - 1]) {
++          throw e; // Si es el último modelo, lanzar el error
++        }
++      }
++    }
 +
-             <form onSubmit={handleGuardarIngresoInsumo} className="recipe-form">
++    if (!result) throw new Error("Todos los modelos fallaron.");
++
++    const response = await result.response;
++    let text = response.text();

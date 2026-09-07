@@ -22,7 +22,7 @@ export async function extraerInsumosFactura(base64Image: string, mimeType: strin
   const { data: insumos } = await supabase.from("insumos").select("id, nombre, unidad_medida");
   
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-3.8-flash" });
+  const modelos = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"];
 
   const prompt = `
 Eres un asistente experto para un restaurante (La Parada del Sabor).
@@ -50,16 +50,34 @@ Reglas:
 }
   `;
 
-  try {
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Image,
-          mimeType: mimeType
+  let result = null;
+  let lastError = null;
+
+  for (const m of modelos) {
+    try {
+      const model = genAI.getGenerativeModel({ model: m });
+      result = await model.generateContent([
+        prompt,
+        {
+          inlineData: {
+            data: base64Image,
+            mimeType: mimeType
+          }
         }
-      }
-    ]);
+      ]);
+      break; // Salir del bucle si fue exitoso
+    } catch (e: any) {
+      console.warn(`Fallback: ${m} falló - ${e.message}`);
+      lastError = e;
+    }
+  }
+
+  if (!result) {
+    console.error("Error Gemini:", lastError);
+    return { ok: false, error: lastError?.message || "Todos los servidores de IA están ocupados. Intenta en unos minutos." };
+  }
+
+  try {
     const response = await result.response;
     let text = response.text();
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
