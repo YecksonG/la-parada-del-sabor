@@ -332,18 +332,17 @@ export default function ProveedoresClient({
         </div>
       ) : (
         /* VISTA 2: FILAS / LISTA DETALLADA */
-        <div className="table-responsive-wrapper">
-          <table className="custom-detailed-table">
+        <div className="table-responsive-wrapper" style={{ overflowX: "auto" }}>
+          <table className="custom-detailed-table" style={{ minWidth: 1050 }}>
             <thead>
               <tr>
-                <th>Empresa / Razón Social</th>
-                <th>Contacto Directo</th>
-                <th>Teléfono / WhatsApp</th>
-                <th>Dirección</th>
-                <th>Insumos que Suministra</th>
-                <th>Compras Realizadas</th>
-                <th>Total Facturado</th>
-                <th style={{ textAlign: "right" }}>Acciones</th>
+                <th style={{ minWidth: 200 }}>Empresa / Razón Social</th>
+                <th style={{ minWidth: 160 }}>Contacto & Teléfono</th>
+                <th style={{ minWidth: 220 }}>Dirección</th>
+                <th style={{ minWidth: 240 }}>Insumos que Suministra</th>
+                <th style={{ minWidth: 130, textAlign: "center" }}>Movimientos</th>
+                <th style={{ minWidth: 140, textAlign: "right" }}>Total Facturado</th>
+                <th style={{ minWidth: 120, textAlign: "right" }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -358,37 +357,36 @@ export default function ProveedoresClient({
                   <tr key={p.id} className="detailed-table-row">
                     <td>
                       <div>
-                        <strong style={{ fontSize: 14, color: "var(--text)" }}>🏢 {p.nombre}</strong>
-                        {p.rif && <div><span className="receta-cat-badge">RIF: {p.rif}</span></div>}
+                        <strong style={{ fontSize: 14, color: "var(--text)", display: "block" }}>🏢 {p.nombre}</strong>
+                        {p.rif && <span className="receta-cat-badge" style={{ marginTop: 3 }}>RIF: {p.rif}</span>}
                       </div>
                     </td>
                     <td>
-                      {p.contacto ? (
-                        <span style={{ fontSize: 13, fontWeight: 700 }}>👤 {p.contacto}</span>
-                      ) : (
-                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
-                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                        {p.contacto ? (
+                          <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>👤 {p.contacto}</span>
+                        ) : null}
+                        {p.telefono ? (
+                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>📞 {p.telefono}</span>
+                        ) : null}
+                        {!p.contacto && !p.telefono && (
+                          <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
+                        )}
+                      </div>
                     </td>
-                    <td>
-                      {p.telefono ? (
-                        <span style={{ fontSize: 13 }}>📞 {p.telefono}</span>
-                      ) : (
-                        <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ width: 180, maxWidth: 220, fontSize: 12 }}>
+                    <td style={{ fontSize: 12, lineHeight: 1.4, color: "var(--text)" }}>
                       {p.direccion ? <span>📍 {p.direccion}</span> : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
-                    <td style={{ minWidth: 220, maxWidth: 300, fontSize: 12 }}>
+                    <td style={{ fontSize: 12 }}>
                       {insumosSuministrados.length > 0 ? (
-                        <div className="insumos-supplied-chips">
+                        <div className="insumos-supplied-chips" style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                           {insumosSuministrados.slice(0, 2).map((ins) => {
                             const precioRef = preciosReferenciales[p.id]?.[ins.id];
                             return (
-                              <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "normal" }}>
                                 <span>{ins.nombre}</span>
                                 {precioRef !== undefined && (
-                                  <strong style={{ color: "var(--accent-hover)", fontSize: 10 }}>
+                                  <strong style={{ color: "var(--accent-hover)", fontSize: 10, whiteSpace: "nowrap" }}>
                                     (${precioRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""})
                                   </strong>
                                 )}
@@ -412,10 +410,10 @@ export default function ProveedoresClient({
                         <span style={{ color: "var(--text-muted)" }}>—</span>
                       )}
                     </td>
-                    <td style={{ whiteSpace: "nowrap", width: 150 }}>
+                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
                       <span className="badge-ticket" style={{ fontSize: 12 }}>{stats.conteo} Movimientos</span>
                     </td>
-                    <td style={{ whiteSpace: "nowrap", width: 160 }}>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                       <strong className="text-primary" style={{ fontSize: 14 }}>
                         ${(Number(stats.totalUsd) || 0).toFixed(2)} USD
                         {stats.totalBs ? <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span> : null}

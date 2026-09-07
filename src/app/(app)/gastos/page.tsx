@@ -10,10 +10,10 @@ export const metadata = {
 export default async function GastosPage() {
   const supabase = await createClient();
 
-  const [gastosRes, comprasRes, insumosRes, provRes, cuentasRes, transferenciasRes, tasaRes] = await Promise.all([
+  const [gastosRes, comprasRes, insumosRes, provRes, tasaRes] = await Promise.all([
     supabase
       .from("gastos")
-      .select("*, proveedor:proveedores(*), cuenta:cuentas_negocio(*)")
+      .select("*, proveedor:proveedores(*)")
       .order("fecha", { ascending: false })
       .limit(150),
     supabase
@@ -32,15 +32,6 @@ export default async function GastosPage() {
       .eq("activo", true)
       .order("nombre", { ascending: true }),
     supabase
-      .from("cuentas_negocio")
-      .select("*")
-      .order("nombre", { ascending: true }),
-    supabase
-      .from("transferencias_cuentas")
-      .select("*, cuenta_origen:cuentas_negocio!transferencias_cuentas_cuenta_origen_id_fkey(*), cuenta_destino:cuentas_negocio!transferencias_cuentas_cuenta_destino_id_fkey(*)")
-      .order("fecha", { ascending: false })
-      .limit(100),
-    supabase
       .from("tasas_cambio")
       .select("bcv_usd_bs, tasa_usd_bs")
       .order("fecha", { ascending: false })
@@ -52,8 +43,6 @@ export default async function GastosPage() {
   const compras = (comprasRes.data as any[]) || [];
   const insumos = (insumosRes.data as Insumo[]) || [];
   const proveedores = (provRes.data as Proveedor[]) || [];
-  const cuentas = (cuentasRes.data as CuentaNegocio[]) || [];
-  const transferencias = (transferenciasRes.data as TransferenciaCuenta[]) || [];
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 60.0;
 
   return (
@@ -61,8 +50,6 @@ export default async function GastosPage() {
       gastosIniciales={gastos}
       comprasIniciales={compras}
       insumos={insumos}
-      cuentasIniciales={cuentas}
-      transferenciasIniciales={transferencias}
       proveedores={proveedores}
       tasaBcv={tasaBcv}
     />
