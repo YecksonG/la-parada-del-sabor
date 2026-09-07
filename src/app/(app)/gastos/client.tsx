@@ -866,20 +866,6 @@ export default function GastosClient({
             >
               📦 Entrada de Insumos ({compras.length})
             </button>
-            <button
-              type="button"
-              onClick={() => setTabActiva("cuentas")}
-              className={`view-mode-btn ${tabActiva === "cuentas" ? "active" : ""}`}
-            >
-              💳 Cuentas & Bancos ({cuentas.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setTabActiva("transferencias")}
-              className={`view-mode-btn ${tabActiva === "transferencias" ? "active" : ""}`}
-            >
-              🔄 Transferencias entre Cuentas ({transferencias.length})
-            </button>
           </div>
         </div>
 
@@ -1738,7 +1724,7 @@ export default function GastosClient({
               </div>
 
               <div className="form-grid-2">
-                <div className="form-field">
+                <div className="form-field" style={{ display: "none" }}>
                   <label>Cuenta / Origen del Pago *</label>
                   <select
                     value={cuentaId || cuentaOrigen}
@@ -1910,6 +1896,66 @@ export default function GastosClient({
               </div>
             )}
 
+            {/* BOTÓN IA PARA CARGAR FACTURAS */}
+            <div style={{ padding: "14px", background: "var(--bg-subtle)", borderRadius: 12, marginBottom: 16, display: "flex", gap: 12, alignItems: "center", border: "1px dashed var(--primary)" }}>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ margin: 0, fontSize: 14, color: "var(--primary)", fontWeight: 800 }}>✨ Lector de Facturas Inteligente</h4>
+                <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Sube una foto del ticket y la IA extraerá los insumos automáticamente.</p>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                id="ai-invoice-upload"
+                style={{ display: "none" }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 4 * 1024 * 1024) {
+                    setErrorMsg("La imagen no puede pesar más de 4MB.");
+                    return;
+                  }
+                  
+                  setErrorMsg("");
+                  const reader = new FileReader();
+                  reader.onloadend = async () => {
+                    const base64Data = (reader.result as string).split(',')[1];
+                    setGuardando(true);
+                    try {
+                      const { extraerInsumosFactura } = await import("./gemini-actions");
+                      const res = await extraerInsumosFactura(base64Data, file.type);
+                      if (res.ok && res.data?.items) {
+                        const nuevosItems = res.data.items.map((it: any) => {
+                          let und = UNIDADES_COMPRA.find(u => u.label.toLowerCase().startsWith(it.unidad?.toLowerCase()))?.id || "kilo";
+                          if (it.unidad === "unidad") und = "unidad";
+                          
+                          return {
+                            id: crypto.randomUUID(),
+                            insumo_id: it.insumo_id || "",
+                            cantidad: it.cantidad?.toString() || "1",
+                            unidadId: und,
+                            totalUsd: it.monto_usd?.toString() || ""
+                          };
+                        });
+                        if (nuevosItems.length > 0) {
+                          setCompraItems(nuevosItems);
+                        }
+                      } else {
+                        setErrorMsg(res.error || "No se pudieron extraer los ítems.");
+                      }
+                    } catch (err: any) {
+                      setErrorMsg("Error al procesar: " + err.message);
+                    } finally {
+                      setGuardando(false);
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+              <label htmlFor="ai-invoice-upload" className="btn-primary-action" style={{ cursor: "pointer", fontSize: 12, padding: "8px 12px", margin: 0, opacity: guardando ? 0.5 : 1, pointerEvents: guardando ? "none" : "auto" }}>
+                {guardando ? "⏳ Leyendo..." : "📸 Subir Factura"}
+              </label>
+            </div>
+
             <form onSubmit={handleGuardarIngresoInsumo} className="recipe-form">
               <div className="form-field" style={{ marginBottom: 12 }}>
                 <label>Proveedor (Opcional)</label>
@@ -2009,7 +2055,7 @@ export default function GastosClient({
               </div>
 
               <div className="form-grid-2">
-                <div className="form-field">
+                <div className="form-field" style={{ display: "none" }}>
                   <label>Cuenta / Origen del Pago *</label>
                   <select
                     value={compraCuentaId}

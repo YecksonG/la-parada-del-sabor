@@ -1,51 +1,66 @@
 --- src/app/(app)/gastos/client.tsx
 +++ src/app/(app)/gastos/client.tsx
-@@ -276,19 +276,6 @@
+@@ -1942,2 +1942,66 @@
  
-   // Cálculo dual en Entrada de Insumos
--  const handleCambioCompraUsd = (val: string) => {
--    setCompraTotalUsd(val);
--    const num = parseFloat(val);
--    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
--      setCompraTotalBs((num * tasaBcv).toFixed(2));
--    } else {
--      setCompraTotalBs("");
--    }
--  };
--
-   const handleCambioCompraBs = (val: string) => {
-     setCompraTotalBs(val);
--    const num = parseFloat(val);
--    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
--      setCompraTotalUsd((num / tasaBcv).toFixed(2));
--    }
-   };
- 
-@@ -440,3 +427,3 @@
-       tasa_bcv: tasaBcv,
--      cuenta_id: ctaSel?.id,
-+      cuenta_id: ctaSel?.id || undefined,
-       cuenta_origen: ctaSel?.codigo || "efectivo_usd",
-@@ -823,23 +810,2 @@
- 
--  // Cálculo de resumen para el insumo en el modal de compra
--  const insumoSeleccionadoObj = useMemo(() => {
--    return insumos.find((i) => i.id === compraInsumoId) || insumos[0];
--  }, [insumos, compraInsumoId]);
--
--  const unidadSeleccionadaObj = useMemo(() => {
--    return UNIDADES_COMPRA.find((u) => u.id === compraUnidadId) || UNIDADES_COMPRA[3];
--  }, [compraUnidadId]);
--
--  const cantidadTotalBaseCalculada = useMemo(() => {
--    const cant = parseFloat(compraCantidad) || 0;
--    return cant * unidadSeleccionadaObj.factor;
--  }, [compraCantidad, unidadSeleccionadaObj]);
--
--  const costoUnitarioBaseCalculado = useMemo(() => {
--    const total = parseFloat(compraTotalUsd) || 0;
--    if (cantidadTotalBaseCalculada <= 0 || total <= 0) return 0;
--    return total / cantidadTotalBaseCalculada;
--  }, [compraTotalUsd, cantidadTotalBaseCalculada]);
--
-   // Exportar a CSV
++            {/* BOTÓN IA PARA CARGAR FACTURAS */}
++            <div style={{ padding: "14px", background: "var(--bg-subtle)", borderRadius: 12, marginBottom: 16, display: "flex", gap: 12, alignItems: "center", border: "1px dashed var(--primary)" }}>
++              <div style={{ flex: 1 }}>
++                <h4 style={{ margin: 0, fontSize: 14, color: "var(--primary)", fontWeight: 800 }}>✨ Lector de Facturas Inteligente</h4>
++                <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Sube una foto del ticket y la IA extraerá los insumos automáticamente.</p>
++              </div>
++              <input
++                type="file"
++                accept="image/*"
++                id="ai-invoice-upload"
++                style={{ display: "none" }}
++                onChange={async (e) => {
++                  const file = e.target.files?.[0];
++                  if (!file) return;
++                  if (file.size > 4 * 1024 * 1024) {
++                    setErrorMsg("La imagen no puede pesar más de 4MB.");
++                    return;
++                  }
++                  
++                  setErrorMsg("");
++                  const reader = new FileReader();
++                  reader.onloadend = async () => {
++                    const base64Data = (reader.result as string).split(',')[1];
++                    setGuardando(true);
++                    try {
++                      const { extraerInsumosFactura } = await import("./gemini-actions");
++                      const res = await extraerInsumosFactura(base64Data, file.type);
++                      if (res.ok && res.data?.items) {
++                        const nuevosItems = res.data.items.map((it: any) => {
++                          // Mapear unidad devuelta por gemini a unidad local
++                          let und = UNIDADES_COMPRA.find(u => u.label.toLowerCase().startsWith(it.unidad?.toLowerCase()))?.id || "kilo";
++                          if (it.unidad === "unidad") und = "unidad";
++                          
++                          return {
++                            id: crypto.randomUUID(),
++                            insumo_id: it.insumo_id || "",
++                            cantidad: it.cantidad?.toString() || "1",
++                            unidadId: und,
++                            totalUsd: it.monto_usd?.toString() || ""
++                          };
++                        });
++                        if (nuevosItems.length > 0) {
++                          setCompraItems(nuevosItems);
++                        }
++                      } else {
++                        setErrorMsg(res.error || "No se pudieron extraer los ítems.");
++                      }
++                    } catch (err: any) {
++                      setErrorMsg("Error al procesar: " + err.message);
++                    } finally {
++                      setGuardando(false);
++                    }
++                  };
++                  reader.readAsDataURL(file);
++                }}
++              />
++              <label htmlFor="ai-invoice-upload" className="btn-primary-action" style={{ cursor: "pointer", fontSize: 12, padding: "8px 12px", margin: 0 }}>
++                📸 Subir Factura
++              </label>
++            </div>
++
+             <form onSubmit={handleGuardarIngresoInsumo} className="recipe-form">
