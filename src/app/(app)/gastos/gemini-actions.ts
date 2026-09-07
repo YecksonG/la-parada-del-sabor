@@ -35,7 +35,7 @@ ${insumos?.map(i => `- ID: ${i.id} | Nombre: ${i.nombre} | Unidad Medida: ${i.un
 Reglas:
 1. Extrae cada ítem de la factura: nombre, cantidad, unidad (dedúcela: kilo, gramo, litro, mililitro, unidad, paquete, bulto, etc.) y precio total pagado por el ítem.
 2. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada. Si no hay ninguno parecido, deja el "insumo_id" en blanco "".
-3. Las unidades válidas para "unidad" son: "kilo", "gramo", "litro", "mililitro", "unidad", "paquete", "bulto".
+3. Para refrescos o bebidas (como Pepsi 1.5L, Coca-Cola, maltas, etc.): si la factura indica bulto (por ejemplo "1 x 6 und", "Bulto", "Pack x 6"), indica unidad: "bulto_6u" o si viene en unidades pon la cantidad en botellas con unidad: "unidad". NUNCA asignes kilos ni bultos de peso a bebidas.
 4. Determina si la factura está cobrada en Dólares (USD) o Bolívares (BS) y ponlo en "moneda_detectada".
 5. Responde ÚNICAMENTE en formato JSON válido, sin markdown, siguiendo esta estructura estricta:
 {

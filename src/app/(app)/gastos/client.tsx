@@ -86,13 +86,23 @@ const SUBCATEGORIAS_SUGERIDAS: Record<CategoriaGasto, string[]> = {
 };
 
 const UNIDADES_COMPRA = [
+  // Peso (gramos)
   { id: "bulto_20kg", label: "Bulto 20 kg (20.000 g)", factor: 20000, unidadBase: "g" },
   { id: "bulto_24kg", label: "Bulto Harina PAN (24 kg / 24.000 g)", factor: 24000, unidadBase: "g" },
   { id: "saco_50kg", label: "Saco 50 kg (50.000 g)", factor: 50000, unidadBase: "g" },
   { id: "kilo", label: "Kilo (1.000 g)", factor: 1000, unidadBase: "g" },
   { id: "paquete_500g", label: "Paquete 500 g", factor: 500, unidadBase: "g" },
+
+  // Volumen (mililitros)
   { id: "litro", label: "Litro (1.000 ml)", factor: 1000, unidadBase: "ml" },
   { id: "galon_3_78l", label: "Galón (3.785 ml)", factor: 3785, unidadBase: "ml" },
+
+  // Bebidas y Refrescos (und)
+  { id: "bulto_refresco_6u", label: "Bulto Refresco (6 und)", factor: 6, unidadBase: "und" },
+  { id: "pack_refresco_12u", label: "Pack / Docena (12 und)", factor: 12, unidadBase: "und" },
+  { id: "caja_24u", label: "Caja (24 und)", factor: 24, unidadBase: "und" },
+
+  // Desechables y Conteo (und)
   { id: "paquete_100u", label: "Paquete 100 Unidades", factor: 100, unidadBase: "und" },
   { id: "paquete_50u", label: "Paquete 50 Unidades", factor: 50, unidadBase: "und" },
   { id: "caja_1000u", label: "Caja 1.000 Unidades", factor: 1000, unidadBase: "und" },
@@ -1946,7 +1956,15 @@ export default function GastosClient({
 
                           if (insumoObj) {
                             if (insumoObj.unidad_medida === "und") {
-                              und = "unidad";
+                              if (uStr.includes("6") || (insumoObj.nombre.toLowerCase().includes("pepsi") && (uStr.includes("bulto") || uStr.includes("pack")))) {
+                                und = "bulto_refresco_6u";
+                              } else if (uStr.includes("12") || uStr.includes("docena")) {
+                                und = "pack_refresco_12u";
+                              } else if (uStr.includes("24") || uStr.includes("caja")) {
+                                und = "caja_24u";
+                              } else {
+                                und = "unidad";
+                              }
                             } else if (insumoObj.unidad_medida === "ml") {
                               und = uStr.includes("galon") ? "galon_3_78l" : "litro";
                             } else if (insumoObj.unidad_medida === "g") {
@@ -2021,6 +2039,12 @@ export default function GastosClient({
                         onChange={(e) => {
                           const arr = [...compraItems];
                           arr[idx].insumo_id = e.target.value;
+                          const nuevoIns = insumos.find(i => i.id === e.target.value);
+                          if (nuevoIns) {
+                            if (nuevoIns.unidad_medida === "und") arr[idx].unidadId = "unidad";
+                            else if (nuevoIns.unidad_medida === "ml") arr[idx].unidadId = "litro";
+                            else arr[idx].unidadId = "kilo";
+                          }
                           setCompraItems(arr);
                         }}
                         className="form-input"
@@ -2043,15 +2067,23 @@ export default function GastosClient({
                     </div>
                     <div className="form-field" style={{ margin: 0 }}>
                       {idx === 0 && <label style={{ fontSize: 11 }}>Und.</label>}
-                      <select value={it.unidadId} onChange={(e) => {
-                        const arr = [...compraItems];
-                        arr[idx].unidadId = e.target.value;
-                        setCompraItems(arr);
-                      }} className="form-input" style={{ padding: "8px 6px" }}>
-                        {UNIDADES_COMPRA.map((u) => (
-                          <option key={u.id} value={u.id}>{u.label}</option>
-                        ))}
-                      </select>
+                      {(() => {
+                        const insRow = insumos.find(i => i.id === it.insumo_id);
+                        const unidadesValidas = insRow 
+                          ? UNIDADES_COMPRA.filter(u => u.unidadBase === insRow.unidad_medida)
+                          : UNIDADES_COMPRA;
+                        return (
+                          <select value={it.unidadId} onChange={(e) => {
+                            const arr = [...compraItems];
+                            arr[idx].unidadId = e.target.value;
+                            setCompraItems(arr);
+                          }} className="form-input" style={{ padding: "8px 6px" }}>
+                            {unidadesValidas.map((u) => (
+                              <option key={u.id} value={u.id}>{u.label}</option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                     </div>
                     <div className="form-field" style={{ margin: 0 }}>
                       {idx === 0 && <label style={{ fontSize: 11 }}>Subtotal $</label>}
