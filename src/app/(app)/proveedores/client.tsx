@@ -332,17 +332,16 @@ export default function ProveedoresClient({
         </div>
       ) : (
         /* VISTA 2: FILAS / LISTA DETALLADA */
-        <div className="table-responsive-wrapper" style={{ overflowX: "auto" }}>
-          <table className="custom-detailed-table" style={{ minWidth: 1050 }}>
+        <div className="table-responsive-wrapper">
+          <table className="custom-detailed-table">
             <thead>
               <tr>
-                <th style={{ minWidth: 200 }}>Empresa / Razón Social</th>
-                <th style={{ minWidth: 160 }}>Contacto & Teléfono</th>
-                <th style={{ minWidth: 220 }}>Dirección</th>
-                <th style={{ minWidth: 240 }}>Insumos que Suministra</th>
-                <th style={{ minWidth: 130, textAlign: "center" }}>Movimientos</th>
-                <th style={{ minWidth: 140, textAlign: "right" }}>Total Facturado</th>
-                <th style={{ minWidth: 120, textAlign: "right" }}>Acciones</th>
+                <th>Empresa / Razón Social</th>
+                <th>Contacto & Teléfono</th>
+                <th>Dirección</th>
+                <th>Insumos que Suministra</th>
+                <th style={{ textAlign: "right" }}>Compras & Facturación</th>
+                <th style={{ textAlign: "right", width: "1%", whiteSpace: "nowrap" }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -362,19 +361,19 @@ export default function ProveedoresClient({
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {p.contacto ? (
                           <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>👤 {p.contacto}</span>
                         ) : null}
                         {p.telefono ? (
-                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>📞 {p.telefono}</span>
+                          <span style={{ fontSize: 11.5, color: "var(--text-muted)" }}>📞 {p.telefono}</span>
                         ) : null}
                         {!p.contacto && !p.telefono && (
                           <span style={{ color: "var(--text-muted)", fontSize: 12 }}>—</span>
                         )}
                       </div>
                     </td>
-                    <td style={{ fontSize: 12, lineHeight: 1.4, color: "var(--text)" }}>
+                    <td style={{ fontSize: 12, lineHeight: 1.35, color: "var(--text)", maxWidth: 220 }}>
                       {p.direccion ? <span>📍 {p.direccion}</span> : <span style={{ color: "var(--text-muted)" }}>—</span>}
                     </td>
                     <td style={{ fontSize: 12 }}>
@@ -410,33 +409,39 @@ export default function ProveedoresClient({
                         <span style={{ color: "var(--text-muted)" }}>—</span>
                       )}
                     </td>
-                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
-                      <span className="badge-ticket" style={{ fontSize: 12 }}>{stats.conteo} Movimientos</span>
-                    </td>
                     <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <strong className="text-primary" style={{ fontSize: 14 }}>
+                      <strong className="text-primary" style={{ fontSize: 13.5, display: "block" }}>
                         ${(Number(stats.totalUsd) || 0).toFixed(2)} USD
-                        {stats.totalBs ? <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}</span> : null}
                       </strong>
+                      {stats.totalBs ? (
+                        <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
+                          Bs. {stats.totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2 })}
+                        </span>
+                      ) : null}
+                      <span className="badge-ticket" style={{ fontSize: 10.5, marginTop: 4, display: "inline-block" }}>
+                        {stats.conteo} {stats.conteo === 1 ? "movimiento" : "movimientos"}
+                      </span>
                     </td>
-                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                      <button
-                        type="button"
-                        onClick={() => abrirEditar(p)}
-                        className="btn-insumo-adjust"
-                        style={{ padding: "5px 12px", fontSize: 12, marginRight: 6 }}
-                      >
-                        ✏️ Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleEliminar(p.id, p.nombre)}
-                        className="btn-danger-outline"
-                        style={{ padding: "5px 10px", fontSize: 12, borderRadius: 6 }}
-                        title="Eliminar Proveedor"
-                      >
-                        🗑️
-                      </button>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap", width: "1%" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => abrirEditar(p)}
+                          className="btn-insumo-adjust"
+                          style={{ padding: "5px 10px", fontSize: 12 }}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEliminar(p.id, p.nombre)}
+                          className="btn-danger-outline"
+                          style={{ padding: "5px 9px", fontSize: 12, borderRadius: 6 }}
+                          title="Eliminar Proveedor"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
