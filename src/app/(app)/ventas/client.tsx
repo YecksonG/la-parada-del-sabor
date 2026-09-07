@@ -402,7 +402,7 @@ ${estadoPago}`;
                           <div className="comanda-extras-line">
                             {item.extras.map((ext, eIdx) => (
                               <span key={eIdx} className="comanda-extra-tag">
-                                +{ext.extra?.nombre || "Extra"} (${Number(ext.precio_unitario_usd).toFixed(2)})
+                                +{ext.extra?.nombre || "Extra"}{Number(ext.precio_unitario_usd) > 0 ? ` ($${Number(ext.precio_unitario_usd).toFixed(2)})` : ""}
                               </span>
                             ))}
                           </div>

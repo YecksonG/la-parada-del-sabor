@@ -264,6 +264,130 @@ export type RegistrarCompraInsumoPayload = {
   notas?: string;
 };
 
+export type ItemCompraPayload = {
+  insumo_id: string;
+  insumo_nombre: string;
+  cantidad_comprada: number;
+  unidad_compra: string;
+  factor_conversion: number;
+  total_usd: number; // Subtotal de este item
+};
+
+export type RegistrarCompraMultiInsumoPayload = {
+  proveedor_id?: string;
+  tasa_bcv: number;
+  total_usd: number;
+  total_bs?: number;
+  cuenta_id?: string;
+  cuenta_origen?: string;
+  numero_factura?: string;
+  comprobante_url?: string;
+  notas?: string;
+  items: ItemCompraPayload[];
+};
+
+export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiInsumoPayload) {
+  if (!payload.items || payload.items.length === 0) {
+    return { ok: false, error: "La compra debe tener al menos un insumo." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const ctaOrigen = payload.cuenta_origen || "efectivo_usd";
+  const totalBs = payload.total_bs && payload.total_bs > 0
+    ? payload.total_bs
+    : Number((payload.total_usd * payload.tasa_bcv).toFixed(2));
+
+  // 1. Insertar Cabecera de Compra
+  const { data: compra, error: compraError } = await supabase
+    .from("compras")
+    .insert({
+      proveedor_id: payload.proveedor_id || null,
+      tasa_bcv: payload.tasa_bcv,
+      total_usd: payload.total_usd,
+      total_bs: totalBs,
+      metodo_pago: ctaOrigen,
+      comprobante: payload.numero_factura || null,
+      notas: payload.notas || null,
+    })
+    .select("id")
+    .single();
+
+  if (compraError || !compra) {
+    return { ok: false, error: compraError?.message || "Error al crear la compra." };
+  }
+
+  // 2. Insertar Items de Compra
+  const itemsToInsert = payload.items.map(it => {
+    const cantidadBaseTotal = it.cantidad_comprada * it.factor_conversion;
+    const precioUnitarioBase = it.total_usd / cantidadBaseTotal;
+    return {
+      compra_id: compra.id,
+      insumo_id: it.insumo_id,
+      cantidad_comprada: it.cantidad_comprada,
+      unidad_compra: it.unidad_compra,
+      factor_conversion: it.factor_conversion,
+      cantidad_base_total: cantidadBaseTotal,
+      precio_unitario_usd: precioUnitarioBase,
+      subtotal_usd: it.total_usd,
+    };
+  });
+
+  const { error: itemsError } = await supabase.from("compras_items").insert(itemsToInsert);
+
+  if (itemsError) {
+    return { ok: false, error: itemsError.message };
+  }
+
+  // 3. Asentar también en la tabla de Gastos
+  let sesion_caja_id: string | null = null;
+  if (["efectivo_usd", "efectivo_bs", "caja_chica"].includes(ctaOrigen)) {
+    const { data: sesionActiva } = await supabase
+      .from("sesiones_caja")
+      .select("id")
+      .eq("estado", "abierta")
+      .order("fecha_apertura", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (sesionActiva) {
+      sesion_caja_id = sesionActiva.id;
+    }
+  }
+
+  const descrip = `Ingreso de stock múltiple: ${payload.items.length} insumos`;
+
+  const { error: gastoError } = await supabase.from("gastos").insert({
+    fecha: new Date().toISOString().split("T")[0],
+    categoria: "proveedores",
+    subcategoria: "Insumos / Despensa",
+    descripcion: descrip,
+    beneficiario: null,
+    proveedor_id: payload.proveedor_id || null,
+    monto_usd: payload.total_usd,
+    monto_bs: totalBs,
+    tasa_bcv: payload.tasa_bcv,
+    cuenta_origen: ctaOrigen,
+    cuenta_id: payload.cuenta_id || null,
+    numero_factura: payload.numero_factura?.trim() || null,
+    comprobante_url: payload.comprobante_url || null,
+    estado: "pagado",
+    sesion_caja_id: sesion_caja_id,
+    notas: payload.notas?.trim() || null,
+    creado_por: auth.user.email || "admin",
+  });
+
+  if (gastoError) {
+    console.error("Error registrando gasto de compra:", gastoError);
+  }
+
+  revalidatePath("/gastos");
+  revalidatePath("/despensa");
+  return { ok: true };
+}
+
 export async function registrarIngresoInsumo(payload: RegistrarCompraInsumoPayload) {
   if (
     typeof payload.cantidad_comprada !== "number" ||

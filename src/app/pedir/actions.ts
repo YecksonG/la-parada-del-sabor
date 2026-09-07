@@ -123,8 +123,12 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   }
 
   // Inserción atómica autoritativa mediante RPC con SECURITY DEFINER
+  // Renombramos 'telefono' a 'telefono_cliente' para coincidir con lo esperado por la RPC
   const { data: rpcRes, error: rpcError } = await supabase.rpc("fn_crear_pedido_web", {
-    p_payload: payload,
+    p_payload: {
+      ...payload,
+      telefono_cliente: payload.telefono,
+    },
   });
 
   if (rpcError) {

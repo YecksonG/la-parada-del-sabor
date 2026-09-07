@@ -233,10 +233,11 @@ export default function GastosClient({
   // Abrir Modal Ingreso de Insumos (Stock 2 en 1)
   const abrirModalIngresoInsumo = () => {
     setErrorMsg("");
-    setCompraItems([
-      { id: crypto.randomUUID(), insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "" }
-    ]);
+    setCompraInsumoId(insumos[0]?.id || "");
     setCompraProveedorId("");
+    setCompraCantidad("1");
+    setCompraUnidadId("kilo");
+    setCompraTotalUsd("");
     setCompraTotalBs("");
     setCompraCuentaId(cuentas[0]?.id || "");
     setCompraFactura("");
@@ -275,11 +276,21 @@ export default function GastosClient({
   };
 
   // Cálculo dual en Entrada de Insumos
+  const handleCambioCompraUsd = (val: string) => {
+    setCompraTotalUsd(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
+      setCompraTotalBs((num * tasaBcv).toFixed(2));
+    } else {
+      setCompraTotalBs("");
+    }
+  };
+
   const handleCambioCompraBs = (val: string) => {
     setCompraTotalBs(val);
     const num = parseFloat(val);
     if (!isNaN(num) && num > 0 && tasaBcv > 0) {
-      // setCompraTotalUsd disabled
+      setCompraTotalUsd((num / tasaBcv).toFixed(2));
     }
   };
 
@@ -395,49 +406,42 @@ export default function GastosClient({
     e.preventDefault();
     setErrorMsg("");
 
-    if (compraItems.length === 0) {
-      setErrorMsg("Debes agregar al menos un insumo.");
+    const cant = parseFloat(compraCantidad);
+    const usd = parseFloat(compraTotalUsd);
+    if (isNaN(cant) || cant <= 0) {
+      setErrorMsg("La cantidad debe ser mayor a 0.");
+      return;
+    }
+    if (isNaN(usd) || usd <= 0) {
+      setErrorMsg("El monto total en dólares debe ser mayor a 0.");
       return;
     }
 
-    const itemsProcesados = [];
-    let totalUsdCompra = 0;
-
-    for (const it of compraItems) {
-      const ins = insumos.find((i) => i.id === it.insumo_id);
-      const und = UNIDADES_COMPRA.find((u) => u.id === it.unidadId) || UNIDADES_COMPRA[3];
-      const c = parseFloat(it.cantidad);
-      const u = parseFloat(it.totalUsd);
-      if (!ins || isNaN(c) || c <= 0 || isNaN(u) || u <= 0) {
-        setErrorMsg("Revisa que todos los insumos tengan cantidad y precio mayor a 0.");
-        return;
-      }
-      totalUsdCompra += u;
-      itemsProcesados.push({
-        insumo_id: ins.id,
-        insumo_nombre: ins.nombre,
-        cantidad_comprada: c,
-        unidad_compra: und.label,
-        factor_conversion: und.factor,
-        total_usd: u,
-      });
+    const insumoSel = insumos.find((i) => i.id === compraInsumoId);
+    if (!insumoSel) {
+      setErrorMsg("Selecciona un insumo válido.");
+      return;
     }
 
+    const unidadSel = UNIDADES_COMPRA.find((u) => u.id === compraUnidadId) || UNIDADES_COMPRA[3];
     const ctaSel = cuentas.find((c) => c.id === compraCuentaId) || cuentas[0];
 
     setGuardando(true);
 
-    const { registrarCompraMultiInsumo } = await import("./actions");
-    const res = await registrarCompraMultiInsumo({
-      proveedor_id: compraProveedorId || undefined,
-      total_usd: totalUsdCompra,
-      total_bs: parseFloat(compraTotalBs) || Number((totalUsdCompra * tasaBcv).toFixed(2)),
+    const res = await registrarIngresoInsumo({
+      insumo_id: insumoSel.id,
+      insumo_nombre: insumoSel.nombre,
+      proveedor_id: compraProveedorId || null,
+      cantidad_comprada: cant,
+      unidad_compra: unidadSel.label,
+      factor_conversion: unidadSel.factor,
+      total_usd: usd,
+      total_bs: parseFloat(compraTotalBs) || Number((usd * tasaBcv).toFixed(2)),
       tasa_bcv: tasaBcv,
-      cuenta_id: ctaSel?.id || undefined,
+      cuenta_id: ctaSel?.id,
       cuenta_origen: ctaSel?.codigo || "efectivo_usd",
       numero_factura: compraFactura,
       notas: compraNotas,
-      items: itemsProcesados,
     });
 
     setGuardando(false);
@@ -811,6 +815,26 @@ export default function GastosClient({
   const cuentaSeleccionadaGastoObj = useMemo(() => {
     return cuentas.find((c) => c.id === cuentaId || c.codigo === cuentaOrigen) || cuentas[0];
   }, [cuentas, cuentaId, cuentaOrigen]);
+
+  // Cálculo de resumen para el insumo en el modal de compra
+  const insumoSeleccionadoObj = useMemo(() => {
+    return insumos.find((i) => i.id === compraInsumoId) || insumos[0];
+  }, [insumos, compraInsumoId]);
+
+  const unidadSeleccionadaObj = useMemo(() => {
+    return UNIDADES_COMPRA.find((u) => u.id === compraUnidadId) || UNIDADES_COMPRA[3];
+  }, [compraUnidadId]);
+
+  const cantidadTotalBaseCalculada = useMemo(() => {
+    const cant = parseFloat(compraCantidad) || 0;
+    return cant * unidadSeleccionadaObj.factor;
+  }, [compraCantidad, unidadSeleccionadaObj]);
+
+  const costoUnitarioBaseCalculado = useMemo(() => {
+    const total = parseFloat(compraTotalUsd) || 0;
+    if (cantidadTotalBaseCalculada <= 0 || total <= 0) return 0;
+    return total / cantidadTotalBaseCalculada;
+  }, [compraTotalUsd, cantidadTotalBaseCalculada]);
 
   // Exportar a CSV
   const handleExportarCsv = () => {
@@ -1911,101 +1935,116 @@ export default function GastosClient({
             )}
 
             <form onSubmit={handleGuardarIngresoInsumo} className="recipe-form">
-              <div className="form-field" style={{ marginBottom: 12 }}>
-                <label>Proveedor (Opcional)</label>
-                <select
-                  value={compraProveedorId}
-                  onChange={(e) => setCompraProveedorId(e.target.value)}
-                  className="form-input"
-                >
-                  <option value="">-- Compra Local / Sin Registro --</option>
-                  {proveedores.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Insumo a Recibir *</label>
+                  <select
+                    value={compraInsumoId}
+                    onChange={(e) => setCompraInsumoId(e.target.value)}
+                    className="form-input"
+                  >
+                    {insumos.map((ins) => (
+                      <option key={ins.id} value={ins.id}>
+                        {ins.nombre} ({ins.unidad_medida})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "var(--bg-subtle)", padding: 10, borderRadius: 12, marginBottom: 16 }}>
-                {compraItems.map((it, idx) => (
-                  <div key={it.id} style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1.5fr 1fr auto", gap: 8, alignItems: "end" }}>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Insumo</label>}
-                      <select
-                        value={it.insumo_id}
-                        onChange={(e) => {
-                          const arr = [...compraItems];
-                          arr[idx].insumo_id = e.target.value;
-                          setCompraItems(arr);
-                        }}
-                        className="form-input"
-                        style={{ padding: "8px 6px" }}
-                      >
-                        {insumos.map((ins) => (
-                          <option key={ins.id} value={ins.id}>
-                            {ins.nombre} ({ins.unidad_medida})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Cant.</label>}
-                      <input type="number" step="any" min="0.1" required value={it.cantidad} onChange={(e) => {
-                        const arr = [...compraItems];
-                        arr[idx].cantidad = e.target.value;
-                        setCompraItems(arr);
-                      }} className="form-input" style={{ padding: "8px 6px" }} />
-                    </div>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Und.</label>}
-                      <select value={it.unidadId} onChange={(e) => {
-                        const arr = [...compraItems];
-                        arr[idx].unidadId = e.target.value;
-                        setCompraItems(arr);
-                      }} className="form-input" style={{ padding: "8px 6px" }}>
-                        {UNIDADES_COMPRA.map((u) => (
-                          <option key={u.id} value={u.id}>{u.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Subtotal $</label>}
-                      <input type="number" step="any" min="0.01" required value={it.totalUsd} onChange={(e) => {
-                        const arr = [...compraItems];
-                        arr[idx].totalUsd = e.target.value;
-                        setCompraItems(arr);
-                      }} className="form-input" style={{ padding: "8px 6px", borderColor: "var(--primary)" }} placeholder="0.00" />
-                    </div>
-                    {compraItems.length > 1 ? (
-                      <button type="button" onClick={() => {
-                        setCompraItems(compraItems.filter(i => i.id !== it.id));
-                      }} style={{ background: "none", border: "none", color: "red", cursor: "pointer", padding: "8px 4px", fontSize: 16 }}>
-                        ✕
-                      </button>
-                    ) : (
-                      <div style={{ width: 20 }}></div>
-                    )}
-                  </div>
-                ))}
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
-                  <button type="button" onClick={() => {
-                    setCompraItems([...compraItems, { id: crypto.randomUUID(), insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "" }]);
-                  }} style={{ background: "var(--primary-light)", color: "var(--primary-dark)", padding: "6px 12px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
-                    + Agregar Otro Insumo
-                  </button>
-                  <div style={{ fontSize: 14, fontWeight: 800 }}>
-                    Total: $<span style={{ color: "var(--primary)" }}>{compraItems.reduce((acc, it) => acc + (parseFloat(it.totalUsd) || 0), 0).toFixed(2)}</span>
-                  </div>
+                <div className="form-field">
+                  <label>Proveedor (Opcional)</label>
+                  <select
+                    value={compraProveedorId}
+                    onChange={(e) => setCompraProveedorId(e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="">-- Compra Local / Sin Registro --</option>
+                    {proveedores.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: 12, marginBottom: 16 }}>
-                 <div className="form-field" style={{ margin: 0, textAlign: "right" }}>
-                   <label style={{ margin: 0, fontSize: 11 }}>Total General en Bs (Opcional)</label>
-                   <input type="number" step="0.01" placeholder={(compraItems.reduce((acc, it) => acc + (parseFloat(it.totalUsd) || 0), 0) * tasaBcv).toFixed(2)} value={compraTotalBs} onChange={(e) => setCompraTotalBs(e.target.value)} className="form-input" style={{ padding: "8px", width: 140, marginLeft: "auto" }} />
-                 </div>
+              <div className="form-grid-2">
+                <div className="form-field">
+                  <label>Cantidad Comprada *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.1"
+                    required
+                    value={compraCantidad}
+                    onChange={(e) => setCompraCantidad(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Formato / Unidad de Compra *</label>
+                  <select
+                    value={compraUnidadId}
+                    onChange={(e) => setCompraUnidadId(e.target.value)}
+                    className="form-input"
+                  >
+                    {UNIDADES_COMPRA.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, background: "var(--bg-subtle)", padding: "14px", borderRadius: 16, border: "1.5px dashed var(--border)" }}>
+                <div className="form-field">
+                  <label style={{ color: "var(--primary)", fontWeight: 900 }}>Total Compra ($ USD) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={compraTotalUsd}
+                    onChange={(e) => handleCambioCompraUsd(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: 16, fontWeight: 900, borderColor: "var(--primary)" }}
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label>Total en Bolívares (Bs)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={compraTotalBs}
+                    onChange={(e) => handleCambioCompraBs(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: 15, fontWeight: 800 }}
+                  />
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, fontWeight: 600 }}>Tasa: {tasaBcv.toFixed(2)} Bs/USD</span>
+                </div>
+              </div>
+
+              {/* Tarjeta de Cálculo en Vivo de Stock & Costo Base */}
+              <div style={{ background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", padding: "12px 14px", borderRadius: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--green)" }}>SE SUMARÁ AL INVENTARIO:</span>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "var(--text)" }}>
+                      +{cantidadTotalBaseCalculada.toLocaleString()} {insumoSeleccionadoObj?.unidad_medida}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--text-muted)" }}>NUEVO COSTO BASE:</span>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: "var(--text)" }}>
+                      ${costoUnitarioBaseCalculado.toFixed(5)} / {insumoSeleccionadoObj?.unidad_medida}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="form-grid-2">
