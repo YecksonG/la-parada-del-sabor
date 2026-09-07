@@ -123,6 +123,7 @@ export default function GastosClient({
   const [compras, setCompras] = useState<any[]>(comprasIniciales);
   const [cuentas, setCuentas] = useState<CuentaNegocio[]>(cuentasIniciales);
   const [transferencias, setTransferencias] = useState<TransferenciaCuenta[]>(transferenciasIniciales);
+  const [listaProveedores, setListaProveedores] = useState<Proveedor[]>(proveedores);
 
   // Modales
   const [modalGasto, setModalGasto] = useState(false);
@@ -1815,7 +1816,7 @@ export default function GastosClient({
                     className="form-input"
                   >
                     <option value="">-- Sin proveedor asociado --</option>
-                    {proveedores.map((p) => (
+                    {listaProveedores.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.nombre}
                       </option>
@@ -1995,6 +1996,23 @@ export default function GastosClient({
                         if (nuevosItems.length > 0) {
                           setCompraItems(nuevosItems);
                         }
+
+                        // Asignar proveedor detectado o auto-creado
+                        if (res.data?.proveedor_final) {
+                          const pf = res.data.proveedor_final;
+                          setListaProveedores((prev) => {
+                            if (!prev.some((p) => p.id === pf.id)) {
+                              return [...prev, pf];
+                            }
+                            return prev;
+                          });
+                          setCompraProveedorId(pf.id);
+                        }
+
+                        // Asignar número de factura / control detectado
+                        if (res.data?.numero_factura) {
+                          setCompraFactura(res.data.numero_factura);
+                        }
                       } else {
                         setErrorMsg(res.error || "No se pudieron extraer los ítems.");
                       }
@@ -2021,7 +2039,7 @@ export default function GastosClient({
                   className="form-input"
                 >
                   <option value="">-- Compra Local / Sin Registro --</option>
-                  {proveedores.map((p) => (
+                  {listaProveedores.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.nombre}
                     </option>
