@@ -1922,7 +1922,7 @@ export default function GastosClient({
                     setGuardando(true);
                     try {
                       const { extraerInsumosFactura } = await import("./gemini-actions");
-                      const res = await extraerInsumosFactura(base64Data, file.type);
+                      const res = await extraerInsumosFactura(base64Data, file.type, tasaBcv);
                       if (res.ok && res.data?.items) {
                         const nuevosItems = res.data.items.map((it: any) => {
                           let und = UNIDADES_COMPRA.find(u => u.label.toLowerCase().startsWith(it.unidad?.toLowerCase()))?.id || "kilo";
