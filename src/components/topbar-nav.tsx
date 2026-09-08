@@ -209,7 +209,6 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
               width={150}
               height={44}
               className="topbar-horizontal-logo logo-light-only"
-              priority
               style={{ objectFit: "contain", height: "36px", width: "auto" }}
             />
             <Image
@@ -218,7 +217,6 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
               width={150}
               height={44}
               className="topbar-horizontal-logo logo-dark-only"
-              priority
               style={{ objectFit: "contain", height: "36px", width: "auto" }}
             />
           </Link>

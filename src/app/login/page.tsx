@@ -137,7 +137,6 @@ export default function LoginPage() {
                 width={88}
                 height={88}
                 className="login-logo-badge-img logo-light-only"
-                priority
               />
               <Image
                 src="/images/isotipo_arepa_dark.png"
@@ -145,7 +144,6 @@ export default function LoginPage() {
                 width={88}
                 height={88}
                 className="login-logo-badge-img logo-dark-only"
-                priority
               />
             </div>
           </div>

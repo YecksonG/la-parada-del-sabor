@@ -471,7 +471,6 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                 width={190}
                 height={55}
                 className="recibo-hero-horizontal-logo logo-light-only"
-                priority
                 style={{ objectFit: "contain", height: "48px", width: "auto" }}
               />
               <Image
@@ -480,7 +479,6 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                 width={190}
                 height={55}
                 className="recibo-hero-horizontal-logo logo-dark-only"
-                priority
                 style={{ objectFit: "contain", height: "48px", width: "auto" }}
               />
             </div>

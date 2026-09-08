@@ -891,7 +891,6 @@ export default function MenuClienteView({
               width={160}
               height={58}
               className="pedir-hero-logo-img logo-light-only"
-              priority
               style={{ objectFit: "contain" }}
             />
             <Image

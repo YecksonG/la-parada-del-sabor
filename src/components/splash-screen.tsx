@@ -58,7 +58,6 @@ export default function SplashScreen() {
               width={145}
               height={145}
               className="splash-arepa-img logo-light-only"
-              loading="eager"
             />
             <Image
               src="/images/isotipo_arepa_dark.png"
@@ -66,7 +65,6 @@ export default function SplashScreen() {
               width={145}
               height={145}
               className="splash-arepa-img logo-dark-only"
-              loading="eager"
             />
             <div className="splash-shine-sweep"></div>
           </div>
