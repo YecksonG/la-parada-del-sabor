@@ -107,90 +107,84 @@ GRANT EXECUTE ON FUNCTION public.fn_registrar_produccion_guiso TO authenticated;
 GRANT EXECUTE ON FUNCTION public.fn_registrar_produccion_guiso TO service_role;
 
 
--- 2. VINCULAR EXTRAS MODIFICADORES A LOS INSUMOS CANÓNICOS EXACTOS
+-- 2. VINCULAR EXTRAS MODIFICADORES A LOS INSUMOS PREPARADOS CANÓNICOS EXACTOS
 UPDATE public.extras_modificadores
 SET insumo_id = 'b0000045-0000-0000-0000-000000000045', cantidad_descuento = 50
-WHERE id = '4623d5c8-b516-49b0-a81d-b0fd143e632e'; -- Pelúa -> Guiso de Carne Mechada
+WHERE id = '4623d5c8-b516-49b0-a81d-b0fd143e632e';
 
 UPDATE public.extras_modificadores
 SET insumo_id = 'b0000046-0000-0000-0000-000000000046', cantidad_descuento = 50
-WHERE id = '95c556b0-22e7-4801-bac4-dfbc20f5a3f9'; -- Catira -> Guiso de Pollo Mechado
+WHERE id = '95c556b0-22e7-4801-bac4-dfbc20f5a3f9';
 
 UPDATE public.extras_modificadores
 SET insumo_id = 'b0000047-0000-0000-0000-000000000047', cantidad_descuento = 50
-WHERE id = '127f76bb-4b2f-40b9-8cc4-055ac5a0b2db'; -- Reina Pepiada -> Relleno Reina Pepiada
+WHERE id = '127f76bb-4b2f-40b9-8cc4-055ac5a0b2db';
 
 UPDATE public.extras_modificadores
 SET insumo_id = 'b0000004-0000-0000-0000-000000000004', cantidad_descuento = 30
-WHERE id = '11fc81b4-cd48-4659-aca4-a8775d7e91e1'; -- Jamón y Queso -> Queso Amarillo
+WHERE id = '11fc81b4-cd48-4659-aca4-a8775d7e91e1';
 
 UPDATE public.extras_modificadores
 SET insumo_id = 'b0000045-0000-0000-0000-000000000045', cantidad_descuento = 65
-WHERE id = '15facba4-aaeb-4d2b-871b-030f756194a5'; -- Especial Carne -> Guiso de Carne Mechada
+WHERE id = '15facba4-aaeb-4d2b-871b-030f756194a5';
 
 UPDATE public.extras_modificadores
 SET insumo_id = 'b0000046-0000-0000-0000-000000000046', cantidad_descuento = 65
-WHERE id = 'a82b0f8b-7dc3-4c00-958b-26d02001e9d2'; -- Especial Pollo -> Guiso de Pollo Mechado
+WHERE id = 'a82b0f8b-7dc3-4c00-958b-26d02001e9d2';
 
 
 -- 3. REGENERAR RECETAS_INGREDIENTES PARA CADA AREPA INDIVIDUAL (FÓRMULAS EXACTAS)
 DELETE FROM public.recetas_ingredientes
 WHERE producto_id IN (
-    '9412fbe8-48fc-4e99-af39-188ae693336e', -- Arepa Catira
-    'a2370716-4627-4482-9179-099828bc8034', -- Arepa Pelúa
-    'dfa9815f-2a47-435e-a0c8-79a823cf7aca', -- Arepa Reina Pepiada
-    'c6be1110-c54c-4f3b-bb8b-50a94e705466', -- Arepa Jamón y Queso Amarillo
-    'd1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', -- Arepa Especial de Carne Esmechada
-    'd635320e-ddc6-496c-aebd-f542660f490d'  -- Arepa Especial de Pollo Esmechado
+    '9412fbe8-48fc-4e99-af39-188ae693336e',
+    'a2370716-4627-4482-9179-099828bc8034',
+    'dfa9815f-2a47-435e-a0c8-79a823cf7aca',
+    'c6be1110-c54c-4f3b-bb8b-50a94e705466',
+    'd1c7be3d-72b4-4be8-9fab-c3bcdbf99c82',
+    'd635320e-ddc6-496c-aebd-f542660f490d'
 );
 
 INSERT INTO public.recetas_ingredientes (producto_id, insumo_id, cantidad, es_opcional)
 VALUES
--- 1. Arepa Pelúa ($2.80)
-('a2370716-4627-4482-9179-099828bc8034', 'b0000006-0000-0000-0000-000000000006', 100, false), -- Harina PAN (100g)
-('a2370716-4627-4482-9179-099828bc8034', 'b0000045-0000-0000-0000-000000000045', 50, false),  -- Guiso de Carne Mechada (50g)
-('a2370716-4627-4482-9179-099828bc8034', 'b0000004-0000-0000-0000-000000000004', 30, false),  -- Queso Amarillo (30g)
-('a2370716-4627-4482-9179-099828bc8034', 'b0000036-0000-0000-0000-000000000036', 1, false),   -- Papel Antigraso (1 und)
-('a2370716-4627-4482-9179-099828bc8034', 'b0000035-0000-0000-0000-000000000035', 1, false),   -- Servilletas (1 und)
-('a2370716-4627-4482-9179-099828bc8034', 'b0000041-0000-0000-0000-000000000041', 1, false),   -- Bolsa (1 und)
+('a2370716-4627-4482-9179-099828bc8034', 'b0000006-0000-0000-0000-000000000006', 100, false),
+('a2370716-4627-4482-9179-099828bc8034', 'b0000045-0000-0000-0000-000000000045', 50, false),
+('a2370716-4627-4482-9179-099828bc8034', 'b0000004-0000-0000-0000-000000000004', 30, false),
+('a2370716-4627-4482-9179-099828bc8034', 'b0000036-0000-0000-0000-000000000036', 1, false),
+('a2370716-4627-4482-9179-099828bc8034', 'b0000035-0000-0000-0000-000000000035', 1, false),
+('a2370716-4627-4482-9179-099828bc8034', 'b0000041-0000-0000-0000-000000000041', 1, false),
 
--- 2. Arepa Catira ($2.20)
-('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000006-0000-0000-0000-000000000006', 100, false), -- Harina PAN (100g)
-('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000046-0000-0000-0000-000000000046', 50, false),  -- Guiso de Pollo Mechado (50g)
-('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000004-0000-0000-0000-000000000004', 30, false),  -- Queso Amarillo (30g)
-('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000036-0000-0000-0000-000000000036', 1, false),   -- Papel Antigraso (1 und)
-('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000035-0000-0000-0000-000000000035', 1, false),   -- Servilletas (1 und)
-('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000041-0000-0000-0000-000000000041', 1, false),   -- Bolsa (1 und)
+('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000006-0000-0000-0000-000000000006', 100, false),
+('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000046-0000-0000-0000-000000000046', 50, false),
+('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000004-0000-0000-0000-000000000004', 30, false),
+('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000036-0000-0000-0000-000000000036', 1, false),
+('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000035-0000-0000-0000-000000000035', 1, false),
+('9412fbe8-48fc-4e99-af39-188ae693336e', 'b0000041-0000-0000-0000-000000000041', 1, false),
 
--- 3. Arepa Reina Pepiada ($2.00)
-('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000006-0000-0000-0000-000000000006', 100, false), -- Harina PAN (100g)
-('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000047-0000-0000-0000-000000000047', 60, false),  -- Relleno Reina Pepiada (60g)
-('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000036-0000-0000-0000-000000000036', 1, false),   -- Papel Antigraso (1 und)
-('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000035-0000-0000-0000-000000000035', 1, false),   -- Servilletas (1 und)
-('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000041-0000-0000-0000-000000000041', 1, false),   -- Bolsa (1 und)
+('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000006-0000-0000-0000-000000000006', 100, false),
+('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000047-0000-0000-0000-000000000047', 60, false),
+('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000036-0000-0000-0000-000000000036', 1, false),
+('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000035-0000-0000-0000-000000000035', 1, false),
+('dfa9815f-2a47-435e-a0c8-79a823cf7aca', 'b0000041-0000-0000-0000-000000000041', 1, false),
 
--- 4. Arepa Jamón y Queso Amarillo ($2.00)
-('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000006-0000-0000-0000-000000000006', 100, false), -- Harina PAN (100g)
-('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000003-0000-0000-0000-000000000003', 40, false),  -- Pechuga / Jamón (40g)
-('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000004-0000-0000-0000-000000000004', 30, false),  -- Queso Amarillo (30g)
-('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000036-0000-0000-0000-000000000036', 1, false),   -- Papel Antigraso (1 und)
-('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000035-0000-0000-0000-000000000035', 1, false),   -- Servilletas (1 und)
-('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000041-0000-0000-0000-000000000041', 1, false),   -- Bolsa (1 und)
+('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000006-0000-0000-0000-000000000006', 100, false),
+('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000003-0000-0000-0000-000000000003', 40, false),
+('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000004-0000-0000-0000-000000000004', 30, false),
+('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000036-0000-0000-0000-000000000036', 1, false),
+('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000035-0000-0000-0000-000000000035', 1, false),
+('c6be1110-c54c-4f3b-bb8b-50a94e705466', 'b0000041-0000-0000-0000-000000000041', 1, false),
 
--- 5. Arepa Especial de Carne Esmechada ($3.50)
-('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000006-0000-0000-0000-000000000006', 100, false), -- Harina PAN (100g)
-('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000045-0000-0000-0000-000000000045', 65, false),  -- Guiso de Carne Mechada (65g)
-('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000003-0000-0000-0000-000000000003', 30, false),  -- Jamón (30g)
-('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000005-0000-0000-0000-000000000005', 30, false),  -- Queso Blanco Llanero (30g)
-('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000036-0000-0000-0000-000000000036', 1, false),   -- Papel Antigraso (1 und)
-('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000035-0000-0000-0000-000000000035', 1, false),   -- Servilletas (1 und)
-('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000041-0000-0000-0000-000000000041', 1, false),   -- Bolsa (1 und)
+('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000006-0000-0000-0000-000000000006', 100, false),
+('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000045-0000-0000-0000-000000000045', 65, false),
+('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000003-0000-0000-0000-000000000003', 30, false),
+('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000005-0000-0000-0000-000000000005', 30, false),
+('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000036-0000-0000-0000-000000000036', 1, false),
+('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000035-0000-0000-0000-000000000035', 1, false),
+('d1c7be3d-72b4-4be8-9fab-c3bcdbf99c82', 'b0000041-0000-0000-0000-000000000041', 1, false),
 
--- 6. Arepa Especial de Pollo Esmechado ($2.80)
-('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000006-0000-0000-0000-000000000006', 100, false), -- Harina PAN (100g)
-('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000046-0000-0000-0000-000000000046', 65, false),  -- Guiso de Pollo Mechado (65g)
-('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000003-0000-0000-0000-000000000003', 30, false),  -- Jamón (30g)
-('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000005-0000-0000-0000-000000000005', 30, false),  -- Queso Blanco Llanero (30g)
-('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000036-0000-0000-0000-000000000036', 1, false),   -- Papel Antigraso (1 und)
-('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000035-0000-0000-0000-000000000035', 1, false),   -- Servilletas (1 und)
-('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000041-0000-0000-0000-000000000041', 1, false);  -- Bolsa (1 und)
+('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000006-0000-0000-0000-000000000006', 100, false),
+('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000046-0000-0000-0000-000000000046', 65, false),
+('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000003-0000-0000-0000-000000000003', 30, false),
+('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000005-0000-0000-0000-000000000005', 30, false),
+('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000036-0000-0000-0000-000000000036', 1, false),
+('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000035-0000-0000-0000-000000000035', 1, false),
+('d635320e-ddc6-496c-aebd-f542660f490d', 'b0000041-0000-0000-0000-000000000041', 1, false);
