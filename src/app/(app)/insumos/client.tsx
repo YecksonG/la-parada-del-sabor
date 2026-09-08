@@ -1436,7 +1436,7 @@ export default function InsumosClient({
                                     fontWeight: 800,
                                   }}
                                 >
-                                  {mpStockNuevo.toLocaleString()}g
+                                  {mpStockNuevo.toLocaleString()}g{mpStockNuevo < 0 ? " (En descubierto)" : ""}
                                 </span>
                               </div>
                               <div>
@@ -1595,26 +1595,24 @@ export default function InsumosClient({
                   return (
                     <button
                       type="submit"
-                      disabled={guardando || stockMpInsuficiente}
+                      disabled={guardando}
                       className="btn-submit-recipe"
                       style={{
-                        background: stockMpInsuficiente
-                          ? "#9ca3af"
-                          : modoGestionStock === "recargar"
+                        background: modoGestionStock === "recargar"
                           ? "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)"
                           : "var(--primary)",
                         color: "#ffffff",
-                        cursor: stockMpInsuficiente ? "not-allowed" : "pointer",
+                        cursor: guardando ? "not-allowed" : "pointer",
                       }}
-                      title={stockMpInsuficiente ? "Stock insuficiente de materia prima en despensa" : undefined}
+                      title={stockMpInsuficiente ? "Aviso: La materia prima quedará en descubierto (negativo) hasta que se cargue la factura de compra" : undefined}
                     >
                       {guardando
                         ? "Guardando..."
-                        : stockMpInsuficiente
-                        ? "⚠️ Stock MP Insuficiente"
                         : modoGestionStock === "recargar"
                         ? materiaPrimaId
-                          ? "🍲 Registrar Producción (Cocina)"
+                          ? stockMpInsuficiente
+                            ? "🍲 Registrar Producción (MP en descubierto)"
+                            : "🍲 Registrar Producción (Cocina)"
                           : "🍲 Confirmar Recarga"
                         : "⚖️ Confirmar Ajuste"}
                     </button>

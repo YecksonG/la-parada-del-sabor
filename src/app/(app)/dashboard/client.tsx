@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Venta, Cliente, Insumo, Producto, SesionCaja } from "@/types/database";
+import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador } from "@/types/database";
 import { esMismaFechaEnCaracas, toFechaCaracasString } from "@/lib/date-vzla";
+
+type PeriodoDashboard = "hoy" | "semana" | "mes" | "todo";
 
 export interface JornadaCierreItem {
   id: string;
@@ -115,7 +117,7 @@ export default function DashboardClient({
 
     const recetasCostosMap = new Map<string, number>();
     productos.forEach((prod) => {
-      const costoReceta = (prod.ingredientes || []).reduce((acc: number, ing: any) => {
+      const costoReceta = (prod.ingredientes || []).reduce((acc: number, ing: RecetaIngrediente) => {
         const costoUnidad = insumosCostosMap.get(ing.insumo_id) || 0;
         return acc + Number(ing.cantidad) * costoUnidad;
       }, 0);
@@ -128,9 +130,20 @@ export default function DashboardClient({
       const montoVenta = Number(v.total_usd) || 0;
 
       let costoVenta = 0;
-      (v.items || []).forEach((item: any) => {
+      (v.items || []).forEach((item: VentaItem) => {
         const costoProd = recetasCostosMap.get(item.producto_id) || 0;
         costoVenta += costoProd * Number(item.cantidad);
+
+        // Sumar costo de extras y modificadores (rellenos de combos)
+        (item.extras || []).forEach((extItem: VentaItemExtra & { extra?: ExtraModificador }) => {
+          const extraInfo = extItem.extra;
+          const insumoId = extraInfo?.insumo_id;
+          const cantDesc = Number(extraInfo?.cantidad_descuento) || 0;
+          if (insumoId && cantDesc > 0) {
+            const costoUnitExtra = insumosCostosMap.get(insumoId) || 0;
+            costoVenta += cantDesc * Number(extItem.cantidad || 1) * Number(item.cantidad || 1) * costoUnitExtra;
+          }
+        });
       });
 
       // 1. Agrupar por Semana
@@ -213,7 +226,7 @@ export default function DashboardClient({
         rankingPlatos[nombreProd].cantidad += Number(item.cantidad);
         rankingPlatos[nombreProd].totalUsd += Number(item.subtotal_usd);
 
-        // Costo de receta
+        // Costo de receta base
         (prod?.ingredientes || []).forEach((ing) => {
           const insumo = insumos.find((i) => i.id === ing.insumo_id);
           const cantidadGastada = Number(ing.cantidad) * Number(item.cantidad);
@@ -226,6 +239,25 @@ export default function DashboardClient({
             consumoInsumosGramos[nombreIns] = { gramos: 0, unidad: insumo?.unidad_medida || "g" };
           }
           consumoInsumosGramos[nombreIns].gramos += cantidadGastada;
+        });
+
+        // Costo y consumo de extras / modificadores del item (Rellenos en combos y adicionales)
+        (item.extras || []).forEach((extItem: VentaItemExtra & { extra?: ExtraModificador }) => {
+          const extraInfo = extItem.extra;
+          const insumoId = extraInfo?.insumo_id;
+          const cantDesc = Number(extraInfo?.cantidad_descuento) || 0;
+          if (insumoId && cantDesc > 0) {
+            const insumo = insumos.find((i) => i.id === insumoId);
+            const cantidadExtraGastada = cantDesc * Number(extItem.cantidad || 1) * Number(item.cantidad || 1);
+            const costoUnitExtra = Number(insumo?.costo_unitario_usd) || 0;
+            costoInsumosUsd += cantidadExtraGastada * costoUnitExtra;
+
+            const nombreIns = insumo?.nombre || extraInfo.nombre || "Insumo Extra";
+            if (!consumoInsumosGramos[nombreIns]) {
+              consumoInsumosGramos[nombreIns] = { gramos: 0, unidad: insumo?.unidad_medida || "g" };
+            }
+            consumoInsumosGramos[nombreIns].gramos += cantidadExtraGastada;
+          }
         });
       });
     });
@@ -573,11 +605,11 @@ export default function DashboardClient({
 
   // Métricas de Canales de Origen (Instagram / WhatsApp / QR / Web / POS)
   const metricasCanales = useMemo(() => {
-    let instagram = { count: 0, totalUsd: 0 };
-    let whatsapp = { count: 0, totalUsd: 0 };
-    let qr = { count: 0, totalUsd: 0 };
-    let webDirecto = { count: 0, totalUsd: 0 };
-    let posMostrador = { count: 0, totalUsd: 0 };
+    const instagram = { count: 0, totalUsd: 0 };
+    const whatsapp = { count: 0, totalUsd: 0 };
+    const qr = { count: 0, totalUsd: 0 };
+    const webDirecto = { count: 0, totalUsd: 0 };
+    const posMostrador = { count: 0, totalUsd: 0 };
 
     ventasFiltradas.forEach((v) => {
       const monto = Number(v.total_usd) || 0;
@@ -614,31 +646,11 @@ export default function DashboardClient({
     <main className="recetas-container">
       {/* Header con Filtro de Periodo */}
       <div className="recetas-header">
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ position: "relative", width: 48, height: 48, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Image
-              src="/images/isotipo_arepa.png"
-              alt="Logo La Parada del Sabor"
-              width={48}
-              height={48}
-              className="logo-light-only"
-              style={{ objectFit: "contain" }}
-            />
-            <Image
-              src="/images/isotipo_arepa_dark.png"
-              alt="Logo La Parada del Sabor"
-              width={48}
-              height={48}
-              className="logo-dark-only"
-              style={{ objectFit: "contain" }}
-            />
-          </div>
-          <div>
-            <h1 className="recetas-title">📊 Panel Administrativo & Métricas</h1>
-            <p className="recetas-subtitle">
-              Monitoreo en tiempo real de facturación, márgenes netos, clientes ganados y consumo de despensa.
-            </p>
-          </div>
+        <div>
+          <h1 className="recetas-title">📊 Panel Administrativo & Métricas</h1>
+          <p className="recetas-subtitle">
+            Monitoreo en tiempo real de facturación, márgenes netos, clientes ganados y consumo de despensa.
+          </p>
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -653,7 +665,7 @@ export default function DashboardClient({
                 key={p.id}
                 type="button"
                 onClick={() => {
-                  setPeriodo(p.id as any);
+                  setPeriodo(p.id as PeriodoDashboard);
                   if (p.id === "todo") {
                     setModalGraficasHistoricas(true);
                   }
