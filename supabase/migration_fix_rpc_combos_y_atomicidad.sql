@@ -214,14 +214,14 @@ BEGIN
             SELECT nombre, coalesce(precio_usd, 0)
             INTO v_delivery_zona_nombre, v_delivery_monto_usd
             FROM public.zonas_delivery
-            WHERE id = v_delivery_zona_id AND activa = true;
+            WHERE id = v_delivery_zona_id AND activo = true;
         END IF;
 
         IF v_delivery_zona_nombre IS NULL THEN
             SELECT nombre, coalesce(precio_usd, 0)
             INTO v_delivery_zona_nombre, v_delivery_monto_usd
             FROM public.zonas_delivery
-            WHERE activa = true
+            WHERE activo = true
             ORDER BY orden ASC LIMIT 1;
         END IF;
 
