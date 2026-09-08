@@ -5256,6 +5256,9 @@ a {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  text-align: right;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pedir-modal-zoom-desc {

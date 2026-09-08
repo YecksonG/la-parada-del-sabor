@@ -2145,7 +2145,7 @@ export default function MenuClienteView({
                   {modalFotoZoom.popular && <span className="pedir-badge-popular">🔥 Más Pedida</span>}
                 </div>
                 <div className="pedir-modal-zoom-prices">
-                  <span className="pedir-price-usd">${Number(modalFotoZoom.precio_usd || 0).toFixed(2)} USD</span>
+                  <span className="pedir-price-usd">${Number(modalFotoZoom.precio_usd || 0).toFixed(2)}</span>
                   <span className="pedir-price-bs">Bs. {(Number(modalFotoZoom.precio_usd || 0) * tasaBcv).toFixed(2)}</span>
                 </div>
               </div>
