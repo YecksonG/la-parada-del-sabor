@@ -112,6 +112,12 @@ AFTER INSERT OR UPDATE OR DELETE ON public.ventas_items_extras
 FOR EACH ROW
 EXECUTE FUNCTION public.fn_recalcular_totales_venta_extras();
 
+-- ASEGURAR COLUMNAS EN CLIENTES (Evita errores de columna inexistente)
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT false;
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS direccion_delivery TEXT;
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS notas_preferencias TEXT;
+ALTER TABLE public.clientes ADD COLUMN IF NOT EXISTS actualizado_el TIMESTAMPTZ DEFAULT NOW();
+
 -- RPC DEFINITIVA DE CREACIÓN DE PEDIDO WEB CON BLINDAJE Y ATOMICIDAD TOTAL
 CREATE OR REPLACE FUNCTION public.fn_crear_pedido_web(p_payload JSONB)
 RETURNS JSONB
@@ -284,12 +290,13 @@ BEGIN
         END IF;
 
         UPDATE public.clientes
-        SET direccion = coalesce(nullif(v_direccion_delivery, ''), direccion),
-            notas = coalesce(nullif(v_notas_pedido, ''), notas),
-            total_pedidos = coalesce(total_pedidos, 0) + 1
+        SET direccion_delivery = coalesce(nullif(v_direccion_delivery, ''), direccion_delivery),
+            notas_preferencias = coalesce(nullif(v_notas_pedido, ''), notas_preferencias),
+            total_pedidos = coalesce(total_pedidos, 0) + 1,
+            actualizado_el = NOW()
         WHERE id = v_cliente_id;
     ELSE
-        INSERT INTO public.clientes (nombre, telefono, direccion, notas, total_pedidos)
+        INSERT INTO public.clientes (nombre, telefono, direccion_delivery, notas_preferencias, total_pedidos)
         VALUES (v_nombre_cliente, v_telefono_cliente, nullif(v_direccion_delivery, ''), nullif(v_notas_pedido, ''), 1)
         RETURNING id INTO v_cliente_id;
     END IF;
@@ -297,11 +304,11 @@ BEGIN
     -- 3. Crear Cabecera de Venta
     INSERT INTO public.ventas (
         cliente_id, tasa_bcv, metodo_pago, tipo_entrega,
-        delivery_zona_nombre, delivery_monto_usd, delivery_monto_bs, direccion_delivery,
+        delivery_zona_id, delivery_zona_nombre, delivery_monto_usd, delivery_monto_bs, direccion_delivery,
         estado, notas_comanda, creado_por, origen_pedido, total_usd, total_bs
     ) VALUES (
         v_cliente_id, v_tasa_bcv, v_metodo_pago, v_tipo_entrega,
-        v_delivery_zona_nombre, v_delivery_monto_usd, v_delivery_monto_bs, nullif(v_direccion_delivery, ''),
+        v_delivery_zona_id, v_delivery_zona_nombre, v_delivery_monto_usd, v_delivery_monto_bs, nullif(v_direccion_delivery, ''),
         'pendiente', nullif(v_notas_pedido, ''), 'web_cliente', v_origen_pedido, 0, 0
     ) RETURNING id, numero_comanda INTO v_venta_id, v_numero_comanda;
 
