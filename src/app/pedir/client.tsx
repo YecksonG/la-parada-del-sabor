@@ -244,6 +244,7 @@ export default function MenuClienteView({
   const [copiado, setCopiado] = useState<string | null>(null);
   const [cargandoGps, setCargandoGps] = useState(false);
   const [gpsOk, setGpsOk] = useState(false);
+  const [isLocalHost, setIsLocalHost] = useState(false);
 
   const paisSeleccionado = useMemo(() => {
     return PAISES_TELEFONO.find((p) => p.codigo === codigoPais) || PAISES_TELEFONO[0];
@@ -328,6 +329,12 @@ export default function MenuClienteView({
       return () => clearTimeout(timer);
     }
   }, [modalLimitePedidos]);
+
+  // Detección segura de entorno local independiente para GPS simulado
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsLocalHost(window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  }, []);
 
   // RASTREO MULTI-CANAL ROBUSTO DE ORIGEN (WhatsApp / Instagram / TikTok / QR / Directo)
   useEffect(() => {
@@ -1488,7 +1495,7 @@ export default function MenuClienteView({
                         </div>
                       </button>
 
-                      {typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") && !gpsOk && (
+                      {isLocalHost && !gpsOk && (
                         <button
                           type="button"
                           onClick={() => handleAsignarGpsSimulado(11.69875, -70.19853)}

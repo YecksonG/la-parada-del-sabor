@@ -7,15 +7,16 @@ export default function ThemeToggle() {
   const [montado, setMontado] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMontado(true);
-    const guardado = localStorage.getItem("parada-theme") as "light" | "dark" | null;
-    const prefieroOscuro = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const temaInicial = guardado || (prefieroOscuro ? "dark" : "light");
+    const guardado = localStorage.getItem("parada-theme");
+    const temaInicial =
+      guardado === "light" || guardado === "dark"
+        ? guardado
+        : window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
     setTema(temaInicial);
-    // Aplicar de forma asíncrona tras la hidratación de React
-    requestAnimationFrame(() => {
-      document.documentElement.setAttribute("data-theme", temaInicial);
-    });
   }, []);
 
   const alternarTema = () => {
@@ -26,7 +27,7 @@ export default function ThemeToggle() {
   };
 
   if (!montado) {
-    return <div style={{ width: 38, height: 38 }} />;
+    return <div className="theme-toggle-btn" style={{ visibility: "hidden" }} aria-hidden="true" />;
   }
 
   return (

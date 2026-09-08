@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Insumo, UnidadMedida, Proveedor } from "@/types/database";
 import { guardarInsumo, ajustarStockInsumo, eliminarInsumo, registrarProduccionGuiso } from "./actions";
 import { sounds } from "@/lib/sound-effects";
@@ -19,13 +19,16 @@ export default function InsumosClient({
   proveedores = [],
   preciosReferenciales = {},
 }: InsumosClientProps) {
-  const [modoVista, setModoVista] = useState<"grid" | "filas">(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("vista_insumos");
-      if (saved === "grid" || saved === "filas") return saved;
+  const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
+
+  // Cargar preferencia guardada al montar en el cliente para garantizar sincronización limpia con SSR
+  useEffect(() => {
+    const saved = localStorage.getItem("vista_insumos");
+    if (saved === "grid" || saved === "filas") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModoVista(saved);
     }
-    return "grid";
-  });
+  }, []);
   const [busqueda, setBusqueda] = useState("");
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modalGestionAbierto, setModalGestionAbierto] = useState(false);
