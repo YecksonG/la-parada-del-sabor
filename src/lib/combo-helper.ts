@@ -97,7 +97,11 @@ export function getProductImage(prod: { nombre: string; imagen_url?: string | nu
   if (norm.includes("resuelve") || (norm.includes("combo") && (norm.includes("10") || norm.includes("familiar")))) return "/images/combos/combo-10-arepas.jpg";
 
   // Bebidas
-  if (norm.includes("pepsi")) return "/images/bebidas/pepsi-1-5l.jpg";
+  if (norm.includes("pepsi")) {
+    if (norm.includes("1.5") || norm.includes("1,5")) return "/images/bebidas/pepsi-1-5l.jpg";
+    if (norm.includes("1l") || norm.includes("1 l") || norm.includes("1 litro") || norm.includes("un litro")) return "/images/bebidas/pepsi-1l.jpg";
+    return "/images/bebidas/pepsi-1l.jpg";
+  }
 
   return null;
 }
