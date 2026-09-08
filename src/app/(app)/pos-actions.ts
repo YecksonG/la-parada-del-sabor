@@ -94,7 +94,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
   const productIds = Array.from(new Set(payload.items.map((it) => it.producto_id)));
   const { data: dbProducts } = await supabase
     .from("productos")
-    .select("id, precio_usd")
+    .select("id, nombre, precio_usd")
     .in("id", productIds);
 
   const productPriceMap = new Map<string, number>();

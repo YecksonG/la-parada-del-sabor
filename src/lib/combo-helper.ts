@@ -60,7 +60,8 @@ export const SABORES_AREPAS_COMBO = RELLENOS_AREPAS_COMBO;
  * Determina cuántas arepas contiene un combo dado su nombre o descripción usando límites de palabra precisos.
  * Retorna null si no es un combo de arepas.
  */
-export function getComboArepasCount(prod: { nombre: string }): number | null {
+export function getComboArepasCount(prod?: { nombre?: string | null } | null): number | null {
+  if (!prod || !prod.nombre || typeof prod.nombre !== "string") return null;
   const nombre = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/\b10\s*arep/i.test(nombre) || /\bcombo\s*10\b/i.test(nombre) || /\bfamiliar\b/i.test(nombre) || /\bresuelve\b/i.test(nombre)) return 10;
   if (/\b6\s*arep/i.test(nombre) || /\bcombo\s*6\b/i.test(nombre)) return 6;
@@ -72,7 +73,8 @@ export function getComboArepasCount(prod: { nombre: string }): number | null {
 /**
  * Resuelve la imagen autoritativa para un producto o combo.
  */
-export function getProductImage(prod: { nombre: string; imagen_url?: string | null }): string | null {
+export function getProductImage(prod?: { nombre?: string | null; imagen_url?: string | null } | null): string | null {
+  if (!prod || !prod.nombre || typeof prod.nombre !== "string") return null;
   if (
     prod.imagen_url &&
     prod.imagen_url.trim() &&

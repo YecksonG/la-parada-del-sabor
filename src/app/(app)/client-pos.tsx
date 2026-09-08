@@ -431,44 +431,49 @@ ${estadoPago}`;
     }
 
     setProcesando(true);
-    const res = await registrarVentaPos({
-      cliente_id: clienteSeleccionadoId,
-      metodo_pago: metodoPago,
-      tipo_entrega: tipoEntrega,
-      delivery_zona_id: tipoEntrega === "delivery" ? (zonaDeliveryActual?.id || null) : null,
-      delivery_zona_nombre: tipoEntrega === "delivery" ? (zonaDeliveryActual?.nombre || null) : null,
-      delivery_tarifa_usd: tipoEntrega === "delivery" ? tarifaDeliveryUsd : 0,
-      direccion_delivery: tipoEntrega === "delivery" ? direccionDeliveryPos.trim() : null,
-      tasa_bcv: tasaBcv,
-      notas_comanda: notasFinales,
-      items: carrito,
-    });
-
-    setProcesando(false);
-
-    if (res.ok && res.numero_comanda) {
-      sounds.playKitchenBell();
-      setTimeout(() => sounds.playCashRegister(), 300);
-      const clienteObj = listaClientes.find((c) => c.id === clienteSeleccionadoId);
-      setComandaExitosa({
-        numero: res.numero_comanda,
-        totalUsd,
-        totalBs,
-        metodoPago,
-        ventaId: res.venta_id,
-        clienteNombre: clienteObj?.nombre,
-        clienteTelefono: clienteObj?.telefono,
-        vueltoInfo: vueltoResumen,
+    try {
+      const res = await registrarVentaPos({
+        cliente_id: clienteSeleccionadoId,
+        metodo_pago: metodoPago,
+        tipo_entrega: tipoEntrega,
+        delivery_zona_id: tipoEntrega === "delivery" ? (zonaDeliveryActual?.id || null) : null,
+        delivery_zona_nombre: tipoEntrega === "delivery" ? (zonaDeliveryActual?.nombre || null) : null,
+        delivery_tarifa_usd: tipoEntrega === "delivery" ? tarifaDeliveryUsd : 0,
+        direccion_delivery: tipoEntrega === "delivery" ? direccionDeliveryPos.trim() : null,
+        tasa_bcv: tasaBcv,
+        notas_comanda: notasFinales,
+        items: carrito,
       });
-      setCarrito([]);
-      setNotasComanda("");
-      setDarVuelto(false);
-      setBilleteRecibidoUsd("");
-      setBilleteRecibidoBs("");
-      setClienteSeleccionadoId(null);
-      setDireccionDeliveryPos("");
-    } else {
-      alert(res.error || "No se pudo procesar la comanda.");
+
+      if (res.ok && res.numero_comanda) {
+        sounds.playKitchenBell();
+        setTimeout(() => sounds.playCashRegister(), 300);
+        const clienteObj = listaClientes.find((c) => c.id === clienteSeleccionadoId);
+        setComandaExitosa({
+          numero: res.numero_comanda,
+          totalUsd,
+          totalBs,
+          metodoPago,
+          ventaId: res.venta_id,
+          clienteNombre: clienteObj?.nombre,
+          clienteTelefono: clienteObj?.telefono,
+          vueltoInfo: vueltoResumen,
+        });
+        setCarrito([]);
+        setNotasComanda("");
+        setDarVuelto(false);
+        setBilleteRecibidoUsd("");
+        setBilleteRecibidoBs("");
+        setClienteSeleccionadoId(null);
+        setDireccionDeliveryPos("");
+      } else {
+        alert(res.error || "No se pudo procesar la comanda.");
+      }
+    } catch (err: unknown) {
+      console.error("Error al procesar comanda en POS:", err);
+      alert("Error de conexión o fallo en servidor al procesar la comanda. Por favor intenta nuevamente.");
+    } finally {
+      setProcesando(false);
     }
   };
 
