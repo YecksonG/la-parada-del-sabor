@@ -12,7 +12,10 @@ export default function ThemeToggle() {
     const prefieroOscuro = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const temaInicial = guardado || (prefieroOscuro ? "dark" : "light");
     setTema(temaInicial);
-    document.documentElement.setAttribute("data-theme", temaInicial);
+    // Aplicar de forma asíncrona tras la hidratación de React
+    requestAnimationFrame(() => {
+      document.documentElement.setAttribute("data-theme", temaInicial);
+    });
   }, []);
 
   const alternarTema = () => {
