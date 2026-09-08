@@ -280,13 +280,7 @@ export async function registrarProduccionGuiso(payload: RegistrarProduccionPaylo
 
     mpOriginalStock = Number(mpData.stock_actual || 0);
     nuevoStockMp = mpOriginalStock - Number(payload.cantidadMateriaPrima);
-
-    if (nuevoStockMp < 0) {
-      return {
-        ok: false,
-        error: `Stock insuficiente de materia prima (${mpData.nombre}): disponible ${mpOriginalStock}, requerido ${payload.cantidadMateriaPrima}.`,
-      };
-    }
+    // Nota: Se permite que nuevoStockMp sea negativo (en descubierto) al igual que en el RPC, para no bloquear la cocina si la compra no se ha cargado aún.
   }
 
   // Paso C: Ejecutar descuento de materia prima con bloqueo optimista

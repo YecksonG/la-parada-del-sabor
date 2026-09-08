@@ -64,13 +64,8 @@ BEGIN
             RETURN jsonb_build_object('ok', false, 'error', 'Insumo de materia prima no encontrado en base de datos.');
         END IF;
 
+        -- Permite que quede en negativo (descontado en descubierto hasta que se cargue la compra)
         v_nuevo_stock_mp := COALESCE(v_stock_mp, 0) - p_cantidad_materia_prima;
-
-        IF v_nuevo_stock_mp < 0 THEN
-            RETURN jsonb_build_object('ok', false, 'error',
-                'Stock insuficiente de materia prima: disponible ' || COALESCE(v_stock_mp, 0) ||
-                ', requerido ' || p_cantidad_materia_prima || '.');
-        END IF;
     END IF;
 
     -- 4. Ejecutar DMLs tras validar completamente ambas entidades

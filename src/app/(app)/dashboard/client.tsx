@@ -594,7 +594,7 @@ export default function DashboardClient({
   const metricasClientes = useMemo(() => {
     const totalClientes = clientes.length;
     const clientesRecurrentes = clientes.filter((c) => c.total_pedidos > 1).length;
-    const topClientes = [...clientes].sort((a, b) => b.total_pedidos - a.total_pedidos).slice(0, 5);
+    const topClientes = clientes.slice().sort((a, b) => b.total_pedidos - a.total_pedidos).slice(0, 5);
 
     return {
       totalClientes,
@@ -1460,7 +1460,7 @@ export default function DashboardClient({
               const totalCostosPeriodo = dataPoints.reduce((a, b) => a + b.costosUsd, 0);
               const totalGananciaPeriodo = totalVentasPeriodo - totalCostosPeriodo;
               const margenPeriodo = totalVentasPeriodo > 0 ? (totalGananciaPeriodo / totalVentasPeriodo) * 100 : 0;
-              const maxVenta = Math.max(...dataPoints.map((d) => d.ventasUsd), 10);
+              const maxVenta = dataPoints.reduce((max, d) => Math.max(max, d.ventasUsd), 10);
 
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
