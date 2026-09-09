@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guard";
 import { Gasto, CuentaNegocio, CategoriaGasto } from "@/types/database";
+import { toFechaCaracasString } from "@/lib/date-vzla";
 
 const CATEGORIAS_VALIDAS: CategoriaGasto[] = [
   "servicios",
@@ -102,7 +103,7 @@ export async function crearGasto(payload: PayloadGasto) {
   const { data, error } = await supabase
     .from("gastos")
     .insert({
-      fecha: payload.fecha || new Date().toISOString().split("T")[0],
+      fecha: payload.fecha || toFechaCaracasString(new Date()),
       categoria: payload.categoria,
       subcategoria: payload.subcategoria?.trim() || null,
       descripcion: payload.descripcion.trim(),
@@ -437,7 +438,7 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
   const descrip = `Ingreso de stock múltiple: ${payload.items.length} insumos`;
 
   const { error: gastoError } = await supabase.from("gastos").insert({
-    fecha: new Date().toISOString().split("T")[0],
+    fecha: toFechaCaracasString(new Date()),
     categoria: "proveedores",
     subcategoria: "Insumos / Despensa",
     descripcion: descrip,
@@ -458,6 +459,7 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
 
   if (gastoError) {
     console.error("Error registrando gasto de compra:", gastoError);
+    return { ok: false, error: `Error al asentar el gasto financiero de la compra: ${gastoError.message}` };
   }
 
   revalidatePath("/gastos");
@@ -469,127 +471,27 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
 }
 
 export async function registrarIngresoInsumo(payload: RegistrarCompraInsumoPayload) {
-  if (
-    typeof payload.cantidad_comprada !== "number" ||
-    payload.cantidad_comprada <= 0 ||
-    !Number.isFinite(payload.cantidad_comprada)
-  ) {
-    return { ok: false, error: "La cantidad comprada debe ser un número positivo." };
-  }
-  if (
-    typeof payload.factor_conversion !== "number" ||
-    payload.factor_conversion <= 0 ||
-    !Number.isFinite(payload.factor_conversion)
-  ) {
-    return { ok: false, error: "El factor de conversión debe ser un número positivo." };
-  }
-  if (
-    typeof payload.total_usd !== "number" ||
-    payload.total_usd <= 0 ||
-    !Number.isFinite(payload.total_usd)
-  ) {
-    return { ok: false, error: "El total en USD debe ser un número positivo." };
-  }
-  if (!payload.insumo_id || !UUID_REGEX.test(payload.insumo_id)) {
-    return { ok: false, error: "Insumo no válido." };
-  }
-
-  const supabase = await createClient();
-  const auth = await requireAuth();
-  if (!auth.ok) return { ok: false, error: auth.error };
-
-  const ctaOrigen = payload.cuenta_origen || "efectivo_usd";
-  const totalBs = payload.total_bs && payload.total_bs > 0
-    ? payload.total_bs
-    : Number((payload.total_usd * payload.tasa_bcv).toFixed(2));
-
-  // 1. Insertar Cabecera de Compra
-  const { data: compra, error: compraError } = await supabase
-    .from("compras")
-    .insert({
-      proveedor_id: payload.proveedor_id || null,
-      tasa_bcv: payload.tasa_bcv,
-      total_usd: payload.total_usd,
-      total_bs: totalBs,
-      metodo_pago: ctaOrigen,
-      comprobante: payload.numero_factura || null,
-      notas: payload.notas || null,
-    })
-    .select("id")
-    .single();
-
-  if (compraError || !compra) {
-    return { ok: false, error: compraError?.message || "Error al crear la compra." };
-  }
-
-  // 2. Insertar Item de Compra (Dispara trigger PPMC y suma gramos/und al stock_actual)
-  const cantidadBaseTotal = payload.cantidad_comprada * payload.factor_conversion;
-  const precioUnitarioBase = payload.total_usd / cantidadBaseTotal;
-
-  const { error: itemError } = await supabase.from("compras_items").insert({
-    compra_id: compra.id,
-    insumo_id: payload.insumo_id,
-    cantidad_comprada: payload.cantidad_comprada,
-    unidad_compra: payload.unidad_compra,
-    factor_conversion: payload.factor_conversion,
-    cantidad_base_total: cantidadBaseTotal,
-    precio_unitario_usd: precioUnitarioBase,
-    subtotal_usd: payload.total_usd,
-  });
-
-  if (itemError) {
-    return { ok: false, error: itemError.message };
-  }
-
-  // 3. Asentar también en la tabla de Gastos para balance unificado
-  let sesion_caja_id: string | null = null;
-  if (["efectivo_usd", "efectivo_bs", "caja_chica"].includes(ctaOrigen)) {
-    const { data: sesionActiva } = await supabase
-      .from("sesiones_caja")
-      .select("id")
-      .eq("estado", "abierta")
-      .order("fecha_apertura", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (sesionActiva) {
-      sesion_caja_id = sesionActiva.id;
-    }
-  }
-
-  const { error: gastoError } = await supabase.from("gastos").insert({
-    fecha: new Date().toISOString().split("T")[0],
-    categoria: "proveedores",
-    subcategoria: "Insumos / Despensa",
-    descripcion: `Ingreso de stock: ${payload.cantidad_comprada} ${payload.unidad_compra} de ${payload.insumo_nombre}`,
-    beneficiario: null,
-    proveedor_id: payload.proveedor_id || null,
-    monto_usd: payload.total_usd,
-    monto_bs: totalBs,
+  return registrarCompraMultiInsumo({
+    proveedor_id: payload.proveedor_id || undefined,
     tasa_bcv: payload.tasa_bcv,
-    cuenta_origen: ctaOrigen,
-    cuenta_id: payload.cuenta_id || null,
-    numero_factura: payload.numero_factura?.trim() || null,
-    comprobante_url: payload.comprobante_url || null,
-    estado: "pagado",
-    sesion_caja_id: sesion_caja_id,
-    notas: `compra_id:${compra.id}${payload.notas ? ` | ${payload.notas.trim()}` : ""}`,
-    creado_por: auth.user.email || "admin",
+    total_usd: payload.total_usd,
+    total_bs: payload.total_bs,
+    cuenta_id: payload.cuenta_id,
+    cuenta_origen: payload.cuenta_origen,
+    numero_factura: payload.numero_factura,
+    comprobante_url: payload.comprobante_url,
+    notas: payload.notas,
+    items: [
+      {
+        insumo_id: payload.insumo_id,
+        insumo_nombre: payload.insumo_nombre,
+        cantidad_comprada: payload.cantidad_comprada,
+        unidad_compra: payload.unidad_compra,
+        factor_conversion: payload.factor_conversion,
+        total_usd: payload.total_usd,
+      },
+    ],
   });
-
-  if (gastoError) {
-    console.error("Error registrando gasto de compra:", gastoError);
-  }
-
-  revalidatePath("/gastos");
-  revalidatePath("/compras");
-  revalidatePath("/insumos");
-  revalidatePath("/recetas");
-  revalidatePath("/caja");
-  revalidatePath("/dashboard");
-  revalidatePath("/");
-
-  return { ok: true };
 }
 
 // ==============================================================================
@@ -823,7 +725,7 @@ export async function crearTransferenciaCuenta(payload: PayloadTransferencia) {
   const { data, error } = await supabase
     .from("transferencias_cuentas")
     .insert({
-      fecha: payload.fecha || new Date().toISOString().split("T")[0],
+      fecha: payload.fecha || toFechaCaracasString(new Date()),
       cuenta_origen_id: payload.cuenta_origen_id,
       cuenta_destino_id: payload.cuenta_destino_id,
       monto_origen: payload.monto_origen,

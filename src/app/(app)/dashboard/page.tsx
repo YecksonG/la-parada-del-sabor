@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./client";
-import { Venta, Cliente, Insumo, Producto, SesionCaja } from "@/types/database";
+import { Venta, Cliente, Insumo, Producto, SesionCaja, Gasto } from "@/types/database";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
   // 1. Ejecutar consultas en paralelo para máxima velocidad
-  const [ventasRes, clientesRes, insumosRes, productosRes, tasaRes, sesionesRes] = await Promise.all([
+  const [ventasRes, clientesRes, insumosRes, productosRes, tasaRes, sesionesRes, gastosRes] = await Promise.all([
     supabase
       .from("ventas")
       .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
@@ -34,6 +34,11 @@ export default async function DashboardPage() {
       .select("*")
       .order("fecha_apertura", { ascending: false })
       .limit(30),
+    supabase
+      .from("gastos")
+      .select("*, proveedor:proveedores(*)")
+      .neq("estado", "anulado")
+      .order("fecha", { ascending: false }),
   ]);
 
   const ventas = ventasRes.data || [];
@@ -42,6 +47,7 @@ export default async function DashboardPage() {
   const productos = productosRes.data || [];
   const tasaReciente = tasaRes.data;
   const historialCajas = sesionesRes.data || [];
+  const gastos = gastosRes.data || [];
 
   return (
     <DashboardClient
@@ -50,6 +56,7 @@ export default async function DashboardPage() {
       insumos={(insumos as Insumo[]) || []}
       productos={(productos as Producto[]) || []}
       historialCajas={(historialCajas as SesionCaja[]) || []}
+      gastos={(gastos as Gasto[]) || []}
       tasaBcv={Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 0}
     />
   );

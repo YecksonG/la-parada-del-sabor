@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador } from "@/types/database";
+import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto } from "@/types/database";
 import { esMismaFechaEnCaracas, toFechaCaracasString } from "@/lib/date-vzla";
 
 type PeriodoDashboard = "hoy" | "semana" | "mes" | "todo";
@@ -62,6 +62,7 @@ interface DashboardClientProps {
   insumos: Insumo[];
   productos: Producto[];
   historialCajas?: SesionCaja[];
+  gastos?: Gasto[];
   tasaBcv: number;
 }
 
@@ -71,6 +72,7 @@ export default function DashboardClient({
   insumos,
   productos,
   historialCajas = [],
+  gastos = [],
   tasaBcv,
 }: DashboardClientProps) {
   const [periodo, setPeriodo] = useState<"hoy" | "semana" | "mes" | "todo">("mes");
@@ -105,10 +107,31 @@ export default function DashboardClient({
     });
   }, [ventas, periodo]);
 
+  // Filtrar gastos por periodo
+  const gastosFiltrados = useMemo(() => {
+    const ahora = new Date();
+    return gastos.filter((g) => {
+      if (g.estado === "anulado") return false;
+      const fechaGasto = new Date(g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`);
+      if (periodo === "hoy") {
+        return esMismaFechaEnCaracas(g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`);
+      }
+      if (periodo === "semana") {
+        const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return fechaGasto >= hace7Dias;
+      }
+      if (periodo === "mes") {
+        const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
+        return fechaGasto >= hace30Dias;
+      }
+      return true;
+    });
+  }, [gastos, periodo]);
+
   // Agrupaciones temporales continuas (Semana a Semana y Mes a Mes)
   const seriesContinuas = useMemo(() => {
-    const semanasMap: Record<string, { label: string; ventasUsd: number; costosUsd: number; comandas: number; fechaInicio: number }> = {};
-    const mesesMap: Record<string, { label: string; ventasUsd: number; costosUsd: number; comandas: number; fechaInicio: number }> = {};
+    const semanasMap: Record<string, { label: string; ventasUsd: number; costosUsd: number; gastosUsd: number; comandas: number; fechaInicio: number }> = {};
+    const mesesMap: Record<string, { label: string; ventasUsd: number; costosUsd: number; gastosUsd: number; comandas: number; fechaInicio: number }> = {};
 
     const insumosCostosMap = new Map<string, number>();
     insumos.forEach((ins) => {
@@ -160,6 +183,7 @@ export default function DashboardClient({
           label: semanaLabel,
           ventasUsd: 0,
           costosUsd: 0,
+          gastosUsd: 0,
           comandas: 0,
           fechaInicio: inicioSemana.getTime(),
         };
@@ -179,6 +203,7 @@ export default function DashboardClient({
           label: mesLabel,
           ventasUsd: 0,
           costosUsd: 0,
+          gastosUsd: 0,
           comandas: 0,
           fechaInicio: inicioMes,
         };
@@ -188,6 +213,51 @@ export default function DashboardClient({
       mesesMap[mesKey].comandas += 1;
     });
 
+    gastos.forEach((g) => {
+      if (g.estado === "anulado") return;
+      const fecha = new Date(g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`);
+      const montoGasto = Number(g.monto_usd) || 0;
+
+      // 1. Agrupar por Semana
+      const inicioSemana = new Date(fecha);
+      const day = inicioSemana.getDay();
+      const diff = inicioSemana.getDate() - day + (day === 0 ? -6 : 1);
+      inicioSemana.setDate(diff);
+      inicioSemana.setHours(0, 0, 0, 0);
+      const semanaKey = inicioSemana.toISOString().split("T")[0];
+      const semanaLabel = `Sem ${inicioSemana.getDate()}/${inicioSemana.getMonth() + 1}`;
+
+      if (!semanasMap[semanaKey]) {
+        semanasMap[semanaKey] = {
+          label: semanaLabel,
+          ventasUsd: 0,
+          costosUsd: 0,
+          gastosUsd: 0,
+          comandas: 0,
+          fechaInicio: inicioSemana.getTime(),
+        };
+      }
+      semanasMap[semanaKey].gastosUsd = (semanasMap[semanaKey].gastosUsd || 0) + montoGasto;
+
+      // 2. Agrupar por Mes
+      const mesKey = `${fecha.getFullYear()}-${(fecha.getMonth() + 1).toString().padStart(2, "0")}`;
+      const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      const mesLabel = `${mesesNombres[fecha.getMonth()]} ${fecha.getFullYear()}`;
+      const inicioMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1).getTime();
+
+      if (!mesesMap[mesKey]) {
+        mesesMap[mesKey] = {
+          label: mesLabel,
+          ventasUsd: 0,
+          costosUsd: 0,
+          gastosUsd: 0,
+          comandas: 0,
+          fechaInicio: inicioMes,
+        };
+      }
+      mesesMap[mesKey].gastosUsd = (mesesMap[mesKey].gastosUsd || 0) + montoGasto;
+    });
+
     const listaSemanas = Object.values(semanasMap).sort((a, b) => a.fechaInicio - b.fechaInicio);
     const listaMeses = Object.values(mesesMap).sort((a, b) => a.fechaInicio - b.fechaInicio);
 
@@ -195,7 +265,7 @@ export default function DashboardClient({
       semanas: listaSemanas,
       meses: listaMeses,
     };
-  }, [ventas, productos, insumos]);
+  }, [ventas, productos, insumos, gastos]);
 
   // Cálculos Financieros
   const finanzas = useMemo(() => {
@@ -208,7 +278,7 @@ export default function DashboardClient({
       return acc + ((Number(v.total_usd) || 0) * tasaHistorica);
     }, 0);
 
-    // Calcular costo real de insumos vendidos en el periodo
+    // Calcular costo real de insumos vendidos en el periodo (COGS recetas)
     let costoInsumosUsd = 0;
     const rankingPlatos: { [nombre: string]: { cantidad: number; totalUsd: number; icono: string } } = {};
     const consumoInsumosGramos: { [nombre: string]: { gramos: number; unidad: string } } = {};
@@ -269,9 +339,36 @@ export default function DashboardClient({
     const totalDeliveryViajes = ventasFiltradas.filter((v) => v.tipo_entrega === "delivery").length;
     const ventasNetasComidaUsd = Math.max(0, totalFacturadoUsd - totalDeliveryUsd);
 
-    const gananciaNetaUsd = ventasNetasComidaUsd - costoInsumosUsd;
-    const margenGlobalPct =
-      ventasNetasComidaUsd > 0 ? ((gananciaNetaUsd / ventasNetasComidaUsd) * 100).toFixed(1) : "0.0";
+    // Gastos del periodo y desgloses
+    const totalGastosUsd = gastosFiltrados.reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
+    const gastosProveedoresInsumosUsd = gastosFiltrados
+      .filter((g) => g.categoria === "proveedores")
+      .reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
+    const gastosOperativosUsd = gastosFiltrados
+      .filter((g) => g.categoria !== "proveedores")
+      .reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
+
+    // Ganancia Neta Real (Flujo real en caja: Facturado Total - Gastos Totales Realizados)
+    const gananciaNetaRealUsd = totalFacturadoUsd - totalGastosUsd;
+    const margenNetoRealPct = totalFacturadoUsd > 0
+      ? ((gananciaNetaRealUsd / totalFacturadoUsd) * 100).toFixed(1)
+      : "0.0";
+
+    // Ratio de Gastos sobre Facturado
+    const pctGastosSobreFacturado = totalFacturadoUsd > 0
+      ? ((totalGastosUsd / totalFacturadoUsd) * 100).toFixed(1)
+      : "0.0";
+
+    // Ratio de Costo de Materia Prima sobre Facturado
+    const pctCostoMateriaPrima = totalFacturadoUsd > 0
+      ? ((costoInsumosUsd / totalFacturadoUsd) * 100).toFixed(1)
+      : "0.0";
+
+    // Margen Bruto (Facturado Comida - Costo Recetas)
+    const margenBrutoUsd = ventasNetasComidaUsd - costoInsumosUsd;
+    const margenBrutoPct = ventasNetasComidaUsd > 0
+      ? ((margenBrutoUsd / ventasNetasComidaUsd) * 100).toFixed(1)
+      : "0.0";
 
     const topPlatos = Object.entries(rankingPlatos)
       .map(([nombre, data]) => ({ nombre, ...data }))
@@ -290,14 +387,24 @@ export default function DashboardClient({
       totalDeliveryViajes,
       ventasNetasComidaUsd,
       costoInsumosUsd,
-      gananciaNetaUsd,
-      margenGlobalPct,
+      totalGastosUsd,
+      totalGastosCount: gastosFiltrados.length,
+      gastosProveedoresInsumosUsd,
+      gastosOperativosUsd,
+      gananciaNetaRealUsd,
+      margenNetoRealPct,
+      pctGastosSobreFacturado,
+      pctCostoMateriaPrima,
+      margenBrutoUsd,
+      margenBrutoPct,
+      gananciaNetaUsd: gananciaNetaRealUsd,
+      margenGlobalPct: margenNetoRealPct,
       topPlatos,
       topInsumos,
       totalComandas: ventasFiltradas.length,
       ticketPromedio: ventasFiltradas.length > 0 ? totalFacturadoUsd / ventasFiltradas.length : 0,
     };
-  }, [ventasFiltradas, tasaBcv, productos, insumos]);
+  }, [ventasFiltradas, tasaBcv, productos, insumos, gastosFiltrados]);
 
   // Auditoría y Conciliación Semanal de Delivery con la Empresa Aliada
   const metricasDeliverySemanales = useMemo(() => {
@@ -702,18 +809,34 @@ export default function DashboardClient({
 
         <div className="caja-stat-card">
           <span className="stat-label">🥩 Costo Materia Prima</span>
-          <strong className="stat-value">
+          <strong className="stat-value" style={{ color: "#d97706" }}>
             ${finanzas.costoInsumosUsd.toFixed(2)} USD
           </strong>
-          <span className="stat-hint">Consumo real en recetas</span>
+          <span className="stat-hint">{finanzas.pctCostoMateriaPrima}% de ventas (Consumo en recetas)</span>
         </div>
 
         <div className="caja-stat-card">
-          <span className="stat-label">✨ Ganancia Neta Estimada</span>
-          <strong className="stat-value text-green">
-            ${finanzas.gananciaNetaUsd.toFixed(2)} USD
+          <span className="stat-label">📉 Total Gastos Realizados</span>
+          <strong className="stat-value" style={{ color: "#ef4444" }}>
+            ${finanzas.totalGastosUsd.toFixed(2)} USD
           </strong>
-          <span className="stat-hint">Margen Global: {finanzas.margenGlobalPct}% 🔥</span>
+          <span className="stat-hint">{finanzas.pctGastosSobreFacturado}% de facturación ({finanzas.totalGastosCount} egresos)</span>
+        </div>
+
+        <div className="caja-stat-card">
+          <span className="stat-label">💎 Ganancia Neta Real</span>
+          <strong
+            className="stat-value"
+            style={{ color: finanzas.gananciaNetaRealUsd >= 0 ? "#10b981" : "#ef4444" }}
+          >
+            {finanzas.gananciaNetaRealUsd >= 0 ? "+" : ""}${finanzas.gananciaNetaRealUsd.toFixed(2)} USD
+          </strong>
+          <span
+            className="stat-hint"
+            style={{ color: finanzas.gananciaNetaRealUsd >= 0 ? "#10b981" : "#ef4444", fontWeight: 700 }}
+          >
+            Margen Neto Real: {finanzas.margenNetoRealPct}% {finanzas.gananciaNetaRealUsd >= 0 ? "🔥" : "⚠️"}
+          </span>
         </div>
 
         <div className="caja-stat-card">
@@ -723,6 +846,205 @@ export default function DashboardClient({
           </strong>
           <span className="stat-hint">Promedio: ${finanzas.ticketPromedio.toFixed(2)} / comanda</span>
         </div>
+      </div>
+
+      {/* Radiografía Financiera Ejecutiva: Facturación vs Gastos & Materia Prima */}
+      <div
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 18,
+          padding: "18px 22px",
+          marginTop: 14,
+          marginBottom: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>⚖️</span>
+            <div>
+              <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: "var(--text)" }}>
+                Radiografía Financiera Ejecutiva: Facturación vs Gastos & Materia Prima
+              </h3>
+              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                Período: <strong>{periodo === "todo" ? "Histórico Total" : periodo.toUpperCase()}</strong> • {finanzas.totalComandas} comandas facturadas • {finanzas.totalGastosCount} egresos registrados
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span
+              style={{
+                fontSize: 12,
+                padding: "4px 12px",
+                borderRadius: 20,
+                background: finanzas.gananciaNetaRealUsd >= 0 ? "rgba(16, 185, 129, 0.12)" : "rgba(239, 68, 68, 0.12)",
+                color: finanzas.gananciaNetaRealUsd >= 0 ? "#10b981" : "#ef4444",
+                fontWeight: 800,
+                border: `1px solid ${finanzas.gananciaNetaRealUsd >= 0 ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+              }}
+            >
+              {finanzas.gananciaNetaRealUsd >= 0 ? "✅ Flujo Positivo de Ganancia" : "⚠️ Flujo Negativo en Período"}
+            </span>
+          </div>
+        </div>
+
+        {/* 4 Cajas de Desglose Matemático */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+            gap: 12,
+            background: "var(--bg-subtle)",
+            padding: "14px 16px",
+            borderRadius: 14,
+            border: "1px solid var(--border-subtle)",
+          }}
+        >
+          {/* Facturado */}
+          <div>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              1. Total Facturado
+            </span>
+            <strong style={{ fontSize: 20, color: "var(--primary)", display: "block", marginTop: 2 }}>
+              +${finanzas.totalFacturadoUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+              Base 100% ingresos de ventas
+            </span>
+          </div>
+
+          {/* Costo Materia Prima */}
+          <div>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              2. Costo Materia Prima (COGS)
+            </span>
+            <strong style={{ fontSize: 20, color: "#d97706", display: "block", marginTop: 2 }}>
+              ${finanzas.costoInsumosUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "#d97706", fontWeight: 600 }}>
+              {finanzas.pctCostoMateriaPrima}% de tus ventas (Recetas)
+            </span>
+          </div>
+
+          {/* Gastos Totales */}
+          <div>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              3. Total Gastos / Egresos
+            </span>
+            <strong style={{ fontSize: 20, color: "#ef4444", display: "block", marginTop: 2 }}>
+              -${finanzas.totalGastosUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>
+              {finanzas.pctGastosSobreFacturado}% de lo facturado
+            </span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block", marginTop: 2 }}>
+              📦 Compras: ${finanzas.gastosProveedoresInsumosUsd.toFixed(2)} | 🏢 Operativos: ${finanzas.gastosOperativosUsd.toFixed(2)}
+            </span>
+          </div>
+
+          {/* Ganancia Neta */}
+          <div>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              4. Ganancia Neta Real
+            </span>
+            <strong
+              style={{
+                fontSize: 22,
+                color: finanzas.gananciaNetaRealUsd >= 0 ? "#10b981" : "#ef4444",
+                display: "block",
+                marginTop: 2,
+              }}
+            >
+              {finanzas.gananciaNetaRealUsd >= 0 ? "+" : ""}${finanzas.gananciaNetaRealUsd.toFixed(2)} USD
+            </strong>
+            <span
+              style={{
+                fontSize: 11,
+                color: finanzas.gananciaNetaRealUsd >= 0 ? "#10b981" : "#ef4444",
+                fontWeight: 700,
+              }}
+            >
+              {finanzas.margenNetoRealPct}% margen neto libre (En Bolsillo)
+            </span>
+          </div>
+        </div>
+
+        {/* Barra Visual de Proporción / Regla de $100 */}
+        {finanzas.totalFacturadoUsd > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 4 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)", flexWrap: "wrap", gap: 4 }}>
+              <span>💡 Por cada <strong>$100 USD</strong> que entran al negocio:</span>
+              <span>
+                <strong>${Number(finanzas.pctGastosSobreFacturado).toFixed(1)}</strong> van a gastos •{" "}
+                <strong style={{ color: finanzas.gananciaNetaRealUsd >= 0 ? "#10b981" : "#ef4444" }}>
+                  ${Math.max(0, 100 - Number(finanzas.pctGastosSobreFacturado)).toFixed(1)}
+                </strong> quedan de ganancia neta
+              </span>
+            </div>
+
+            {/* Barra multicapa */}
+            <div
+              style={{
+                height: 12,
+                width: "100%",
+                background: "var(--bg-subtle)",
+                borderRadius: 999,
+                overflow: "hidden",
+                display: "flex",
+                border: "1px solid var(--border-subtle)",
+              }}
+            >
+              {/* Compras de Insumos */}
+              <div
+                title={`Compras/Proveedores: ${finanzas.totalFacturadoUsd > 0 ? ((finanzas.gastosProveedoresInsumosUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%`}
+                style={{
+                  width: `${Math.min(100, (finanzas.gastosProveedoresInsumosUsd / finanzas.totalFacturadoUsd) * 100)}%`,
+                  background: "#f59e0b",
+                  transition: "width 0.3s ease",
+                }}
+              />
+              {/* Gastos Operativos (servicios, nómina, etc.) */}
+              <div
+                title={`Gastos Operativos: ${finanzas.totalFacturadoUsd > 0 ? ((finanzas.gastosOperativosUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%`}
+                style={{
+                  width: `${Math.min(100, (finanzas.gastosOperativosUsd / finanzas.totalFacturadoUsd) * 100)}%`,
+                  background: "#ef4444",
+                  transition: "width 0.3s ease",
+                }}
+              />
+              {/* Ganancia Neta */}
+              {finanzas.gananciaNetaRealUsd > 0 && (
+                <div
+                  title={`Ganancia Neta: ${finanzas.margenNetoRealPct}%`}
+                  style={{
+                    width: `${Math.min(100, (finanzas.gananciaNetaRealUsd / finanzas.totalFacturadoUsd) * 100)}%`,
+                    background: "#10b981",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#f59e0b", display: "inline-block" }} />
+                Compras Insumos: ${finanzas.gastosProveedoresInsumosUsd.toFixed(2)} ({finanzas.totalFacturadoUsd > 0 ? ((finanzas.gastosProveedoresInsumosUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%)
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
+                Gastos Operativos: ${finanzas.gastosOperativosUsd.toFixed(2)} ({finanzas.totalFacturadoUsd > 0 ? ((finanzas.gastosOperativosUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%)
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
+                Ganancia Neta: ${finanzas.gananciaNetaRealUsd.toFixed(2)} ({finanzas.margenNetoRealPct}%)
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Grid de 2 Columnas: Ranking de Platos y Consumo de Insumos */}
@@ -1458,31 +1780,36 @@ export default function DashboardClient({
 
               const totalVentasPeriodo = dataPoints.reduce((a, b) => a + b.ventasUsd, 0);
               const totalCostosPeriodo = dataPoints.reduce((a, b) => a + b.costosUsd, 0);
-              const totalGananciaPeriodo = totalVentasPeriodo - totalCostosPeriodo;
+              const totalGastosPeriodo = dataPoints.reduce((a, b) => a + (b.gastosUsd || 0), 0);
+              const totalGananciaPeriodo = totalVentasPeriodo - totalGastosPeriodo;
               const margenPeriodo = totalVentasPeriodo > 0 ? (totalGananciaPeriodo / totalVentasPeriodo) * 100 : 0;
               const maxVenta = dataPoints.reduce((max, d) => Math.max(max, d.ventasUsd), 10);
 
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {/* Resumen Superior Rápido del Período Seleccionado */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Total Facturado</span>
                       <strong style={{ fontSize: 16, color: "var(--primary-dark)" }}>${totalVentasPeriodo.toFixed(2)} USD</strong>
                     </div>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Costo de Insumos</span>
-                      <strong style={{ fontSize: 16, color: "#ef4444" }}>${totalCostosPeriodo.toFixed(2)} USD</strong>
+                      <strong style={{ fontSize: 16, color: "#d97706" }}>${totalCostosPeriodo.toFixed(2)} USD</strong>
+                    </div>
+                    <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Gastos Egresos</span>
+                      <strong style={{ fontSize: 16, color: "#ef4444" }}>${totalGastosPeriodo.toFixed(2)} USD</strong>
                     </div>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
                       <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Ganancia Neta</span>
                       <strong style={{ fontSize: 16, color: totalGananciaPeriodo >= 0 ? "#16a34a" : "#dc2626" }}>
-                        +${totalGananciaPeriodo.toFixed(2)} USD
+                        {totalGananciaPeriodo >= 0 ? "+" : ""}${totalGananciaPeriodo.toFixed(2)} USD
                       </strong>
                     </div>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Margen Promedio</span>
-                      <strong style={{ fontSize: 16, color: "#d97706" }}>{margenPeriodo.toFixed(1)}%</strong>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Margen Neto</span>
+                      <strong style={{ fontSize: 16, color: totalGananciaPeriodo >= 0 ? "#16a34a" : "#dc2626" }}>{margenPeriodo.toFixed(1)}%</strong>
                     </div>
                   </div>
 
@@ -1504,7 +1831,7 @@ export default function DashboardClient({
                     {dataPoints.map((dp, idx) => {
                       const alturaVentasPct = Math.max(10, (dp.ventasUsd / maxVenta) * 100);
                       const alturaCostosPct = Math.max(5, (dp.costosUsd / maxVenta) * 100);
-                      const ganancia = dp.ventasUsd - dp.costosUsd;
+                      const ganancia = dp.ventasUsd - (dp.gastosUsd || 0);
                       const margen = dp.ventasUsd > 0 ? (ganancia / dp.ventasUsd) * 100 : 0;
 
                       return (
@@ -1582,13 +1909,14 @@ export default function DashboardClient({
                           <th style={{ padding: "8px 12px" }}>Comandas</th>
                           <th style={{ padding: "8px 12px" }}>Facturado USD</th>
                           <th style={{ padding: "8px 12px" }}>Costo Insumos</th>
+                          <th style={{ padding: "8px 12px" }}>Gastos Egresos</th>
                           <th style={{ padding: "8px 12px" }}>Ganancia Neta</th>
                           <th style={{ padding: "8px 12px" }}>Margen %</th>
                         </tr>
                       </thead>
                       <tbody>
                         {dataPoints.slice().reverse().map((dp, i) => {
-                          const ganancia = dp.ventasUsd - dp.costosUsd;
+                          const ganancia = dp.ventasUsd - (dp.gastosUsd || 0);
                           const margen = dp.ventasUsd > 0 ? (ganancia / dp.ventasUsd) * 100 : 0;
                           return (
                             <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
@@ -1597,8 +1925,11 @@ export default function DashboardClient({
                               <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--primary-dark)" }}>
                                 ${dp.ventasUsd.toFixed(2)}
                               </td>
-                              <td style={{ padding: "8px 12px", color: "#ef4444" }}>
+                              <td style={{ padding: "8px 12px", color: "#d97706" }}>
                                 ${dp.costosUsd.toFixed(2)}
+                              </td>
+                              <td style={{ padding: "8px 12px", color: "#ef4444" }}>
+                                ${dp.gastosUsd.toFixed(2)}
                               </td>
                               <td style={{ padding: "8px 12px", fontWeight: 800, color: ganancia >= 0 ? "#16a34a" : "#dc2626" }}>
                                 ${ganancia.toFixed(2)}

@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Utilidades de fecha centradas en el huso horario de Venezuela (UTC-4).
  * Todos los filtros de "hoy" del sistema usan America/Caracas para que

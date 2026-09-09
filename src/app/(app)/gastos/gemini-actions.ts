@@ -2,6 +2,7 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/auth-guard";
 
 export type InsumoExtraido = {
   insumo_id: string;
@@ -12,6 +13,9 @@ export type InsumoExtraido = {
 };
 
 export async function extraerInsumosFactura(base64Image: string, mimeType: string, tasaBcv: number = 1) {
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
   if (!process.env.GEMINI_API_KEY) {
     return { ok: false, error: "Falta configurar GEMINI_API_KEY en el servidor (.env.local)." };
   }

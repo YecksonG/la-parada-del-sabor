@@ -518,9 +518,19 @@ EXECUTE FUNCTION public.fn_sumar_stock_compra_ppmc();
 
 CREATE OR REPLACE FUNCTION public.fn_revertir_stock_compra_delete()
 RETURNS TRIGGER AS $$
+DECLARE
+    v_nuevo_costo NUMERIC(12, 5);
 BEGIN
+    -- Recalcular PPMC ponderado desde las compras restantes del insumo
+    SELECT 
+        COALESCE(SUM(subtotal_usd) / NULLIF(SUM(cantidad_base_total), 0), 0)
+    INTO v_nuevo_costo
+    FROM public.compras_items
+    WHERE insumo_id = OLD.insumo_id AND id != OLD.id;
+
     UPDATE public.insumos
-    SET stock_actual = stock_actual - OLD.cantidad_base_total,
+    SET stock_actual = GREATEST(0, stock_actual - OLD.cantidad_base_total),
+        costo_unitario_usd = CASE WHEN v_nuevo_costo > 0 THEN v_nuevo_costo ELSE costo_unitario_usd END,
         actualizado_el = NOW()
     WHERE id = OLD.insumo_id;
 
