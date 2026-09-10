@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import { Venta } from "@/types/database";
 import type { MetodoPago } from "@/types/database";
-import { cambiarEstadoVenta, actualizarMetodoPagoVenta } from "./actions";
+import { cambiarEstadoVenta, actualizarMetodoPagoVenta, actualizarDetallesComanda } from "./actions";
 import { toFechaCaracasString, fechaHoyEnCaracas } from "@/lib/date-vzla";
 
 interface VentasClientProps {
@@ -16,6 +16,7 @@ export default function VentasClient({ ventas }: VentasClientProps) {
   const [filtroFecha, setFiltroFecha] = useState<"hoy" | "ayer" | "todas" | "fecha">("hoy");
   const [fechaEspecifica, setFechaEspecifica] = useState<string>("");
   const [procesandoId, setProcesandoId] = useState<string | null>(null);
+  const [comandaParaEditar, setComandaParaEditar] = useState<Venta | null>(null);
 
   // Fechas de referencia en Caracas
   const hoyStr = useMemo(() => {
@@ -300,6 +301,26 @@ ${estadoPago}`;
                       >
                         🧾 Recibo
                       </a>
+                      <button
+                        type="button"
+                        onClick={() => setComandaParaEditar(v)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11,
+                          fontWeight: 800,
+                          color: "var(--text)",
+                          padding: "3px 8px",
+                          borderRadius: 8,
+                          background: "var(--bg-card)",
+                          border: "1px solid var(--border)",
+                          cursor: "pointer",
+                        }}
+                        title="Modificar tipo de entrega, vuelto, método de pago o notas"
+                      >
+                        ✏️ Editar
+                      </button>
                       <span className={`comanda-status-pill status-${v.estado}`}>
                         {v.estado === "pendiente"
                           ? "🟡 Por Confirmar"
@@ -652,6 +673,579 @@ ${estadoPago}`;
           })
         )}
       </div>
+
+      {/* Modal para Editar Entrega, Vuelto y Pago de la Comanda */}
+      {comandaParaEditar && (
+        <ModalEditarComanda
+          venta={comandaParaEditar}
+          onCerrar={() => setComandaParaEditar(null)}
+          onGuardado={(updatedVenta) => {
+            // Actualizar localmente la venta en el estado
+            const idx = ventas.findIndex((v) => v.id === updatedVenta.id);
+            if (idx >= 0) {
+              Object.assign(ventas[idx], updatedVenta);
+            }
+            setComandaParaEditar(null);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+function ModalEditarComanda({
+  venta,
+  onCerrar,
+  onGuardado,
+}: {
+  venta: Venta;
+  onCerrar: () => void;
+  onGuardado: (updated: Partial<Venta> & { id: string }) => void;
+}) {
+  const tasaBcv = Number(venta.tasa_bcv) || 1;
+
+  // Extraer el subtotal de comida original sin el delivery
+  const subtotalComidaUsd = useMemo(() => {
+    const itemsTotal = (venta.items || []).reduce(
+      (acc, it) => acc + (Number(it.subtotal_usd) || 0),
+      0
+    );
+    if (itemsTotal > 0) return itemsTotal;
+    const deliveryAnt = Number(venta.delivery_monto_usd) || 0;
+    return Math.max(0, Number(venta.total_usd) - deliveryAnt);
+  }, [venta]);
+
+  const [tipoEntrega, setTipoEntrega] = useState<"puerta_cerrada" | "mesa" | "pickup" | "delivery">(
+    (venta.tipo_entrega as any) || "puerta_cerrada"
+  );
+  const [deliveryMontoUsd, setDeliveryMontoUsd] = useState<number | "">(
+    Number(venta.delivery_monto_usd) || (venta.tipo_entrega === "delivery" ? 1.5 : "")
+  );
+  const [deliveryZonaNombre, setDeliveryZonaNombre] = useState<string>(
+    venta.delivery_zona_nombre || ""
+  );
+  const [direccionDelivery, setDireccionDelivery] = useState<string>(
+    venta.direccion_delivery || ""
+  );
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>(venta.metodo_pago || "efectivo_usd");
+
+  // Limpiar notas previas quitando cualquier tag previo de vuelto
+  const notasBase = useMemo(() => {
+    return (venta.notas_comanda || "")
+      .replace(/•?\s*\[[^\]]*(?:[Vv]uelto\s*:)[^\]]*\]/g, "")
+      .trim();
+  }, [venta.notas_comanda]);
+
+  const [notasTexto, setNotasTexto] = useState<string>(notasBase);
+
+  // Vuelto en el modal
+  const [incluirVuelto, setIncluirVuelto] = useState<boolean>(
+    /\[[^\]]*(?:[Vv]uelto\s*:)[^\]]*\]/.test(venta.notas_comanda || "")
+  );
+  const [billeteRecibidoUsd, setBilleteRecibidoUsd] = useState<number | "">(() => {
+    const match = (venta.notas_comanda || "").match(/Paga con \$?([0-9.]+)/i);
+    return match ? parseFloat(match[1]) : "";
+  });
+  const [modoVuelto, setModoVuelto] = useState<"simple" | "mixto">("mixto");
+  const [metodoVueltoSimple, setMetodoVueltoSimple] = useState<string>("pago_movil");
+
+  const [vueltoEfUsd, setVueltoEfUsd] = useState<number | "">("");
+  const [vueltoPmUsd, setVueltoPmUsd] = useState<number | "">("");
+  const [vueltoEfBsUsd, setVueltoEfBsUsd] = useState<number | "">("");
+
+  const [guardando, setGuardando] = useState(false);
+
+  // Cálculos dinámicos
+  const costoDeliveryActual = tipoEntrega === "delivery" ? Math.max(0, Number(deliveryMontoUsd) || 0) : 0;
+  const nuevoTotalUsd = Number((subtotalComidaUsd + costoDeliveryActual).toFixed(2));
+  const nuevoTotalBs = Number((nuevoTotalUsd * tasaBcv).toFixed(2));
+
+  const vueltoTotalUsd = useMemo(() => {
+    if (!incluirVuelto || metodoPago !== "efectivo_usd" || !billeteRecibidoUsd) return 0;
+    return Number((Number(billeteRecibidoUsd) - nuevoTotalUsd).toFixed(2));
+  }, [incluirVuelto, metodoPago, billeteRecibidoUsd, nuevoTotalUsd]);
+
+  const vueltoAsignadoUsd = useMemo(() => {
+    if (!incluirVuelto || metodoPago !== "efectivo_usd" || modoVuelto !== "mixto") return 0;
+    return Number(((Number(vueltoEfUsd) || 0) + (Number(vueltoPmUsd) || 0) + (Number(vueltoEfBsUsd) || 0)).toFixed(2));
+  }, [incluirVuelto, metodoPago, modoVuelto, vueltoEfUsd, vueltoPmUsd, vueltoEfBsUsd]);
+
+  const vueltoPendienteUsd = useMemo(() => {
+    if (!incluirVuelto || metodoPago !== "efectivo_usd" || modoVuelto !== "mixto") return 0;
+    return Number((vueltoTotalUsd - vueltoAsignadoUsd).toFixed(2));
+  }, [incluirVuelto, metodoPago, modoVuelto, vueltoTotalUsd, vueltoAsignadoUsd]);
+
+  const handleGuardar = async () => {
+    if (guardando) return;
+
+    if (incluirVuelto && metodoPago === "efectivo_usd") {
+      if (!billeteRecibidoUsd || Number(billeteRecibidoUsd) < nuevoTotalUsd) {
+        alert("El billete recibido no puede ser menor al total a pagar.");
+        return;
+      }
+      if (modoVuelto === "mixto" && Math.abs(vueltoPendienteUsd) > 0.005) {
+        alert(`Debes asignar el 100% del vuelto ($${vueltoTotalUsd.toFixed(2)} USD). Pendiente: $${vueltoPendienteUsd.toFixed(2)} USD.`);
+        return;
+      }
+    }
+
+    setGuardando(true);
+
+    let notasFinales = notasTexto.trim();
+    if (incluirVuelto && metodoPago === "efectivo_usd" && Number(billeteRecibidoUsd) > 0) {
+      const rec = Number(billeteRecibidoUsd);
+      if (modoVuelto === "mixto") {
+        const partes: string[] = [];
+        if (Number(vueltoEfUsd) > 0) partes.push(`$${Number(vueltoEfUsd).toFixed(2)} Efectivo USD`);
+        if (Number(vueltoPmUsd) > 0) {
+          const pmBs = Number((Number(vueltoPmUsd) * tasaBcv).toFixed(2));
+          partes.push(`$${Number(vueltoPmUsd).toFixed(2)} Pago Móvil (~Bs. ${pmBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+        }
+        if (Number(vueltoEfBsUsd) > 0) {
+          const efBs = Number((Number(vueltoEfBsUsd) * tasaBcv).toFixed(2));
+          partes.push(`$${Number(vueltoEfBsUsd).toFixed(2)} Efectivo Bs (~Bs. ${efBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+        }
+        const tag = `[Vuelto: Paga con $${rec.toFixed(2)} | Vuelto: $${vueltoTotalUsd.toFixed(2)} (${partes.join(" + ")})]`;
+        notasFinales = notasFinales ? `${notasFinales} • ${tag}` : tag;
+      } else {
+        const metTxt = metodoVueltoSimple === "pago_movil" ? "Pago Móvil" : metodoVueltoSimple === "efectivo_bs" ? "Efectivo Bs" : "Efectivo USD";
+        const vBs = Number((vueltoTotalUsd * tasaBcv).toFixed(2));
+        const tag = `[Vuelto: Paga con $${rec.toFixed(2)} | Vuelto: $${vueltoTotalUsd.toFixed(2)} (~Bs. ${vBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) vía ${metTxt}]`;
+        notasFinales = notasFinales ? `${notasFinales} • ${tag}` : tag;
+      }
+    }
+
+    const res = await actualizarDetallesComanda({
+      venta_id: venta.id,
+      tipo_entrega: tipoEntrega,
+      delivery_monto_usd: costoDeliveryActual,
+      delivery_zona_nombre: tipoEntrega === "delivery" ? deliveryZonaNombre : null,
+      direccion_delivery: tipoEntrega === "delivery" ? direccionDelivery : null,
+      metodo_pago: metodoPago,
+      notas_comanda: notasFinales || null,
+    });
+
+    setGuardando(false);
+
+    if (!res.ok) {
+      alert(res.error || "No se pudo actualizar la comanda.");
+      return;
+    }
+
+    onGuardado({
+      id: venta.id,
+      tipo_entrega: tipoEntrega,
+      delivery_monto_usd: costoDeliveryActual,
+      delivery_monto_bs: Number((costoDeliveryActual * tasaBcv).toFixed(2)),
+      delivery_zona_nombre: tipoEntrega === "delivery" ? deliveryZonaNombre : null,
+      direccion_delivery: tipoEntrega === "delivery" ? direccionDelivery : null,
+      total_usd: res.total_usd ?? nuevoTotalUsd,
+      total_bs: res.total_bs ?? nuevoTotalBs,
+      metodo_pago: metodoPago,
+      notas_comanda: notasFinales || null,
+    });
+  };
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1100 }}>
+      <div
+        className="modal-ticket-card"
+        style={{
+          maxWidth: 500,
+          width: "95%",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          padding: 20,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>
+            ✏️ Editar Comanda #{venta.numero_comanda}
+          </h3>
+          <button
+            type="button"
+            onClick={onCerrar}
+            style={{
+              background: "transparent",
+              border: "none",
+              fontSize: 18,
+              cursor: "pointer",
+              color: "var(--text-muted)",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Tipo de Entrega */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+              MODALIDAD DE ENTREGA:
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              {(["pickup", "delivery", "mesa", "puerta_cerrada"] as const).map((modo) => (
+                <button
+                  key={modo}
+                  type="button"
+                  onClick={() => {
+                    setTipoEntrega(modo);
+                    if (modo === "delivery" && (!deliveryMontoUsd || Number(deliveryMontoUsd) === 0)) {
+                      setDeliveryMontoUsd(1.5);
+                    }
+                  }}
+                  style={{
+                    padding: "7px 8px",
+                    borderRadius: 8,
+                    border: tipoEntrega === modo ? "2px solid var(--primary)" : "1px solid var(--border)",
+                    background: tipoEntrega === modo ? "var(--primary-light)" : "var(--bg-card)",
+                    color: tipoEntrega === modo ? "var(--primary-dark)" : "var(--text)",
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    textTransform: "capitalize",
+                  }}
+                >
+                  {modo === "pickup" ? "🛍️ Para Llevar (Pickup)" : modo === "delivery" ? "🛵 Delivery" : modo === "mesa" ? "🍽️ En Mesa" : "🚪 Puerta Cerrada"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Campos de Delivery */}
+          {tipoEntrega === "delivery" && (
+            <div style={{ background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                    Tarifa Delivery ($ USD):
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="1.50"
+                    value={deliveryMontoUsd}
+                    onChange={(e) => setDeliveryMontoUsd(parseFloat(e.target.value) || "")}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800 }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                    Sector / Zona:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Delivery Centro"
+                    value={deliveryZonaNombre}
+                    onChange={(e) => setDeliveryZonaNombre(e.target.value)}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12 }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 3 }}>
+                  Dirección o Enlace GPS:
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Dirección, punto de referencia o enlace de Google Maps..."
+                  value={direccionDelivery}
+                  onChange={(e) => setDireccionDelivery(e.target.value)}
+                  className="cart-notes-input"
+                  style={{ fontSize: 11.5, resize: "vertical" }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Método de Pago */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+              MÉTODO DE PAGO:
+            </label>
+            <select
+              value={metodoPago}
+              onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
+              className="payment-select"
+              style={{ fontSize: 12, fontWeight: 700 }}
+            >
+              <option value="efectivo_usd">💵 Efectivo USD</option>
+              <option value="pago_movil">📱 Pago Móvil</option>
+              <option value="pago_movil_bs">📱 Pago Móvil Bs</option>
+              <option value="efectivo_bs">🇻🇪 Efectivo Bs</option>
+              <option value="punto">💳 Tarjeta / POS</option>
+              <option value="punto_bs">💳 Punto de Venta Bs</option>
+              <option value="transferencia">🏦 Transferencia</option>
+              <option value="binance">🟡 Binance Pay</option>
+              <option value="zelle">🟣 Zelle</option>
+              <option value="pesos_cop">🇨🇴 Pesos COP</option>
+            </select>
+          </div>
+
+          {/* Gestión de Vuelto */}
+          {metodoPago === "efectivo_usd" && (
+            <div style={{ background: "var(--bg-subtle)", borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ fontSize: 12, fontWeight: 800, color: incluirVuelto ? "#d97706" : "var(--text)", cursor: "pointer" }}>
+                  🪙 Registrar Vuelto / Cambio
+                </label>
+                <input
+                  type="checkbox"
+                  checked={incluirVuelto}
+                  onChange={(e) => setIncluirVuelto(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--primary)" }}
+                />
+              </div>
+
+              {incluirVuelto && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 3 }}>
+                      ¿Con qué billete paga? (USD):
+                    </span>
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      placeholder="Ej. 20"
+                      value={billeteRecibidoUsd}
+                      onChange={(e) => setBilleteRecibidoUsd(parseFloat(e.target.value) || "")}
+                      className="cart-notes-input"
+                      style={{ fontSize: 13, fontWeight: 800 }}
+                    />
+                  </div>
+
+                  {/* Selector modo simple vs mixto */}
+                  <div style={{ display: "flex", gap: 6, background: "var(--bg-card)", padding: 2, borderRadius: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => setModoVuelto("simple")}
+                      style={{
+                        flex: 1,
+                        padding: "4px 6px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: modoVuelto === "simple" ? "var(--primary)" : "transparent",
+                        color: modoVuelto === "simple" ? "#fff" : "var(--text-muted)",
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Un solo método
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoVuelto("mixto")}
+                      style={{
+                        flex: 1,
+                        padding: "4px 6px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: modoVuelto === "mixto" ? "#f59e0b" : "transparent",
+                        color: modoVuelto === "mixto" ? "#fff" : "var(--text-muted)",
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      🔀 Vuelto Mixto / Dividido
+                    </button>
+                  </div>
+
+                  {modoVuelto === "simple" ? (
+                    <div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 3 }}>
+                        Método del vuelto:
+                      </span>
+                      <select
+                        value={metodoVueltoSimple}
+                        onChange={(e) => setMetodoVueltoSimple(e.target.value)}
+                        className="payment-select"
+                        style={{ fontSize: 12 }}
+                      >
+                        <option value="pago_movil">📱 Pago Móvil (Bs)</option>
+                        <option value="efectivo_bs">🇻🇪 Efectivo (Bs)</option>
+                        <option value="efectivo_usd">💵 Efectivo (USD)</option>
+                      </select>
+                    </div>
+                  ) : (
+                    /* Mixto */
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                        <span>Vuelto Total: <strong>${Math.max(0, vueltoTotalUsd).toFixed(2)} USD</strong></span>
+                        {Math.abs(vueltoPendienteUsd) < 0.005 ? (
+                          <span style={{ color: "#16a34a", fontWeight: 900 }}>✅ 100% Cuadrado</span>
+                        ) : vueltoPendienteUsd > 0 ? (
+                          <span style={{ color: "#dc2626", fontWeight: 900 }}>Faltan: ${vueltoPendienteUsd.toFixed(2)}</span>
+                        ) : (
+                          <span style={{ color: "#dc2626", fontWeight: 900 }}>Exceso: ${Math.abs(vueltoPendienteUsd).toFixed(2)}</span>
+                        )}
+                      </div>
+
+                      {/* Efectivo USD */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, width: 90, fontWeight: 700 }}>💵 Efectivo USD:</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="0.00"
+                          value={vueltoEfUsd}
+                          onChange={(e) => setVueltoEfUsd(parseFloat(e.target.value) || "")}
+                          className="cart-notes-input"
+                          style={{ fontSize: 11.5, padding: "3px 6px" }}
+                        />
+                        {vueltoPendienteUsd > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setVueltoEfUsd(Number(((Number(vueltoEfUsd) || 0) + vueltoPendienteUsd).toFixed(2)))}
+                            style={{ fontSize: 9.5, padding: "3px 5px", borderRadius: 4, border: "none", background: "var(--primary-light)", color: "var(--primary-dark)", cursor: "pointer", fontWeight: 800 }}
+                          >
+                            + Resto
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Pago Móvil */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, width: 90, fontWeight: 700 }}>📱 Pago Móvil:</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="0.00"
+                          value={vueltoPmUsd}
+                          onChange={(e) => setVueltoPmUsd(parseFloat(e.target.value) || "")}
+                          className="cart-notes-input"
+                          style={{ fontSize: 11.5, padding: "3px 6px" }}
+                        />
+                        {vueltoPendienteUsd > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setVueltoPmUsd(Number(((Number(vueltoPmUsd) || 0) + vueltoPendienteUsd).toFixed(2)))}
+                            style={{ fontSize: 9.5, padding: "3px 5px", borderRadius: 4, border: "none", background: "var(--primary-light)", color: "var(--primary-dark)", cursor: "pointer", fontWeight: 800 }}
+                          >
+                            + Resto
+                          </button>
+                        )}
+                      </div>
+                      {Number(vueltoPmUsd) > 0 && (
+                        <span style={{ fontSize: 10, color: "#16a34a", paddingLeft: 96 }}>
+                          Transferir: <strong>Bs. {(Number(vueltoPmUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                        </span>
+                      )}
+
+                      {/* Efectivo Bs */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, width: 90, fontWeight: 700 }}>🇻🇪 Efectivo Bs:</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="0.00"
+                          value={vueltoEfBsUsd}
+                          onChange={(e) => setVueltoEfBsUsd(parseFloat(e.target.value) || "")}
+                          className="cart-notes-input"
+                          style={{ fontSize: 11.5, padding: "3px 6px" }}
+                        />
+                        {vueltoPendienteUsd > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setVueltoEfBsUsd(Number(((Number(vueltoEfBsUsd) || 0) + vueltoPendienteUsd).toFixed(2)))}
+                            style={{ fontSize: 9.5, padding: "3px 5px", borderRadius: 4, border: "none", background: "var(--primary-light)", color: "var(--primary-dark)", cursor: "pointer", fontWeight: 800 }}
+                          >
+                            + Resto
+                          </button>
+                        )}
+                      </div>
+                      {Number(vueltoEfBsUsd) > 0 && (
+                        <span style={{ fontSize: 10, color: "#16a34a", paddingLeft: 96 }}>
+                          Entregar: <strong>Bs. {(Number(vueltoEfBsUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Notas de la Comanda */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 3 }}>
+              NOTAS / OBSERVACIONES DE COCINA:
+            </label>
+            <input
+              type="text"
+              placeholder="Notas generales..."
+              value={notasTexto}
+              onChange={(e) => setNotasTexto(e.target.value)}
+              className="cart-notes-input"
+              style={{ fontSize: 12 }}
+            />
+          </div>
+
+          {/* Totales Recalculados */}
+          <div style={{ background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.4)", borderRadius: 10, padding: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
+                Comida: ${subtotalComidaUsd.toFixed(2)} {tipoEntrega === "delivery" ? `+ Delivery: $${costoDeliveryActual.toFixed(2)}` : ""}
+              </span>
+              <strong style={{ fontSize: 16, color: "#16a34a", fontWeight: 900 }}>
+                Nuevo Total: ${nuevoTotalUsd.toFixed(2)} USD
+              </strong>
+            </div>
+            <strong style={{ fontSize: 13, color: "var(--text)" }}>
+              {nuevoTotalBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs
+            </strong>
+          </div>
+
+          {/* Botones de Acción */}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <button
+              type="button"
+              onClick={onCerrar}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border)",
+                background: "var(--bg-card)",
+                color: "var(--text)",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={guardando || (incluirVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && Math.abs(vueltoPendienteUsd) > 0.005)}
+              onClick={handleGuardar}
+              style={{
+                flex: 2,
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "none",
+                background: "var(--primary)",
+                color: "#ffffff",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: "pointer",
+                opacity: (guardando || (incluirVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && Math.abs(vueltoPendienteUsd) > 0.005)) ? 0.6 : 1,
+              }}
+            >
+              {guardando ? "Guardando..." : "💾 Guardar Cambios"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

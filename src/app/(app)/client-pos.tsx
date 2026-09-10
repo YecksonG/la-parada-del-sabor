@@ -127,9 +127,15 @@ export default function PosClient({
   const [tipoEntrega, setTipoEntrega] = useState<string>("puerta_cerrada");
   const [metodoPago, setMetodoPago] = useState<string>("efectivo_usd");
   const [darVuelto, setDarVuelto] = useState<boolean>(false);
+  const [modoVuelto, setModoVuelto] = useState<"simple" | "mixto">("simple");
   const [billeteRecibidoUsd, setBilleteRecibidoUsd] = useState<number | "">("");
   const [billeteRecibidoBs, setBilleteRecibidoBs] = useState<number | "">("");
   const [metodoVuelto, setMetodoVuelto] = useState<"pago_movil" | "efectivo_bs" | "efectivo_usd">("pago_movil");
+  // Sub-montos para vuelto mixto (en USD)
+  const [vueltoEfectivoUsd, setVueltoEfectivoUsd] = useState<number | "">("");
+  const [vueltoPagoMovilUsd, setVueltoPagoMovilUsd] = useState<number | "">("");
+  const [vueltoEfectivoBsUsd, setVueltoEfectivoBsUsd] = useState<number | "">("");
+
   const [notasComanda, setNotasComanda] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [comandaExitosa, setComandaExitosa] = useState<{
@@ -297,15 +303,45 @@ export default function PosClient({
   const totalUsd = subtotalItemsUsd + (tipoEntrega === "delivery" ? tarifaDeliveryUsd : 0);
   const totalBs = Number((totalUsd * tasaBcv).toFixed(2));
 
-  // Bloquear envío si el cajero declaró vuelto pero el billete declarado es insuficiente
-  const vueltoInsuficiente =
-    !darVuelto
-      ? false
-      : metodoPago === "efectivo_usd"
-      ? Number(billeteRecibidoUsd) > 0 && Number(billeteRecibidoUsd) < totalUsd
-      : metodoPago === "efectivo_bs"
-      ? Number(billeteRecibidoBs) > 0 && Number(billeteRecibidoBs) < totalBs
-      : false;
+  // Cálculos de Vuelto
+  const vueltoTotalUsd = useMemo(() => {
+    if (!darVuelto) return 0;
+    if (metodoPago === "efectivo_usd" && Number(billeteRecibidoUsd) > 0) {
+      return Number((Number(billeteRecibidoUsd) - totalUsd).toFixed(2));
+    }
+    return 0;
+  }, [darVuelto, metodoPago, billeteRecibidoUsd, totalUsd]);
+
+  const vueltoAsignadoUsd = useMemo(() => {
+    if (!darVuelto || metodoPago !== "efectivo_usd" || modoVuelto !== "mixto") return 0;
+    const efUsd = Number(vueltoEfectivoUsd) || 0;
+    const pmUsd = Number(vueltoPagoMovilUsd) || 0;
+    const efBsUsd = Number(vueltoEfectivoBsUsd) || 0;
+    return Number((efUsd + pmUsd + efBsUsd).toFixed(2));
+  }, [darVuelto, metodoPago, modoVuelto, vueltoEfectivoUsd, vueltoPagoMovilUsd, vueltoEfectivoBsUsd]);
+
+  const vueltoPendienteUsd = useMemo(() => {
+    if (!darVuelto || metodoPago !== "efectivo_usd" || modoVuelto !== "mixto") return 0;
+    return Number((vueltoTotalUsd - vueltoAsignadoUsd).toFixed(2));
+  }, [darVuelto, metodoPago, modoVuelto, vueltoTotalUsd, vueltoAsignadoUsd]);
+
+  // Bloquear envío si el cajero declaró vuelto pero el billete declarado es insuficiente o falta asignar vuelto mixto
+  const vueltoInsuficiente = useMemo(() => {
+    if (!darVuelto) return false;
+    if (metodoPago === "efectivo_usd") {
+      if (!billeteRecibidoUsd || Number(billeteRecibidoUsd) <= 0) return true;
+      if (Number(billeteRecibidoUsd) < totalUsd) return true;
+      if (modoVuelto === "mixto") {
+        // En modo mixto, el vuelto asignado debe cuadrar exactamente con el vuelto total
+        return Math.abs(vueltoPendienteUsd) > 0.005;
+      }
+      return false;
+    }
+    if (metodoPago === "efectivo_bs") {
+      return !billeteRecibidoBs || Number(billeteRecibidoBs) <= 0 || Number(billeteRecibidoBs) < totalBs;
+    }
+    return false;
+  }, [darVuelto, metodoPago, billeteRecibidoUsd, totalUsd, modoVuelto, vueltoPendienteUsd, billeteRecibidoBs, totalBs]);
 
   // Guardar Cliente Rápido desde el POS
   const handleGuardarClienteRapido = async (e: React.FormEvent) => {
@@ -395,21 +431,58 @@ ${estadoPago}`;
         const recibido = Number(billeteRecibidoUsd);
         const vueltoUsd = Number((recibido - totalUsd).toFixed(2));
         const vueltoBs = Number((vueltoUsd * tasaBcv).toFixed(2));
-        const metodoTexto = metodoVuelto === "pago_movil" ? "Pago Móvil" : metodoVuelto === "efectivo_bs" ? "Efectivo Bs" : "Efectivo USD";
+
         // Bloquear vuelto negativo: el billete declarado no cubre el total
         if (vueltoUsd < 0) {
           alert(`El billete recibido ($${recibido.toFixed(2)}) no alcanza el total a pagar ($${totalUsd.toFixed(2)}). Faltan $${Math.abs(vueltoUsd).toFixed(2)} USD. Verifica el monto antes de enviar la comanda.`);
           return;
         }
-        const tagVuelto = `[Vuelto: Paga con $${recibido.toFixed(2)} | Vuelto: $${vueltoUsd.toFixed(2)} (~Bs. ${vueltoBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) vía ${metodoTexto}]`;
-        notasFinales = notasFinales ? `${notasFinales} • ${tagVuelto}` : tagVuelto;
-        vueltoResumen = {
-          recibido,
-          monedaRecibida: "USD",
-          vueltoUsd,
-          vueltoBs,
-          metodoVuelto: metodoTexto,
-        };
+
+        if (modoVuelto === "mixto") {
+          const efUsd = Number(vueltoEfectivoUsd) || 0;
+          const pmUsd = Number(vueltoPagoMovilUsd) || 0;
+          const efBsUsd = Number(vueltoEfectivoBsUsd) || 0;
+          const totalAsignado = Number((efUsd + pmUsd + efBsUsd).toFixed(2));
+
+          if (Math.abs(vueltoUsd - totalAsignado) > 0.005) {
+            alert(`El vuelto mixto no cuadra con el vuelto total ($${vueltoUsd.toFixed(2)} USD). Has asignado $${totalAsignado.toFixed(2)} USD. Ajusta los métodos para completar el 100%.`);
+            return;
+          }
+
+          // Armar desglose detallado
+          const partes: string[] = [];
+          if (efUsd > 0) partes.push(`$${efUsd.toFixed(2)} Efectivo USD`);
+          if (pmUsd > 0) {
+            const pmBs = Number((pmUsd * tasaBcv).toFixed(2));
+            partes.push(`$${pmUsd.toFixed(2)} Pago Móvil (~Bs. ${pmBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+          }
+          if (efBsUsd > 0) {
+            const efBs = Number((efBsUsd * tasaBcv).toFixed(2));
+            partes.push(`$${efBsUsd.toFixed(2)} Efectivo Bs (~Bs. ${efBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+          }
+
+          const detalleMetodos = partes.join(" + ");
+          const tagVuelto = `[Vuelto: Paga con $${recibido.toFixed(2)} | Vuelto: $${vueltoUsd.toFixed(2)} (${detalleMetodos})]`;
+          notasFinales = notasFinales ? `${notasFinales} • ${tagVuelto}` : tagVuelto;
+          vueltoResumen = {
+            recibido,
+            monedaRecibida: "USD",
+            vueltoUsd,
+            vueltoBs,
+            metodoVuelto: `Mixto (${detalleMetodos})`,
+          };
+        } else {
+          const metodoTexto = metodoVuelto === "pago_movil" ? "Pago Móvil" : metodoVuelto === "efectivo_bs" ? "Efectivo Bs" : "Efectivo USD";
+          const tagVuelto = `[Vuelto: Paga con $${recibido.toFixed(2)} | Vuelto: $${vueltoUsd.toFixed(2)} (~Bs. ${vueltoBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) vía ${metodoTexto}]`;
+          notasFinales = notasFinales ? `${notasFinales} • ${tagVuelto}` : tagVuelto;
+          vueltoResumen = {
+            recibido,
+            monedaRecibida: "USD",
+            vueltoUsd,
+            vueltoBs,
+            metodoVuelto: metodoTexto,
+          };
+        }
       } else if (metodoPago === "efectivo_bs" && Number(billeteRecibidoBs) > 0) {
         const recibidoBs = Number(billeteRecibidoBs);
         const vueltoBs = Number((recibidoBs - totalBs).toFixed(2));
@@ -462,8 +535,12 @@ ${estadoPago}`;
         setCarrito([]);
         setNotasComanda("");
         setDarVuelto(false);
+        setModoVuelto("simple");
         setBilleteRecibidoUsd("");
         setBilleteRecibidoBs("");
+        setVueltoEfectivoUsd("");
+        setVueltoPagoMovilUsd("");
+        setVueltoEfectivoBsUsd("");
         setClienteSeleccionadoId(null);
         setDireccionDeliveryPos("");
       } else {
@@ -1069,71 +1146,305 @@ ${estadoPago}`;
                         />
                       </div>
 
-                      {/* Modalidad de Entrega del Vuelto */}
-                      <div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
-                          ¿Cómo se le entrega el vuelto?:
-                        </span>
-                        <select
-                          value={metodoVuelto}
-                          onChange={(e) => setMetodoVuelto(e.target.value as MetodoVuelto)}
-                          className="payment-select"
-                          style={{ fontSize: 12, fontWeight: 700 }}
+                      {/* Selector de Modo de Vuelto (Simple vs Mixto) */}
+                      <div style={{ display: "flex", gap: 6, background: "var(--bg-subtle)", padding: 3, borderRadius: 8 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sounds.playPop();
+                            setModoVuelto("simple");
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "5px 8px",
+                            borderRadius: 6,
+                            border: "none",
+                            background: modoVuelto === "simple" ? "var(--primary)" : "transparent",
+                            color: modoVuelto === "simple" ? "#ffffff" : "var(--text-muted)",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
+                          }}
                         >
-                          <option value="pago_movil">📱 Pago Móvil (Bs)</option>
-                          <option value="efectivo_bs">🇻🇪 Efectivo (Bs)</option>
-                          <option value="efectivo_usd">💵 Efectivo (USD)</option>
-                        </select>
+                          ⚡ Un solo método
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            sounds.playPop();
+                            setModoVuelto("mixto");
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: "5px 8px",
+                            borderRadius: 6,
+                            border: "none",
+                            background: modoVuelto === "mixto" ? "#f59e0b" : "transparent",
+                            color: modoVuelto === "mixto" ? "#ffffff" : "var(--text-muted)",
+                            fontSize: 11,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          🔀 Vuelto Mixto / Dividido
+                        </button>
                       </div>
 
-                      {/* Cálculo en vivo de Vuelto */}
-                      {Number(billeteRecibidoUsd) > 0 && (() => {
-                        const recibido = Number(billeteRecibidoUsd);
-                        const vueltoUsd = Number((recibido - totalUsd).toFixed(2));
-                        const vueltoBs = Number((vueltoUsd * tasaBcv).toFixed(2));
+                      {modoVuelto === "simple" ? (
+                        <>
+                          {/* Modalidad de Entrega del Vuelto Simple */}
+                          <div>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                              ¿Cómo se le entrega el vuelto?:
+                            </span>
+                            <select
+                              value={metodoVuelto}
+                              onChange={(e) => setMetodoVuelto(e.target.value as MetodoVuelto)}
+                              className="payment-select"
+                              style={{ fontSize: 12, fontWeight: 700 }}
+                            >
+                              <option value="pago_movil">📱 Pago Móvil (Bs)</option>
+                              <option value="efectivo_bs">🇻🇪 Efectivo (Bs)</option>
+                              <option value="efectivo_usd">💵 Efectivo (USD)</option>
+                            </select>
+                          </div>
 
-                        if (vueltoUsd < 0) {
-                          return (
-                            <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444", borderRadius: 8, padding: "6px 10px", fontSize: 11.5, color: "#dc2626", fontWeight: 700 }}>
-                              ⚠️ El billete (${recibido.toFixed(2)}) es menor al total a pagar (${totalUsd.toFixed(2)}). Faltan ${Math.abs(vueltoUsd).toFixed(2)} USD.
-                            </div>
-                          );
-                        }
+                          {/* Cálculo en vivo de Vuelto Simple */}
+                          {Number(billeteRecibidoUsd) > 0 && (() => {
+                            const recibido = Number(billeteRecibidoUsd);
+                            const vueltoUsd = Number((recibido - totalUsd).toFixed(2));
+                            const vueltoBs = Number((vueltoUsd * tasaBcv).toFixed(2));
 
-                        return (
+                            if (vueltoUsd < 0) {
+                              return (
+                                <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444", borderRadius: 8, padding: "6px 10px", fontSize: 11.5, color: "#dc2626", fontWeight: 700 }}>
+                                  ⚠️ El billete (${recibido.toFixed(2)}) es menor al total a pagar (${totalUsd.toFixed(2)}). Faltan ${Math.abs(vueltoUsd).toFixed(2)} USD.
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div
+                                style={{
+                                  background: "rgba(34, 197, 94, 0.1)",
+                                  border: "1.5px solid rgba(34, 197, 94, 0.4)",
+                                  borderRadius: 10,
+                                  padding: "8px 10px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 2,
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>
+                                  <span>Paga con: ${recibido.toFixed(2)} USD</span>
+                                  <span>Total: ${totalUsd.toFixed(2)} USD</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                                  <strong style={{ fontSize: 12, color: "#16a34a" }}>
+                                    Vuelto a entregar ({metodoVuelto === "pago_movil" ? "📱 Pago Móvil" : metodoVuelto === "efectivo_bs" ? "🇻🇪 Efectivo Bs" : "💵 Efectivo USD"}):
+                                  </strong>
+                                  <strong style={{ fontSize: 16, color: "#16a34a", fontWeight: 900 }}>
+                                    {metodoVuelto === "efectivo_usd"
+                                      ? `$${vueltoUsd.toFixed(2)} USD`
+                                      : `Bs. ${vueltoBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                  </strong>
+                                </div>
+                                {metodoVuelto !== "efectivo_usd" && (
+                                  <span style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "right" }}>
+                                    Equivale a: <strong>${vueltoUsd.toFixed(2)} USD</strong> (Tasa: {tasaBcv.toFixed(2)})
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </>
+                      ) : (
+                        /* VUELTO MIXTO / DIVIDIDO */
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          {/* Resumen del vuelto total a repartir */}
                           <div
                             style={{
-                              background: "rgba(34, 197, 94, 0.1)",
-                              border: "1.5px solid rgba(34, 197, 94, 0.4)",
-                              borderRadius: 10,
-                              padding: "8px 10px",
+                              background: "rgba(245, 158, 11, 0.1)",
+                              border: "1px solid rgba(245, 158, 11, 0.3)",
+                              borderRadius: 8,
+                              padding: "6px 10px",
                               display: "flex",
-                              flexDirection: "column",
-                              gap: 2,
+                              justifyContent: "space-between",
+                              alignItems: "center",
                             }}
                           >
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>
-                              <span>Paga con: ${recibido.toFixed(2)} USD</span>
-                              <span>Total: ${totalUsd.toFixed(2)} USD</span>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                              <strong style={{ fontSize: 12, color: "#16a34a" }}>
-                                Vuelto a entregar ({metodoVuelto === "pago_movil" ? "📱 Pago Móvil" : metodoVuelto === "efectivo_bs" ? "🇻🇪 Efectivo Bs" : "💵 Efectivo USD"}):
+                            <div>
+                              <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Vuelto Total Requerido:</span>
+                              <strong style={{ fontSize: 15, color: "#d97706", fontWeight: 900 }}>
+                                ${Math.max(0, vueltoTotalUsd).toFixed(2)} USD
                               </strong>
-                              <strong style={{ fontSize: 16, color: "#16a34a", fontWeight: 900 }}>
-                                {metodoVuelto === "efectivo_usd"
-                                  ? `$${vueltoUsd.toFixed(2)} USD`
-                                  : `Bs. ${vueltoBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                              </strong>
+                              <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: 6 }}>
+                                (~Bs. {(Math.max(0, vueltoTotalUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                              </span>
                             </div>
-                            {metodoVuelto !== "efectivo_usd" && (
-                              <span style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "right" }}>
-                                Equivale a: <strong>${vueltoUsd.toFixed(2)} USD</strong> (Tasa: {tasaBcv.toFixed(2)})
+                            <div style={{ textAlign: "right" }}>
+                              <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block" }}>Estado Asignación:</span>
+                              {Math.abs(vueltoPendienteUsd) < 0.005 ? (
+                                <span style={{ fontSize: 11, fontWeight: 900, color: "#16a34a", background: "rgba(34, 197, 94, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                                  ✅ 100% Cuadrado
+                                </span>
+                              ) : vueltoPendienteUsd > 0 ? (
+                                <span style={{ fontSize: 11, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                                  ⚠️ Faltan ${vueltoPendienteUsd.toFixed(2)}
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: 11, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                                  ⚠️ Exceso ${Math.abs(vueltoPendienteUsd).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 1. Efectivo USD */}
+                          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                                💵 Efectivo USD:
+                              </label>
+                              {vueltoPendienteUsd > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sounds.playPop();
+                                    const actual = Number(vueltoEfectivoUsd) || 0;
+                                    setVueltoEfectivoUsd(Number((actual + vueltoPendienteUsd).toFixed(2)));
+                                  }}
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    color: "var(--primary-dark)",
+                                    background: "var(--primary-light)",
+                                    border: "none",
+                                    borderRadius: 4,
+                                    padding: "2px 6px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  + Restante (${vueltoPendienteUsd.toFixed(2)})
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                placeholder="0.00"
+                                value={vueltoEfectivoUsd}
+                                onChange={(e) => setVueltoEfectivoUsd(parseFloat(e.target.value) || "")}
+                                className="cart-notes-input"
+                                style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* 2. Pago Móvil (Bs) */}
+                          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                                📱 Pago Móvil:
+                              </label>
+                              {vueltoPendienteUsd > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sounds.playPop();
+                                    const actual = Number(vueltoPagoMovilUsd) || 0;
+                                    setVueltoPagoMovilUsd(Number((actual + vueltoPendienteUsd).toFixed(2)));
+                                  }}
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    color: "var(--primary-dark)",
+                                    background: "var(--primary-light)",
+                                    border: "none",
+                                    borderRadius: 4,
+                                    padding: "2px 6px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  + Restante (${vueltoPendienteUsd.toFixed(2)})
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                placeholder="0.00"
+                                value={vueltoPagoMovilUsd}
+                                onChange={(e) => setVueltoPagoMovilUsd(parseFloat(e.target.value) || "")}
+                                className="cart-notes-input"
+                                style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                              />
+                            </div>
+                            {Number(vueltoPagoMovilUsd) > 0 && (
+                              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
+                                📲 Transferir al cliente: <strong>Bs. {(Number(vueltoPagoMovilUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                               </span>
                             )}
                           </div>
-                        );
-                      })()}
+
+                          {/* 3. Efectivo Bs */}
+                          <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                              <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>
+                                🇻🇪 Efectivo Bs:
+                              </label>
+                              {vueltoPendienteUsd > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    sounds.playPop();
+                                    const actual = Number(vueltoEfectivoBsUsd) || 0;
+                                    setVueltoEfectivoBsUsd(Number((actual + vueltoPendienteUsd).toFixed(2)));
+                                  }}
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 800,
+                                    color: "var(--primary-dark)",
+                                    background: "var(--primary-light)",
+                                    border: "none",
+                                    borderRadius: 4,
+                                    padding: "2px 6px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  + Restante (${vueltoPendienteUsd.toFixed(2)})
+                                </button>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                placeholder="0.00"
+                                value={vueltoEfectivoBsUsd}
+                                onChange={(e) => setVueltoEfectivoBsUsd(parseFloat(e.target.value) || "")}
+                                className="cart-notes-input"
+                                style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                              />
+                            </div>
+                            {Number(vueltoEfectivoBsUsd) > 0 && (
+                              <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
+                                🇻🇪 Dar en billetes Bs: <strong>Bs. {(Number(vueltoEfectivoBsUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : (
                     /* EFECTIVO BOLÍVARES */
@@ -1241,7 +1552,17 @@ ${estadoPago}`;
             onClick={handleEnviarComanda}
             className="btn-submit-comanda"
           >
-            {procesando ? "Registrando Comanda..." : vueltoInsuficiente ? "⚠️ El billete no alcanza el total" : "📝 Registrar Comanda (Por Confirmar)"}
+            {procesando
+              ? "Registrando Comanda..."
+              : darVuelto && metodoPago === "efectivo_usd" && Number(billeteRecibidoUsd) < totalUsd
+              ? "⚠️ El billete no alcanza el total"
+              : darVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && vueltoPendienteUsd > 0
+              ? `⚠️ Falta asignar $${vueltoPendienteUsd.toFixed(2)} USD de vuelto`
+              : darVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && vueltoPendienteUsd < 0
+              ? `⚠️ Exceso de vuelto ($${Math.abs(vueltoPendienteUsd).toFixed(2)} USD)`
+              : vueltoInsuficiente
+              ? "⚠️ Verifica los datos del vuelto"
+              : "📝 Registrar Comanda (Por Confirmar)"}
           </button>
         </div>
       </aside>
