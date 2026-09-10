@@ -1,11 +1,8 @@
 -- ==============================================================================
--- 🚨 REGISTRO DE COMPRAS HISTÓRICAS (SIN MODIFICAR DESPENSA NI CUENTAS BANCARIAS)
+-- 🚨 REGISTRO DE COMPRAS HISTÓRICAS (CABECERAS SIN TOCAR DESPENSA NI CUENTAS)
 -- ==============================================================================
 
--- 1. Desactivar triggers de compras_items por máxima seguridad
-ALTER TABLE public.compras_items DISABLE TRIGGER ALL;
-
--- 2. Limpiar registros si existieran para evitar colisiones
+-- 1. Limpiar registros si existieran previamente para evitar duplicados
 DELETE FROM public.compras WHERE id IN (
     'c0000001-0000-0000-0000-000000000001',
     'c0000002-0000-0000-0000-000000000002',
@@ -16,9 +13,9 @@ DELETE FROM public.compras WHERE id IN (
     'c0000040-0000-0000-0000-000000000040'
 );
 
--- 3. Inserción de Compras Históricas (Solo cabeceras, sin métodos de pago bancarios)
+-- 2. Inserción directa en public.compras (No toca compras_items ni stock)
 
--- 3.1 Super 900 (27/08/2026) - Factura 00044240
+-- 2.1 Super 900 (27/08/2026) - Factura 00044240
 INSERT INTO public.compras (
     id,
     proveedor_id,
@@ -39,7 +36,7 @@ INSERT INTO public.compras (
     'Factura Super 900 apertura'
 );
 
--- 3.2 Hortalizas El Páramo (27/08/2026) - Factura 00157296
+-- 2.2 Hortalizas El Páramo (27/08/2026) - Factura 00157296
 INSERT INTO public.compras (
     id,
     proveedor_id,
@@ -60,7 +57,7 @@ INSERT INTO public.compras (
     'Factura El Páramo'
 );
 
--- 3.3 Multitienda Kariosca (27/08/2026) - Factura 00002781
+-- 2.3 Multitienda Kariosca (27/08/2026) - Factura 00002781
 INSERT INTO public.compras (
     id,
     proveedor_id,
@@ -81,7 +78,7 @@ INSERT INTO public.compras (
     'Factura Multitienda Kariosca'
 );
 
--- 3.4 Distribuidora y Comercializadora La Pradera (27/08/2026) - Factura 0005722
+-- 2.4 Distribuidora y Comercializadora La Pradera (27/08/2026) - Factura 0005722
 INSERT INTO public.compras (
     id,
     proveedor_id,
@@ -102,7 +99,7 @@ INSERT INTO public.compras (
     'Factura La Pradera'
 );
 
--- 3.5 Todo en Desechables (29/08/2026) - Recibo #756
+-- 2.5 Todo en Desechables (29/08/2026) - Recibo #756
 INSERT INTO public.compras (
     id,
     proveedor_id,
@@ -123,7 +120,7 @@ INSERT INTO public.compras (
     'Recibo Todo en Desechables'
 );
 
--- 3.6 Super 900 (03/09/2026) - Factura 00073657
+-- 2.6 Super 900 (03/09/2026) - Factura 00073657
 INSERT INTO public.compras (
     id,
     proveedor_id,
@@ -144,7 +141,7 @@ INSERT INTO public.compras (
     'Factura Super 900'
 );
 
--- 3.7 Super 900 (04/09/2026) - Factura 00073767
+-- 2.7 Super 900 (04/09/2026) - Factura 00073767
 INSERT INTO public.compras (
     id,
     proveedor_id,
@@ -164,6 +161,3 @@ INSERT INTO public.compras (
     '00073767',
     'Factura Super 900'
 );
-
--- 4. Reactivar triggers de compras_items
-ALTER TABLE public.compras_items ENABLE TRIGGER ALL;
