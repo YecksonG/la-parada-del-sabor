@@ -163,15 +163,26 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
     const { data: prods } = await supabase.from("productos").select("id, nombre").in("id", pIds);
     const prodMap = new Map((prods || []).map((p) => [p.id, p.nombre]));
 
+    // Consultar la venta recién creada para garantizar que los totales y la zona de delivery viajen 100% exactos a Telegram
+    const { data: ventaCreada } = await supabase
+      .from("ventas")
+      .select("total_usd, total_bs, delivery_zona_nombre, direccion_delivery")
+      .eq("id", rpcRes.venta_id)
+      .single();
+
+    const finalTotalUsd = Number(ventaCreada?.total_usd ?? rpcRes.total_usd) || 0;
+    const finalTotalBs = Number(ventaCreada?.total_bs ?? rpcRes.total_bs) || null;
+
     notificarComandaTelegram({
       numero_comanda: rpcRes.numero_comanda,
       origen: "web",
       nombre_cliente: payload.nombre_cliente,
       telefono: payload.telefono,
       tipo_entrega: payload.tipo_entrega,
-      direccion: payload.direccion_delivery,
-      total_usd: Number(rpcRes.total_usd) || 0,
-      total_bs: Number(rpcRes.total_bs) || null,
+      delivery_zona: ventaCreada?.delivery_zona_nombre,
+      direccion: payload.direccion_delivery || ventaCreada?.direccion_delivery,
+      total_usd: finalTotalUsd,
+      total_bs: finalTotalBs,
       metodo_pago: payload.metodo_pago,
       items: payload.items.map((it) => ({
         cantidad: it.cantidad,
