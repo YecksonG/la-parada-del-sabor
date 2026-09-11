@@ -152,8 +152,9 @@ export type MetodoPago =
   | "binance_usdt"
   | "zelle"
   | "pesos_cop"
-  | "pago_mixto";
-export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
+  | "pago_mixto"
+  | "credito";
+export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada" | "credito";
 export type OrigenPedido = "instagram" | "whatsapp" | "tiktok" | "facebook" | "qr" | "directo" | "web" | "pos" | string;
 
 export type ZonaDelivery = {

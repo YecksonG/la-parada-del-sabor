@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guard";
+import type { MetodoPago } from "@/types/database";
 
 export type GuardarClientePayload = {
   id?: string;
@@ -82,5 +83,69 @@ export async function eliminarCliente(id: string) {
   revalidatePath("/clientes");
   revalidatePath("/");
   revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export type RegistrarPagoCreditoPayload = {
+  venta_id: string;
+  monto_abonado_usd: number;
+  metodo_pago_abono: MetodoPago;
+  es_pago_total: boolean;
+  monto_restante_usd: number;
+  tag_abono: string;
+};
+
+export async function registrarPagoComandaCredito(payload: RegistrarPagoCreditoPayload) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!payload.venta_id || !UUID_REGEX.test(payload.venta_id)) {
+    return { ok: false, error: "Identificador de comanda inválido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // 1. Obtener la comanda actual
+  const { data: venta, error: errorFetch } = await supabase
+    .from("ventas")
+    .select("id, total_usd, total_bs, tasa_bcv, notas_comanda, metodo_pago, estado")
+    .eq("id", payload.venta_id)
+    .single();
+
+  if (errorFetch || !venta) {
+    return { ok: false, error: "No se encontró la comanda a procesar." };
+  }
+
+  const notasActuales = venta.notas_comanda ? venta.notas_comanda.trim() : "";
+  const nuevasNotas = notasActuales ? `${notasActuales} • ${payload.tag_abono}` : payload.tag_abono;
+
+  const updateFields: Record<string, any> = {
+    notas_comanda: nuevasNotas,
+  };
+
+  if (payload.es_pago_total) {
+    // Si saldó la deuda completamente
+    updateFields.estado = "completada";
+    updateFields.metodo_pago = payload.metodo_pago_abono;
+  } else {
+    // Abono parcial: permanece en credito pero registramos el abono en notas
+    updateFields.estado = "credito";
+  }
+
+  const { error: updateError } = await supabase
+    .from("ventas")
+    .update(updateFields)
+    .eq("id", payload.venta_id);
+
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  revalidatePath("/clientes");
+  revalidatePath("/ventas");
+  revalidatePath("/dashboard");
+  revalidatePath("/caja");
+  revalidatePath("/");
+
   return { ok: true };
 }

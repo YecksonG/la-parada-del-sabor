@@ -177,7 +177,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
       delivery_monto_usd: tarifaDeliveryUsd > 0 ? tarifaDeliveryUsd : null,
       delivery_monto_bs: deliveryBs,
       direccion_delivery: payload.direccion_delivery || null,
-      estado: "pendiente",
+      estado: payload.metodo_pago === "credito" ? "credito" : "pendiente",
       notas_comanda: payload.notas_comanda ? payload.notas_comanda.trim().slice(0, 1000) : null,
       creado_por: nombreOperador,
       origen_pedido: "pos",

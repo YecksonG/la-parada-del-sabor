@@ -5,28 +5,27 @@ import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guard";
 import type { MetodoPago } from "@/types/database";
 
-export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada";
+export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada" | "credito";
 
 const METODOS_PAGO_VALIDOS: MetodoPago[] = [
-  "efectivo_usd",
-  "efectivo_bs",
   "pago_movil",
   "pago_movil_bs",
+  "efectivo_usd",
+  "efectivo_bs",
   "transferencia",
-  "punto",
-  "punto_bs",
   "binance",
   "zelle",
-  "pesos_cop",
   "pago_mixto",
+  "credito",
 ];
 
 const TRANSICIONES_VALIDAS: Record<EstadoVenta, EstadoVenta[]> = {
-  pendiente: ["preparando", "cancelada"],
-  preparando: ["lista", "completada", "cancelada"],
-  lista: ["completada", "cancelada"],
-  completada: ["cancelada"],
-  cancelada: ["preparando"],
+  pendiente: ["preparando", "cancelada", "credito"],
+  preparando: ["lista", "completada", "cancelada", "credito"],
+  lista: ["completada", "cancelada", "credito"],
+  credito: ["completada", "cancelada", "preparando"],
+  completada: ["cancelada", "credito"],
+  cancelada: ["preparando", "credito"],
 };
 
 export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: EstadoVenta) {
@@ -94,9 +93,14 @@ export async function actualizarMetodoPagoVenta(venta_id: string, nuevoMetodoPag
   const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
+  const updateData: Record<string, any> = { metodo_pago: nuevoMetodoPago };
+  if (nuevoMetodoPago === "credito") {
+    updateData.estado = "credito";
+  }
+
   const { error } = await supabase
     .from("ventas")
-    .update({ metodo_pago: nuevoMetodoPago })
+    .update(updateData)
     .eq("id", venta_id);
 
   if (error) return { ok: false, error: error.message };
@@ -143,7 +147,7 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
   // 1. Obtener la venta actual y sus items para recalcular totales con precisión
   const { data: venta, error: errorFetch } = await supabase
     .from("ventas")
-    .select("id, total_usd, total_bs, tasa_bcv, tipo_entrega, delivery_monto_usd, items:ventas_items(subtotal_usd)")
+    .select("id, total_usd, total_bs, tasa_bcv, tipo_entrega, delivery_monto_usd, estado, items:ventas_items(subtotal_usd)")
     .eq("id", payload.venta_id)
     .single();
 
@@ -176,6 +180,7 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
     total_usd: nuevoTotalUsd,
     total_bs: nuevoTotalBs,
     metodo_pago: payload.metodo_pago,
+    estado: payload.metodo_pago === "credito" ? "credito" : venta.estado,
     notas_comanda: payload.notas_comanda ? payload.notas_comanda.trim() : null,
     direccion_delivery: payload.direccion_delivery ? payload.direccion_delivery.trim() : null,
   };

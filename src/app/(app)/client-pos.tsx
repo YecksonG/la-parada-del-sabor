@@ -48,13 +48,11 @@ const METODOS_PAGO_LABEL: Record<string, string> = {
   pago_movil: "📱 Pago Móvil (Bs)",
   pago_movil_bs: "📱 Pago Móvil (Bs)",
   transferencia: "🏦 Transferencia Bancaria (Bs)",
-  punto: "💳 Punto de Venta / Tarjeta (Bs)",
-  punto_bs: "💳 Punto de Venta / Tarjeta (Bs)",
   binance: "🟡 Binance Pay (USDT)",
   binance_usdt: "🟡 Binance Pay (USDT)",
   zelle: "🟣 Zelle (USD)",
-  pesos_cop: "🇨🇴 Pesos Colombianos (COP)",
   pago_mixto: "🔀 Pago Mixto / Fraccionado",
+  credito: "⏳ Crédito / Cuenta por Cobrar",
 };
 
 export default function PosClient({
@@ -1153,10 +1151,37 @@ ${estadoPago}`;
               <option value="transferencia">🏦 Transferencia Bancaria (Bs)</option>
               <option value="binance">🟡 Binance Pay (USDT)</option>
               <option value="zelle">🟣 Zelle (USD)</option>
-              <option value="pesos_cop">🇨🇴 Pesos Colombianos (COP)</option>
               <option value="pago_mixto">🔀 Pago Mixto / Fraccionado</option>
+              <option value="credito">⏳ Crédito / Debe (Familia / Cuenta por Cobrar)</option>
             </select>
           </div>
+
+          {/* Advertencia / Aviso Informativo de Crédito */}
+          {metodoPago === "credito" && (
+            <div
+              style={{
+                background: "rgba(139, 92, 246, 0.1)",
+                border: "1.5px solid #8b5cf6",
+                borderRadius: 10,
+                padding: "8px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 16 }}>⏳</span>
+                <strong style={{ fontSize: 12.5, color: "#7c3aed" }}>
+                  Comanda a Crédito / Debe
+                </strong>
+              </div>
+              <p style={{ margin: 0, fontSize: 11.5, color: "var(--text)", lineHeight: 1.35 }}>
+                {clienteSeleccionadoId
+                  ? `Se registrará la deuda de $${totalUsd.toFixed(2)} USD a la cuenta de ${clientesIniciales.find(c => c.id === clienteSeleccionadoId)?.nombre || "este cliente"}.`
+                  : "⚠️ Selecciona un cliente arriba para asociar la cuenta por cobrar correctamente."}
+              </p>
+            </div>
+          )}
 
           {/* Subpanel de Pago Mixto / Fraccionado */}
           {metodoPago === "pago_mixto" && (
@@ -1320,48 +1345,7 @@ ${estadoPago}`;
                 )}
               </div>
 
-              {/* 4. Punto de Venta / Tarjeta */}
-              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>💳 Punto de Venta Bs:</label>
-                  {pagoMixtoPendienteUsd > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        sounds.playPop();
-                        const actual = Number(pagoMixtoPuntoUsd) || 0;
-                        setPagoMixtoPuntoUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
-                      }}
-                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
-                    >
-                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
-                  <input
-                    type="number"
-                    step="any"
-                    min="0"
-                    placeholder="0.00"
-                    value={pagoMixtoPuntoUsd}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setPagoMixtoPuntoUsd(isNaN(val) ? "" : Math.max(0, val));
-                    }}
-                    className="cart-notes-input"
-                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
-                  />
-                </div>
-                {Number(pagoMixtoPuntoUsd) > 0 && (
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
-                    💳 Pasar por punto: <strong>Bs. {(Number(pagoMixtoPuntoUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                  </span>
-                )}
-              </div>
-
-              {/* 5. Transferencia Bancaria Bs */}
+              {/* 4. Transferencia Bancaria Bs */}
               <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>🏦 Transferencia Bs:</label>

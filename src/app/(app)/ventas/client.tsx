@@ -52,8 +52,12 @@ export default function VentasClient({ ventas }: VentasClientProps) {
       }
 
       // 2. Filtro por estado
-      if (filtroEstado !== "todos" && v.estado !== filtroEstado) {
-        return false;
+      if (filtroEstado !== "todos") {
+        if (filtroEstado === "credito") {
+          if (v.estado !== "credito" && v.metodo_pago !== "credito") return false;
+        } else if (v.estado !== filtroEstado) {
+          return false;
+        }
       }
 
       return true;
@@ -77,7 +81,7 @@ export default function VentasClient({ ventas }: VentasClientProps) {
 
   const handleCambiarEstado = async (
     ventaId: string,
-    nuevoEstado: "pendiente" | "preparando" | "lista" | "completada" | "cancelada"
+    nuevoEstado: "pendiente" | "preparando" | "lista" | "completada" | "cancelada" | "credito"
   ) => {
     setProcesandoId(ventaId);
     const res = await cambiarEstadoVenta(ventaId, nuevoEstado);
@@ -168,6 +172,10 @@ ${estadoPago}`;
     return ventas.filter((v) => v.estado === "pendiente").length;
   }, [ventas]);
 
+  const conteoCredito = useMemo(() => {
+    return ventas.filter((v) => v.estado === "credito" || v.metodo_pago === "credito").length;
+  }, [ventas]);
+
   return (
     <main className="recetas-container">
       {/* Header */}
@@ -188,6 +196,7 @@ ${estadoPago}`;
             { id: "preparando", label: "En Cocina", icon: "🍳" },
             { id: "lista", label: "Listas / En Camino", icon: "🛵" },
             { id: "completada", label: "Entregadas", icon: "✅" },
+            { id: "credito", label: `A Crédito / Debe (${conteoCredito})`, icon: "⏳", badge: conteoCredito > 0 },
             { id: "cancelada", label: "Canceladas", icon: "❌" },
           ].map((f) => (
             <button
@@ -337,6 +346,8 @@ ${estadoPago}`;
                           ? (v.tipo_entrega === "delivery" ? "🛵 En Camino" : "🛍️ Lista")
                           : v.estado === "completada"
                           ? "✅ Entregada"
+                          : v.estado === "credito"
+                          ? "⏳ A Crédito / Debe"
                           : "❌ Cancelada"}
                       </span>
                     </div>
@@ -378,15 +389,12 @@ ${estadoPago}`;
                       title="Haz clic para cambiar el método de pago de esta comanda"
                     >
                       <option value="pago_movil">📱 Pago Móvil</option>
-                      <option value="pago_movil_bs">📱 Pago Móvil Bs</option>
                       <option value="efectivo_usd">💵 Efectivo USD</option>
                       <option value="efectivo_bs">🇻🇪 Efectivo Bs</option>
-                      <option value="punto">💳 Tarjeta / POS</option>
-                      <option value="punto_bs">💳 Punto de Venta Bs</option>
                       <option value="transferencia">🏦 Transferencia</option>
                       <option value="binance">🟡 Binance Pay</option>
                       <option value="zelle">🟣 Zelle</option>
-                      <option value="pesos_cop">🇨🇴 Pesos COP</option>
+                      <option value="credito">⏳ Crédito / Debe</option>
                       {v.metodo_pago === "pago_mixto" && (
                         <option value="pago_mixto" disabled>🔀 Pago Mixto (Editar)</option>
                       )}
@@ -672,6 +680,38 @@ ${estadoPago}`;
                             💬 Notificar al Cliente por WhatsApp
                           </button>
                         )}
+                      </div>
+                    )}
+
+                    {/* 3.1 Si está a Crédito / Debe */}
+                    {v.estado === "credito" && (
+                      <div style={{ display: "flex", gap: 6, width: "100%", flexDirection: "column" }}>
+                        <button
+                          type="button"
+                          disabled={procesandoId === v.id}
+                          onClick={() => handleCambiarEstado(v.id, "completada")}
+                          className="btn-comanda-complete"
+                          style={{ background: "#16a34a" }}
+                          title="Marcar como saldada / cobrada"
+                        >
+                          {procesandoId === v.id ? "..." : "💰 Marcar Saldada / Pagada"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setComandaParaEditar(v)}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 10,
+                            border: "1px solid var(--border)",
+                            background: "var(--bg-card)",
+                            color: "var(--text)",
+                            fontSize: 11.5,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                          }}
+                        >
+                          🔀 Abonar / Registrar Pago
+                        </button>
                       </div>
                     )}
 
@@ -1111,15 +1151,12 @@ function ModalEditarComanda({
             >
               <option value="efectivo_usd">💵 Efectivo USD</option>
               <option value="pago_movil">📱 Pago Móvil</option>
-              <option value="pago_movil_bs">📱 Pago Móvil Bs</option>
               <option value="efectivo_bs">🇻🇪 Efectivo Bs</option>
-              <option value="punto">💳 Tarjeta / POS</option>
-              <option value="punto_bs">💳 Punto de Venta Bs</option>
               <option value="transferencia">🏦 Transferencia</option>
               <option value="binance">🟡 Binance Pay</option>
               <option value="zelle">🟣 Zelle</option>
-              <option value="pesos_cop">🇨🇴 Pesos COP</option>
               <option value="pago_mixto">🔀 Pago Mixto / Fraccionado</option>
+              <option value="credito">⏳ Crédito / Debe</option>
             </select>
           </div>
 
@@ -1282,47 +1319,7 @@ function ModalEditarComanda({
                 )}
               </div>
 
-              {/* 4. Punto de Venta / Tarjeta */}
-              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>💳 Punto de Venta Bs:</label>
-                  {pagoMixtoPendienteUsd > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const actual = Number(pagoMixtoPuntoUsd) || 0;
-                        setPagoMixtoPuntoUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
-                      }}
-                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
-                    >
-                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
-                    </button>
-                  )}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
-                  <input
-                    type="number"
-                    step="any"
-                    min="0"
-                    placeholder="0.00"
-                    value={pagoMixtoPuntoUsd}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setPagoMixtoPuntoUsd(isNaN(val) ? "" : Math.max(0, val));
-                    }}
-                    className="cart-notes-input"
-                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
-                  />
-                </div>
-                {Number(pagoMixtoPuntoUsd) > 0 && (
-                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
-                    💳 Pasar por punto: <strong>Bs. {(Number(pagoMixtoPuntoUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                  </span>
-                )}
-              </div>
-
-              {/* 5. Transferencia Bancaria Bs */}
+              {/* 4. Transferencia Bancaria Bs */}
               <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>🏦 Transferencia Bs:</label>
