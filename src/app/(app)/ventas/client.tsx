@@ -6,7 +6,13 @@ import { Venta } from "@/types/database";
 import type { MetodoPago } from "@/types/database";
 import { cambiarEstadoVenta, actualizarMetodoPagoVenta, actualizarDetallesComanda } from "./actions";
 import { toFechaCaracasString, fechaHoyEnCaracas } from "@/lib/date-vzla";
-import { parsearPagoMixtoDeNotas, METODOS_FRACCION_INFO } from "@/lib/pago-mixto";
+import {
+  parsearPagoMixtoDeNotas,
+  generarTagPagoMixto,
+  METODOS_FRACCION_INFO,
+  type MetodoPagoFraccion,
+  type PagoFraccionItem,
+} from "@/lib/pago-mixto";
 
 interface VentasClientProps {
   ventas: Venta[];
@@ -382,7 +388,7 @@ ${estadoPago}`;
                       <option value="zelle">🟣 Zelle</option>
                       <option value="pesos_cop">🇨🇴 Pesos COP</option>
                       {v.metodo_pago === "pago_mixto" && (
-                        <option value="pago_mixto" disabled>🔀 Pago Mixto (Configurado en POS)</option>
+                        <option value="pago_mixto" disabled>🔀 Pago Mixto (Editar)</option>
                       )}
                     </select>
 
@@ -780,12 +786,78 @@ function ModalEditarComanda({
   const [vueltoPmUsd, setVueltoPmUsd] = useState<number | "">("");
   const [vueltoEfBsUsd, setVueltoEfBsUsd] = useState<number | "">("");
 
+  // Sub-montos para Pago Mixto / Fraccionado (en USD)
+  const [pagoMixtoEfUsd, setPagoMixtoEfUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "efectivo_usd");
+    return item ? item.monto_usd : "";
+  });
+  const [pagoMixtoPmUsd, setPagoMixtoPmUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "pago_movil");
+    return item ? item.monto_usd : "";
+  });
+  const [pagoMixtoEfBsUsd, setPagoMixtoEfBsUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "efectivo_bs");
+    return item ? item.monto_usd : "";
+  });
+  const [pagoMixtoPuntoUsd, setPagoMixtoPuntoUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "punto");
+    return item ? item.monto_usd : "";
+  });
+  const [pagoMixtoTransfUsd, setPagoMixtoTransfUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "transferencia");
+    return item ? item.monto_usd : "";
+  });
+  const [pagoMixtoZelleUsd, setPagoMixtoZelleUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "zelle");
+    return item ? item.monto_usd : "";
+  });
+  const [pagoMixtoBinanceUsd, setPagoMixtoBinanceUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "binance");
+    return item ? item.monto_usd : "";
+  });
+
   const [guardando, setGuardando] = useState(false);
 
   // Cálculos dinámicos
   const costoDeliveryActual = tipoEntrega === "delivery" ? Math.max(0, Number(deliveryMontoUsd) || 0) : 0;
   const nuevoTotalUsd = Number((subtotalComidaUsd + costoDeliveryActual).toFixed(2));
   const nuevoTotalBs = Number((nuevoTotalUsd * tasaBcv).toFixed(2));
+
+  // Cálculos de Pago Mixto
+  const pagoMixtoAsignadoUsd = useMemo(() => {
+    if (metodoPago !== "pago_mixto") return 0;
+    const efUsd = Number(pagoMixtoEfUsd) || 0;
+    const pmUsd = Number(pagoMixtoPmUsd) || 0;
+    const efBsUsd = Number(pagoMixtoEfBsUsd) || 0;
+    const puntoUsd = Number(pagoMixtoPuntoUsd) || 0;
+    const transfUsd = Number(pagoMixtoTransfUsd) || 0;
+    const zelleUsd = Number(pagoMixtoZelleUsd) || 0;
+    const binanceUsd = Number(pagoMixtoBinanceUsd) || 0;
+    return Number(
+      (efUsd + pmUsd + efBsUsd + puntoUsd + transfUsd + zelleUsd + binanceUsd).toFixed(2)
+    );
+  }, [
+    metodoPago,
+    pagoMixtoEfUsd,
+    pagoMixtoPmUsd,
+    pagoMixtoEfBsUsd,
+    pagoMixtoPuntoUsd,
+    pagoMixtoTransfUsd,
+    pagoMixtoZelleUsd,
+    pagoMixtoBinanceUsd,
+  ]);
+
+  const pagoMixtoPendienteUsd = useMemo(() => {
+    if (metodoPago !== "pago_mixto") return 0;
+    return Number((nuevoTotalUsd - pagoMixtoAsignadoUsd).toFixed(2));
+  }, [metodoPago, nuevoTotalUsd, pagoMixtoAsignadoUsd]);
 
   const vueltoTotalUsd = useMemo(() => {
     if (!incluirVuelto || metodoPago !== "efectivo_usd" || !billeteRecibidoUsd) return 0;
@@ -805,7 +877,14 @@ function ModalEditarComanda({
   const handleGuardar = async () => {
     if (guardando) return;
 
-    if (incluirVuelto && metodoPago === "efectivo_usd") {
+    if (metodoPago === "pago_mixto") {
+      if (Math.abs(pagoMixtoPendienteUsd) > 0.005) {
+        alert(
+          `El pago mixto no cuadra con el total ($${nuevoTotalUsd.toFixed(2)} USD). Has asignado $${pagoMixtoAsignadoUsd.toFixed(2)} USD. Ajusta los métodos para completar el 100%.`
+        );
+        return;
+      }
+    } else if (incluirVuelto && metodoPago === "efectivo_usd") {
       if (!billeteRecibidoUsd || Number(billeteRecibidoUsd) < nuevoTotalUsd) {
         alert("El billete recibido no puede ser menor al total a pagar.");
         return;
@@ -820,10 +899,35 @@ function ModalEditarComanda({
 
     let notasFinales = notasTexto.trim();
     if (metodoPago === "pago_mixto") {
-      const matchMixto = (venta.notas_comanda || "").match(/\[Pago Mixto:\s*[^\]]+\]/i);
-      if (matchMixto) {
-        notasFinales = notasFinales ? `${notasFinales} • ${matchMixto[0]}` : matchMixto[0];
+      const listaDesglose: PagoFraccionItem[] = [];
+      const agregar = (metodo: MetodoPagoFraccion, valUsd: number | "") => {
+        const u = Number(valUsd) || 0;
+        if (u > 0) {
+          const b = Number((u * tasaBcv).toFixed(2));
+          listaDesglose.push({
+            metodo,
+            monto_usd: u,
+            monto_bs: METODOS_FRACCION_INFO[metodo]?.moneda === "Bs" ? b : 0,
+          });
+        }
+      };
+
+      agregar("efectivo_usd", pagoMixtoEfUsd);
+      agregar("pago_movil", pagoMixtoPmUsd);
+      agregar("efectivo_bs", pagoMixtoEfBsUsd);
+      agregar("punto", pagoMixtoPuntoUsd);
+      agregar("transferencia", pagoMixtoTransfUsd);
+      agregar("zelle", pagoMixtoZelleUsd);
+      agregar("binance", pagoMixtoBinanceUsd);
+
+      if (listaDesglose.length === 0) {
+        alert("Debes ingresar al menos un monto en el desglose de pago mixto.");
+        setGuardando(false);
+        return;
       }
+
+      const tagMixto = generarTagPagoMixto(listaDesglose, tasaBcv);
+      notasFinales = notasFinales ? `${tagMixto} • ${notasFinales}` : tagMixto;
     } else if (incluirVuelto && metodoPago === "efectivo_usd" && Number(billeteRecibidoUsd) > 0) {
       const rec = Number(billeteRecibidoUsd);
       if (modoVuelto === "mixto") {
@@ -1015,11 +1119,320 @@ function ModalEditarComanda({
               <option value="binance">🟡 Binance Pay</option>
               <option value="zelle">🟣 Zelle</option>
               <option value="pesos_cop">🇨🇴 Pesos COP</option>
-              {venta.metodo_pago === "pago_mixto" && (
-                <option value="pago_mixto">🔀 Mantener Pago Mixto Original</option>
-              )}
+              <option value="pago_mixto">🔀 Pago Mixto / Fraccionado</option>
             </select>
           </div>
+
+          {/* Subpanel de Pago Mixto / Fraccionado en Modal Editar Comanda */}
+          {metodoPago === "pago_mixto" && (
+            <div
+              style={{
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1.5px solid #f59e0b",
+                borderRadius: 12,
+                padding: "10px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                maxHeight: "260px",
+                overflowY: "auto",
+                scrollbarWidth: "thin",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>Total a Pagar:</span>
+                  <strong style={{ fontSize: 14, color: "#d97706", fontWeight: 900 }}>
+                    ${nuevoTotalUsd.toFixed(2)} USD
+                  </strong>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: 6 }}>
+                    (~Bs. {nuevoTotalBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                  </span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block" }}>Estado Desglose:</span>
+                  {Math.abs(pagoMixtoPendienteUsd) < 0.005 ? (
+                    <span style={{ fontSize: 11, fontWeight: 900, color: "#16a34a", background: "rgba(34, 197, 94, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                      ✅ 100% Cuadrado
+                    </span>
+                  ) : pagoMixtoPendienteUsd > 0 ? (
+                    <span style={{ fontSize: 11, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                      ⚠️ Faltan ${pagoMixtoPendienteUsd.toFixed(2)}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                      ⚠️ Exceso ${Math.abs(pagoMixtoPendienteUsd).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 1. Efectivo USD */}
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>💵 Efectivo USD:</label>
+                  {pagoMixtoPendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = Number(pagoMixtoEfUsd) || 0;
+                        setPagoMixtoEfUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
+                      }}
+                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                    >
+                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={pagoMixtoEfUsd}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setPagoMixtoEfUsd(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                  />
+                </div>
+              </div>
+
+              {/* 2. Pago Móvil (Bs) */}
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>📱 Pago Móvil (Bs):</label>
+                  {pagoMixtoPendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = Number(pagoMixtoPmUsd) || 0;
+                        setPagoMixtoPmUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
+                      }}
+                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                    >
+                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={pagoMixtoPmUsd}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setPagoMixtoPmUsd(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                  />
+                </div>
+                {Number(pagoMixtoPmUsd) > 0 && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
+                    📲 Cobrar en Bs: <strong>Bs. {(Number(pagoMixtoPmUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  </span>
+                )}
+              </div>
+
+              {/* 3. Efectivo Bolívares */}
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>🇻🇪 Efectivo Bs:</label>
+                  {pagoMixtoPendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = Number(pagoMixtoEfBsUsd) || 0;
+                        setPagoMixtoEfBsUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
+                      }}
+                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                    >
+                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={pagoMixtoEfBsUsd}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setPagoMixtoEfBsUsd(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                  />
+                </div>
+                {Number(pagoMixtoEfBsUsd) > 0 && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
+                    🇻🇪 Recibir en Bs: <strong>Bs. {(Number(pagoMixtoEfBsUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  </span>
+                )}
+              </div>
+
+              {/* 4. Punto de Venta / Tarjeta */}
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>💳 Punto de Venta Bs:</label>
+                  {pagoMixtoPendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = Number(pagoMixtoPuntoUsd) || 0;
+                        setPagoMixtoPuntoUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
+                      }}
+                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                    >
+                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={pagoMixtoPuntoUsd}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setPagoMixtoPuntoUsd(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                  />
+                </div>
+                {Number(pagoMixtoPuntoUsd) > 0 && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
+                    💳 Pasar por punto: <strong>Bs. {(Number(pagoMixtoPuntoUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  </span>
+                )}
+              </div>
+
+              {/* 5. Transferencia Bancaria Bs */}
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>🏦 Transferencia Bs:</label>
+                  {pagoMixtoPendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = Number(pagoMixtoTransfUsd) || 0;
+                        setPagoMixtoTransfUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
+                      }}
+                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                    >
+                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={pagoMixtoTransfUsd}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setPagoMixtoTransfUsd(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                  />
+                </div>
+                {Number(pagoMixtoTransfUsd) > 0 && (
+                  <span style={{ fontSize: 10.5, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 3 }}>
+                    🏦 Transferir en Bs: <strong>Bs. {(Number(pagoMixtoTransfUsd) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  </span>
+                )}
+              </div>
+
+              {/* 6. Zelle */}
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>🟣 Zelle USD:</label>
+                  {pagoMixtoPendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = Number(pagoMixtoZelleUsd) || 0;
+                        setPagoMixtoZelleUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
+                      }}
+                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                    >
+                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={pagoMixtoZelleUsd}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setPagoMixtoZelleUsd(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                  />
+                </div>
+              </div>
+
+              {/* 7. Binance */}
+              <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>🟡 Binance USDT:</label>
+                  {pagoMixtoPendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = Number(pagoMixtoBinanceUsd) || 0;
+                        setPagoMixtoBinanceUsd(Number((actual + pagoMixtoPendienteUsd).toFixed(2)));
+                      }}
+                      style={{ fontSize: 10, fontWeight: 800, color: "var(--primary-dark)", background: "var(--primary-light)", border: "none", borderRadius: 4, padding: "2px 6px", cursor: "pointer" }}
+                    >
+                      + Restante (${pagoMixtoPendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={pagoMixtoBinanceUsd}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setPagoMixtoBinanceUsd(isNaN(val) ? "" : Math.max(0, val));
+                    }}
+                    className="cart-notes-input"
+                    style={{ fontSize: 12, fontWeight: 800, padding: "4px 8px" }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Gestión de Vuelto */}
           {metodoPago === "efectivo_usd" && (
@@ -1270,7 +1683,11 @@ function ModalEditarComanda({
             </button>
             <button
               type="button"
-              disabled={guardando || (incluirVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && Math.abs(vueltoPendienteUsd) > 0.005)}
+              disabled={
+                guardando ||
+                (metodoPago === "pago_mixto" && Math.abs(pagoMixtoPendienteUsd) > 0.005) ||
+                (incluirVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && Math.abs(vueltoPendienteUsd) > 0.005)
+              }
               onClick={handleGuardar}
               style={{
                 flex: 2,
@@ -1282,10 +1699,21 @@ function ModalEditarComanda({
                 fontSize: 12,
                 fontWeight: 800,
                 cursor: "pointer",
-                opacity: (guardando || (incluirVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && Math.abs(vueltoPendienteUsd) > 0.005)) ? 0.6 : 1,
+                opacity:
+                  guardando ||
+                  (metodoPago === "pago_mixto" && Math.abs(pagoMixtoPendienteUsd) > 0.005) ||
+                  (incluirVuelto && metodoPago === "efectivo_usd" && modoVuelto === "mixto" && Math.abs(vueltoPendienteUsd) > 0.005)
+                    ? 0.6
+                    : 1,
               }}
             >
-              {guardando ? "Guardando..." : "💾 Guardar Cambios"}
+              {guardando
+                ? "Guardando..."
+                : metodoPago === "pago_mixto" && pagoMixtoPendienteUsd > 0
+                ? `⚠️ Falta asignar $${pagoMixtoPendienteUsd.toFixed(2)} USD`
+                : metodoPago === "pago_mixto" && pagoMixtoPendienteUsd < 0
+                ? `⚠️ Exceso de pago ($${Math.abs(pagoMixtoPendienteUsd).toFixed(2)} USD)`
+                : "Guardar Cambios"}
             </button>
           </div>
         </div>
