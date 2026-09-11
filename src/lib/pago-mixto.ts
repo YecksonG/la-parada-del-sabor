@@ -127,10 +127,13 @@ export function parsearPagoMixtoDeNotas(
 }
 
 export interface AbonoCreditoItem {
+  raw_tag: string;
   monto_usd: number;
   metodo_abono: string;
   es_pago_total: boolean;
   desglose_mixto?: PagoFraccionItem[];
+  fecha_hora?: string;
+  referencia_notas?: string;
 }
 
 /**
@@ -147,10 +150,19 @@ export function parsearAbonosCreditoDeNotas(
 
   let match;
   while ((match = regex.exec(notas)) !== null) {
+    const rawTag = match[0];
     const montoUsd = parseFloat(match[1]) || 0;
     const metodoAbono = match[2].toLowerCase().trim();
     const resto = match[3] || "";
     const esPagoTotal = resto.includes("SALDADA TOTALMENTE");
+
+    // Extraer fecha/hora si existe al final del tag (- DD/MM/YYYY ...)
+    const fechaMatch = resto.match(/-\s*([0-9/]+\s+[0-9:apm.\s]+)$/i);
+    const fechaHora = fechaMatch ? fechaMatch[1].trim() : undefined;
+
+    // Extraer referencia o notas (| Ref/Notas: ...)
+    const refMatch = resto.match(/\|\s*Ref\/Notas:\s*([^-]+)/i);
+    const referenciaNotas = refMatch ? refMatch[1].trim() : undefined;
 
     let desglose_mixto: PagoFraccionItem[] | undefined;
     if (metodoAbono === "pago_mixto") {
@@ -188,14 +200,47 @@ export function parsearAbonosCreditoDeNotas(
     }
 
     abonos.push({
+      raw_tag: rawTag,
       monto_usd: montoUsd,
       metodo_abono: metodoAbono,
       es_pago_total: esPagoTotal,
       desglose_mixto,
+      fecha_hora: fechaHora,
+      referencia_notas: referenciaNotas,
     });
   }
 
   return abonos;
+}
+
+/**
+ * Elimina un tag específico de abono de notas_comanda limpiando separadores '•'
+ */
+export function eliminarTagAbonoDeNotas(notas: string | null | undefined, rawTag: string): string | null {
+  if (!notas) return null;
+  // Reemplazar la ocurrencia exacta de rawTag y limpiar viñetas
+  let limpias = notas.replace(rawTag, "").trim();
+  // Limpiar viñetas dobles o al inicio/final
+  limpias = limpias
+    .replace(/•\s*•+/g, "•")
+    .replace(/^\s*•\s*/, "")
+    .replace(/\s*•\s*$/, "")
+    .trim();
+  return limpias.length > 0 ? limpias : null;
+}
+
+/**
+ * Limpia TODOS los tags de abono de notas_comanda
+ */
+export function limpiarTodosLosAbonosDeNotas(notas: string | null | undefined): string | null {
+  if (!notas) return null;
+  let limpias = notas.replace(/•?\s*\[ABONO CRÉDITO:[^\]]+\]/gi, "").trim();
+  limpias = limpias
+    .replace(/•\s*•+/g, "•")
+    .replace(/^\s*•\s*/, "")
+    .replace(/\s*•\s*$/, "")
+    .trim();
+  return limpias.length > 0 ? limpias : null;
 }
 
 /**

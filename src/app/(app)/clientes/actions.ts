@@ -149,3 +149,116 @@ export async function registrarPagoComandaCredito(payload: RegistrarPagoCreditoP
 
   return { ok: true };
 }
+
+export async function eliminarAbonoComandaCredito(payload: {
+  venta_id: string;
+  raw_tag: string;
+}) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!payload.venta_id || !UUID_REGEX.test(payload.venta_id)) {
+    return { ok: false, error: "Identificador de comanda inválido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { data: venta, error: errorFetch } = await supabase
+    .from("ventas")
+    .select("id, total_usd, notas_comanda, metodo_pago, estado")
+    .eq("id", payload.venta_id)
+    .single();
+
+  if (errorFetch || !venta) {
+    return { ok: false, error: "No se encontró la comanda a modificar." };
+  }
+
+  // Eliminar el tag de abono
+  const notasPrevias = venta.notas_comanda || "";
+  let limpias = notasPrevias.replace(payload.raw_tag, "").trim();
+  limpias = limpias
+    .replace(/•\s*•+/g, "•")
+    .replace(/^\s*•\s*/, "")
+    .replace(/\s*•\s*$/, "")
+    .trim();
+
+  const updateFields: Record<string, any> = {
+    notas_comanda: limpias.length > 0 ? limpias : null,
+  };
+
+  // Si estaba completada por error o habia saldado, al eliminar abono vuelve a estado credito
+  if (venta.estado === "completada") {
+    updateFields.estado = "credito";
+    updateFields.metodo_pago = "credito";
+  }
+
+  const { error: updateError } = await supabase
+    .from("ventas")
+    .update(updateFields)
+    .eq("id", payload.venta_id);
+
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  revalidatePath("/clientes");
+  revalidatePath("/ventas");
+  revalidatePath("/dashboard");
+  revalidatePath("/caja");
+  revalidatePath("/");
+
+  return { ok: true, notas_comanda: updateFields.notas_comanda, estado: updateFields.estado || venta.estado };
+}
+
+export async function limpiarTodosAbonosComandaCredito(payload: {
+  venta_id: string;
+}) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!payload.venta_id || !UUID_REGEX.test(payload.venta_id)) {
+    return { ok: false, error: "Identificador de comanda inválido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { data: venta, error: errorFetch } = await supabase
+    .from("ventas")
+    .select("id, total_usd, notas_comanda, metodo_pago, estado")
+    .eq("id", payload.venta_id)
+    .single();
+
+  if (errorFetch || !venta) {
+    return { ok: false, error: "No se encontró la comanda a modificar." };
+  }
+
+  let limpias = (venta.notas_comanda || "").replace(/•?\s*\[ABONO CRÉDITO:[^\]]+\]/gi, "").trim();
+  limpias = limpias
+    .replace(/•\s*•+/g, "•")
+    .replace(/^\s*•\s*/, "")
+    .replace(/\s*•\s*$/, "")
+    .trim();
+
+  const updateFields: Record<string, any> = {
+    notas_comanda: limpias.length > 0 ? limpias : null,
+    estado: "credito",
+    metodo_pago: "credito",
+  };
+
+  const { error: updateError } = await supabase
+    .from("ventas")
+    .update(updateFields)
+    .eq("id", payload.venta_id);
+
+  if (updateError) {
+    return { ok: false, error: updateError.message };
+  }
+
+  revalidatePath("/clientes");
+  revalidatePath("/ventas");
+  revalidatePath("/dashboard");
+  revalidatePath("/caja");
+  revalidatePath("/");
+
+  return { ok: true, notas_comanda: updateFields.notas_comanda, estado: updateFields.estado };
+}

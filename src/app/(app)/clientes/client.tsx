@@ -2,9 +2,20 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Cliente, Venta, MetodoPago, EstadoVenta } from "@/types/database";
-import { guardarCliente, eliminarCliente, registrarPagoComandaCredito } from "./actions";
+import {
+  guardarCliente,
+  eliminarCliente,
+  registrarPagoComandaCredito,
+  eliminarAbonoComandaCredito,
+  limpiarTodosAbonosComandaCredito,
+} from "./actions";
 import { sounds } from "@/lib/sound-effects";
-import { calcularSaldoPendienteComanda } from "@/lib/pago-mixto";
+import {
+  calcularSaldoPendienteComanda,
+  parsearAbonosCreditoDeNotas,
+  eliminarTagAbonoDeNotas,
+  limpiarTodosLosAbonosDeNotas,
+} from "@/lib/pago-mixto";
 
 interface ClientesClientProps {
   clientes: Cliente[];
@@ -272,6 +283,67 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
       cerrarModalAbono();
     } else {
       alert(res.error || "Error al registrar pago de crédito.");
+    }
+  };
+
+  const [eliminandoAbono, setEliminandoAbono] = useState(false);
+
+  const handleEliminarAbono = async (rawTag: string) => {
+    if (!comandaAbono || eliminandoAbono) return;
+    if (!confirm("¿Estás seguro de eliminar este abono de la comanda? El monto adeudado se restaurará automáticamente.")) return;
+
+    setEliminandoAbono(true);
+    const res = await eliminarAbonoComandaCredito({
+      venta_id: comandaAbono.id,
+      raw_tag: rawTag,
+    });
+    setEliminandoAbono(false);
+
+    if (res.ok) {
+      sounds.playDelete();
+      const notasActualizadas = eliminarTagAbonoDeNotas(comandaAbono.notas_comanda, rawTag);
+      const comandaActualizada: Venta = {
+        ...comandaAbono,
+        notas_comanda: notasActualizadas,
+        estado: (res.estado as EstadoVenta) || "credito",
+        metodo_pago: (res.estado === "credito" ? "credito" : comandaAbono.metodo_pago),
+      };
+
+      setListaVentas((prev) =>
+        prev.map((v) => (v.id === comandaAbono.id ? comandaActualizada : v))
+      );
+      setComandaAbono(comandaActualizada);
+    } else {
+      alert(res.error || "No se pudo eliminar el abono.");
+    }
+  };
+
+  const handleLimpiarTodosAbonos = async () => {
+    if (!comandaAbono || eliminandoAbono) return;
+    if (!confirm("¿Deseas eliminar TODOS los abonos registrados en esta comanda y restaurar su deuda al total original?")) return;
+
+    setEliminandoAbono(true);
+    const res = await limpiarTodosAbonosComandaCredito({
+      venta_id: comandaAbono.id,
+    });
+    setEliminandoAbono(false);
+
+    if (res.ok) {
+      sounds.playDelete();
+      const notasActualizadas = limpiarTodosLosAbonosDeNotas(comandaAbono.notas_comanda);
+      const comandaActualizada: Venta = {
+        ...comandaAbono,
+        notas_comanda: notasActualizadas,
+        estado: "credito",
+        metodo_pago: "credito",
+      };
+
+      setListaVentas((prev) =>
+        prev.map((v) => (v.id === comandaAbono.id ? comandaActualizada : v))
+      );
+      setComandaAbono(comandaActualizada);
+    } else {
+      alert(res.error || "No se pudieron limpiar los abonos.");
     }
   };
 
@@ -1502,12 +1574,110 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
                 <button
                   type="button"
                   onClick={cerrarModalAbono}
-                  disabled={procesandoAbono}
+                  disabled={procesandoAbono || eliminandoAbono}
                   className="btn-modal-close"
                 >
                   ✕
                 </button>
               </div>
+
+              {/* Historial de Abonos Registrados con Botón de Eliminar */}
+              {(() => {
+                const listaAbonos = parsearAbonosCreditoDeNotas(comandaAbono.notas_comanda, tasaBcv);
+                if (listaAbonos.length === 0) return null;
+                return (
+                  <div
+                    style={{
+                      background: "rgba(239, 68, 68, 0.05)",
+                      border: "1px dashed rgba(239, 68, 68, 0.4)",
+                      borderRadius: 12,
+                      padding: "10px 12px",
+                      marginTop: 8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#dc2626", textTransform: "uppercase" }}>
+                        📋 Historial de Abonos Realizados ({listaAbonos.length})
+                      </span>
+                      {listaAbonos.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={handleLimpiarTodosAbonos}
+                          disabled={eliminandoAbono || procesandoAbono}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "#dc2626",
+                            fontSize: 10.5,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          Limpiar todos los abonos
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {listaAbonos.map((ab, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            background: "var(--bg-card)",
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          <div style={{ fontSize: 11.5 }}>
+                            <strong style={{ color: "var(--primary-dark)" }}>
+                              ${ab.monto_usd.toFixed(2)} USD
+                            </strong>{" "}
+                            <span style={{ color: "var(--text-muted)", fontSize: 11 }}>
+                              vía {ab.metodo_abono.toUpperCase()}
+                            </span>
+                            {ab.referencia_notas && (
+                              <span style={{ color: "var(--text-muted)", display: "block", fontSize: 10.5 }}>
+                                Nota: {ab.referencia_notas}
+                              </span>
+                            )}
+                            {ab.fecha_hora && (
+                              <span style={{ color: "var(--text-muted)", display: "block", fontSize: 10 }}>
+                                🕒 {ab.fecha_hora}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            title="Eliminar este abono y restaurar saldo"
+                            onClick={() => handleEliminarAbono(ab.raw_tag)}
+                            disabled={eliminandoAbono || procesandoAbono}
+                            style={{
+                              background: "rgba(239, 68, 68, 0.12)",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
+                              color: "#dc2626",
+                              borderRadius: 6,
+                              padding: "4px 8px",
+                              fontSize: 11,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            🗑️ Eliminar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "12px 0" }}>
                 {/* Selector rápido: Pago Total vs Parcial */}
