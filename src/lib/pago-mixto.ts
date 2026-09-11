@@ -125,3 +125,75 @@ export function parsearPagoMixtoDeNotas(
 
   return resultado.length > 0 ? resultado : null;
 }
+
+export interface AbonoCreditoItem {
+  monto_usd: number;
+  metodo_abono: string;
+  es_pago_total: boolean;
+  desglose_mixto?: PagoFraccionItem[];
+}
+
+/**
+ * Parsea los abonos de crédito registrados en notas_comanda
+ * Formato del tag: [ABONO CRÉDITO: $X.XX USD vía METODO ... (EfUSD: $A, PMBs: Bs.B, ...) ...]
+ */
+export function parsearAbonosCreditoDeNotas(
+  notas: string | null | undefined,
+  tasaBcv: number
+): AbonoCreditoItem[] {
+  if (!notas) return [];
+  const regex = /\[ABONO CRÉDITO:\s*\$([0-9.]+)\s+USD\s+vía\s+([A-Z_]+)([^\]]*)\]/gi;
+  const abonos: AbonoCreditoItem[] = [];
+
+  let match;
+  while ((match = regex.exec(notas)) !== null) {
+    const montoUsd = parseFloat(match[1]) || 0;
+    const metodoAbono = match[2].toLowerCase().trim();
+    const resto = match[3] || "";
+    const esPagoTotal = resto.includes("SALDADA TOTALMENTE");
+
+    let desglose_mixto: PagoFraccionItem[] | undefined;
+    if (metodoAbono === "pago_mixto") {
+      // Extraer los sub-montos de los paréntesis si existen: (EfUSD: $2.00, PMBs: Bs.100.00, ...)
+      const subMatch = resto.match(/\(([^)]+)\)/);
+      if (subMatch) {
+        const parts = subMatch[1].split(",");
+        desglose_mixto = [];
+        for (const p of parts) {
+          const itemTrim = p.trim();
+          if (itemTrim.startsWith("EfUSD:")) {
+            const val = parseFloat(itemTrim.replace(/[^0-9.]/g, "")) || 0;
+            if (val > 0) desglose_mixto.push({ metodo: "efectivo_usd", monto_usd: val, monto_bs: 0 });
+          } else if (itemTrim.startsWith("PMBs:")) {
+            const valBs = parseFloat(itemTrim.replace(/[^0-9.]/g, "")) || 0;
+            const valUsd = tasaBcv > 0 ? Number((valBs / tasaBcv).toFixed(2)) : 0;
+            if (valBs > 0) desglose_mixto.push({ metodo: "pago_movil", monto_usd: valUsd, monto_bs: valBs });
+          } else if (itemTrim.startsWith("EfBs:")) {
+            const valBs = parseFloat(itemTrim.replace(/[^0-9.]/g, "")) || 0;
+            const valUsd = tasaBcv > 0 ? Number((valBs / tasaBcv).toFixed(2)) : 0;
+            if (valBs > 0) desglose_mixto.push({ metodo: "efectivo_bs", monto_usd: valUsd, monto_bs: valBs });
+          } else if (itemTrim.startsWith("TransfBs:")) {
+            const valBs = parseFloat(itemTrim.replace(/[^0-9.]/g, "")) || 0;
+            const valUsd = tasaBcv > 0 ? Number((valBs / tasaBcv).toFixed(2)) : 0;
+            if (valBs > 0) desglose_mixto.push({ metodo: "transferencia", monto_usd: valUsd, monto_bs: valBs });
+          } else if (itemTrim.startsWith("Binance:")) {
+            const val = parseFloat(itemTrim.replace(/[^0-9.]/g, "")) || 0;
+            if (val > 0) desglose_mixto.push({ metodo: "binance", monto_usd: val, monto_bs: 0 });
+          } else if (itemTrim.startsWith("Zelle:")) {
+            const val = parseFloat(itemTrim.replace(/[^0-9.]/g, "")) || 0;
+            if (val > 0) desglose_mixto.push({ metodo: "zelle", monto_usd: val, monto_bs: 0 });
+          }
+        }
+      }
+    }
+
+    abonos.push({
+      monto_usd: montoUsd,
+      metodo_abono: metodoAbono,
+      es_pago_total: esPagoTotal,
+      desglose_mixto,
+    });
+  }
+
+  return abonos;
+}

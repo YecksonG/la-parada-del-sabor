@@ -2,9 +2,11 @@
 
 import { useState, useMemo } from "react";
 import Image from "next/image";
-import { Venta } from "@/types/database";
+import { Cliente, Venta } from "@/types/database";
 import type { MetodoPago } from "@/types/database";
 import { cambiarEstadoVenta, actualizarMetodoPagoVenta, actualizarDetallesComanda } from "./actions";
+import { registrarPagoComandaCredito } from "../clientes/actions";
+import { sounds } from "@/lib/sound-effects";
 import { toFechaCaracasString, fechaHoyEnCaracas } from "@/lib/date-vzla";
 import {
   parsearPagoMixtoDeNotas,
@@ -16,9 +18,12 @@ import {
 
 interface VentasClientProps {
   ventas: Venta[];
+  clientes?: Cliente[];
+  tasaBcv?: number;
 }
 
-export default function VentasClient({ ventas }: VentasClientProps) {
+export default function VentasClient({ ventas: initialVentas, clientes = [], tasaBcv = 832 }: VentasClientProps) {
+  const [ventas, setVentas] = useState<Venta[]>(initialVentas);
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
   const [filtroFecha, setFiltroFecha] = useState<"hoy" | "ayer" | "todas" | "fecha">("hoy");
   const [fechaEspecifica, setFechaEspecifica] = useState<string>("");
@@ -70,12 +75,203 @@ export default function VentasClient({ ventas }: VentasClientProps) {
       .reduce((acc, v) => acc + Number(v.total_usd), 0);
   }, [ventasFiltradas]);
 
-  const handleCambiarMetodoPago = async (ventaId: string, nuevoMetodo: MetodoPago) => {
-    setProcesandoId(ventaId);
-    const res = await actualizarMetodoPagoVenta(ventaId, nuevoMetodo);
+  const [comandaAsignarCliente, setComandaAsignarCliente] = useState<Venta | null>(null);
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>("");
+
+  // Modal de Abono rápido / Saldar Deuda directo en ventas
+  const [comandaAbono, setComandaAbono] = useState<Venta | null>(null);
+  const [montoAbonoUsd, setMontoAbonoUsd] = useState<number | "">("");
+  const [metodoPagoAbono, setMetodoPagoAbono] = useState<MetodoPago>("pago_movil");
+  const [notasAbono, setNotasAbono] = useState<string>("");
+  const [procesandoAbono, setProcesandoAbono] = useState<boolean>(false);
+
+  // Sub-montos si el método de abono es mixto
+  const [abonoMixtoEfUsd, setAbonoMixtoEfUsd] = useState<number | "">("");
+  const [abonoMixtoPmBs, setAbonoMixtoPmBs] = useState<number | "">("");
+  const [abonoMixtoEfBs, setAbonoMixtoEfBs] = useState<number | "">("");
+  const [abonoMixtoTransfBs, setAbonoMixtoTransfBs] = useState<number | "">("");
+  const [abonoMixtoBinance, setAbonoMixtoBinance] = useState<number | "">("");
+  const [abonoMixtoZelle, setAbonoMixtoZelle] = useState<number | "">("");
+
+  const abrirModalAbono = (comanda: Venta) => {
+    sounds.playPop();
+    setComandaAbono(comanda);
+    const montoTotal = Number(comanda.total_usd) || 0;
+    setMontoAbonoUsd(montoTotal);
+    setMetodoPagoAbono("pago_movil");
+    setNotasAbono("");
+    setAbonoMixtoEfUsd("");
+    setAbonoMixtoPmBs("");
+    setAbonoMixtoEfBs("");
+    setAbonoMixtoTransfBs("");
+    setAbonoMixtoBinance("");
+    setAbonoMixtoZelle("");
+  };
+
+  const cerrarModalAbono = () => {
+    setComandaAbono(null);
+    setMontoAbonoUsd("");
+    setNotasAbono("");
+    setProcesandoAbono(false);
+  };
+
+  // Cálculo de total desglose para pago mixto en abono
+  const abonoMixtoTotalUsd = useMemo(() => {
+    if (metodoPagoAbono !== "pago_mixto") return 0;
+    const efUsd = Number(abonoMixtoEfUsd) || 0;
+    const pmBs = Number(abonoMixtoPmBs) || 0;
+    const efBs = Number(abonoMixtoEfBs) || 0;
+    const transfBs = Number(abonoMixtoTransfBs) || 0;
+    const binance = Number(abonoMixtoBinance) || 0;
+    const zelle = Number(abonoMixtoZelle) || 0;
+
+    const bsTotal = pmBs + efBs + transfBs;
+    const bsEnUsd = tasaBcv > 0 ? bsTotal / tasaBcv : 0;
+    return efUsd + binance + zelle + bsEnUsd;
+  }, [metodoPagoAbono, abonoMixtoEfUsd, abonoMixtoPmBs, abonoMixtoEfBs, abonoMixtoTransfBs, abonoMixtoBinance, abonoMixtoZelle, tasaBcv]);
+
+  const abonoMixtoPendienteUsd = useMemo(() => {
+    const target = Number(montoAbonoUsd) || 0;
+    return Number((target - abonoMixtoTotalUsd).toFixed(2));
+  }, [montoAbonoUsd, abonoMixtoTotalUsd]);
+
+  const handleConfirmarAbono = async () => {
+    if (!comandaAbono || procesandoAbono) return;
+    const abonoNum = Number(montoAbonoUsd);
+    const comandaTotalUsd = Number(comandaAbono.total_usd) || 0;
+
+    if (!abonoNum || abonoNum <= 0) {
+      alert("Por favor ingrese un monto válido a abonar o saldar.");
+      return;
+    }
+
+    if (abonoNum > comandaTotalUsd + 0.01) {
+      alert(`El monto a abonar ($${abonoNum.toFixed(2)}) no puede exceder la deuda de la comanda ($${comandaTotalUsd.toFixed(2)}).`);
+      return;
+    }
+
+    if (metodoPagoAbono === "pago_mixto") {
+      if (Math.abs(abonoMixtoPendienteUsd) > 0.05) {
+        alert(`El desglose de pago mixto debe coincidir exactamente con el monto a abonar ($${abonoNum.toFixed(2)}). Diferencia: $${abonoMixtoPendienteUsd.toFixed(2)}.`);
+        return;
+      }
+    }
+
+    setProcesandoAbono(true);
+
+    const esPagoTotal = abonoNum >= comandaTotalUsd - 0.01;
+    const restante = Math.max(0, comandaTotalUsd - abonoNum);
+
+    let tag = `[ABONO CRÉDITO: $${abonoNum.toFixed(2)} USD vía ${metodoPagoAbono.toUpperCase()}${
+      esPagoTotal ? " - SALDADA TOTALMENTE" : ` - RESTA: $${restante.toFixed(2)} USD`
+    }`;
+    if (metodoPagoAbono === "pago_mixto") {
+      const parts: string[] = [];
+      if (Number(abonoMixtoEfUsd) > 0) parts.push(`EfUSD: $${Number(abonoMixtoEfUsd).toFixed(2)}`);
+      if (Number(abonoMixtoPmBs) > 0) parts.push(`PMBs: Bs.${Number(abonoMixtoPmBs).toFixed(2)}`);
+      if (Number(abonoMixtoEfBs) > 0) parts.push(`EfBs: Bs.${Number(abonoMixtoEfBs).toFixed(2)}`);
+      if (Number(abonoMixtoTransfBs) > 0) parts.push(`TransfBs: Bs.${Number(abonoMixtoTransfBs).toFixed(2)}`);
+      if (Number(abonoMixtoBinance) > 0) parts.push(`Binance: $${Number(abonoMixtoBinance).toFixed(2)}`);
+      if (Number(abonoMixtoZelle) > 0) parts.push(`Zelle: $${Number(abonoMixtoZelle).toFixed(2)}`);
+      tag += ` (${parts.join(", ")})`;
+    }
+    if (notasAbono.trim()) {
+      tag += ` | Ref/Notas: ${notasAbono.trim()}`;
+    }
+    tag += ` - ${new Date().toLocaleDateString("es-VE")} ${new Date().toLocaleTimeString("es-VE", { hour: "2-digit", minute: "2-digit" })}]`;
+
+    const res = await registrarPagoComandaCredito({
+      venta_id: comandaAbono.id,
+      monto_abonado_usd: abonoNum,
+      metodo_pago_abono: metodoPagoAbono,
+      es_pago_total: esPagoTotal,
+      monto_restante_usd: restante,
+      tag_abono: tag,
+    });
+
+    setProcesandoAbono(false);
+
+    if (res.ok) {
+      sounds.playKitchenBell();
+      setVentas((prev) =>
+        prev.map((v) => {
+          if (v.id === comandaAbono.id) {
+            const nuevasNotas = v.notas_comanda ? `${v.notas_comanda} • ${tag}` : tag;
+            return {
+              ...v,
+              estado: esPagoTotal ? "completada" : "credito",
+              metodo_pago: esPagoTotal ? metodoPagoAbono : v.metodo_pago,
+              notas_comanda: nuevasNotas,
+            };
+          }
+          return v;
+        })
+      );
+      cerrarModalAbono();
+    } else {
+      alert(res.error || "No se pudo registrar el abono.");
+    }
+  };
+
+  const handleCambiarMetodoPago = async (venta: Venta, nuevoMetodo: MetodoPago) => {
+    if (nuevoMetodo === "credito" && !venta.cliente_id) {
+      // Necesita seleccionar cliente para asignarle la deuda
+      setComandaAsignarCliente(venta);
+      setClienteSeleccionadoId("");
+      return;
+    }
+
+    setProcesandoId(venta.id);
+    const res = await actualizarMetodoPagoVenta(venta.id, nuevoMetodo);
     setProcesandoId(null);
     if (!res.ok) {
       alert(res.error || "No se pudo actualizar el método de pago.");
+    } else {
+      setVentas((prev) =>
+        prev.map((v) =>
+          v.id === venta.id
+            ? {
+                ...v,
+                metodo_pago: nuevoMetodo,
+                estado: nuevoMetodo === "credito" ? "credito" : v.estado === "credito" ? "completada" : v.estado,
+              }
+            : v
+        )
+      );
+    }
+  };
+
+  const handleConfirmarCreditoConCliente = async () => {
+    if (!comandaAsignarCliente) return;
+    if (!clienteSeleccionadoId) {
+      alert("Por favor seleccione a qué cliente se le cargará el crédito.");
+      return;
+    }
+
+    setProcesandoId(comandaAsignarCliente.id);
+    const res = await actualizarMetodoPagoVenta(comandaAsignarCliente.id, "credito", clienteSeleccionadoId);
+    setProcesandoId(null);
+
+    if (!res.ok) {
+      alert(res.error || "No se pudo asignar el crédito al cliente.");
+    } else {
+      sounds.playKitchenBell();
+      const cliObj = clientes.find((c) => c.id === clienteSeleccionadoId);
+      setVentas((prev) =>
+        prev.map((v) =>
+          v.id === comandaAsignarCliente.id
+            ? {
+                ...v,
+                metodo_pago: "credito",
+                estado: "credito",
+                cliente_id: clienteSeleccionadoId,
+                cliente: cliObj || v.cliente,
+              }
+            : v
+        )
+      );
+      setComandaAsignarCliente(null);
+      setClienteSeleccionadoId("");
     }
   };
 
@@ -375,7 +571,7 @@ ${estadoPago}`;
                     <select
                       value={v.metodo_pago || "efectivo_usd"}
                       disabled={procesandoId === v.id}
-                      onChange={(e) => handleCambiarMetodoPago(v.id, e.target.value as MetodoPago)}
+                      onChange={(e) => handleCambiarMetodoPago(v, e.target.value as MetodoPago)}
                       style={{
                         fontSize: 11,
                         fontWeight: 700,
@@ -689,16 +885,16 @@ ${estadoPago}`;
                         <button
                           type="button"
                           disabled={procesandoId === v.id}
-                          onClick={() => handleCambiarEstado(v.id, "completada")}
+                          onClick={() => abrirModalAbono(v)}
                           className="btn-comanda-complete"
                           style={{ background: "#16a34a" }}
-                          title="Marcar como saldada / cobrada"
+                          title="Marcar como saldada o registrar pago total"
                         >
-                          {procesandoId === v.id ? "..." : "💰 Marcar Saldada / Pagada"}
+                          💰 Saldar Deuda (${Number(v.total_usd).toFixed(2)})
                         </button>
                         <button
                           type="button"
-                          onClick={() => setComandaParaEditar(v)}
+                          onClick={() => abrirModalAbono(v)}
                           style={{
                             padding: "6px 10px",
                             borderRadius: 10,
@@ -710,7 +906,7 @@ ${estadoPago}`;
                             cursor: "pointer",
                           }}
                         >
-                          🔀 Abonar / Registrar Pago
+                          🔀 Registrar Abono Parcial
                         </button>
                       </div>
                     )}
@@ -750,6 +946,7 @@ ${estadoPago}`;
       {comandaParaEditar && (
         <ModalEditarComanda
           venta={comandaParaEditar}
+          clientes={clientes}
           onCerrar={() => setComandaParaEditar(null)}
           onGuardado={(updatedVenta) => {
             // Actualizar localmente la venta en el estado
@@ -761,20 +958,442 @@ ${estadoPago}`;
           }}
         />
       )}
+
+      {/* Modal para Asignar Cliente al pasar a Crédito */}
+      {comandaAsignarCliente && (
+        <div className="modal-overlay" style={{ zIndex: 1200 }}>
+          <div
+            className="modal-ticket-card"
+            style={{ maxWidth: 440, width: "95%", padding: 20, borderRadius: 16 }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 16, color: "var(--text)" }}>
+                ⏳ Asignar Cliente para Crédito / Fiado
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setComandaAsignarCliente(null);
+                  setClienteSeleccionadoId("");
+                }}
+                style={{ background: "transparent", border: "none", fontSize: 18, cursor: "pointer", color: "var(--text-muted)" }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 14 }}>
+              Esta comanda no tiene un cliente asignado. Para llevar el registro de la cuenta por cobrar en el módulo de Clientes, selecciona a quién pertenece esta deuda:
+            </p>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)", display: "block", marginBottom: 4 }}>
+                Seleccionar Cliente Registrado:
+              </label>
+              <select
+                value={clienteSeleccionadoId}
+                onChange={(e) => setClienteSeleccionadoId(e.target.value)}
+                className="payment-select"
+                style={{ width: "100%", fontSize: 13, fontWeight: 700 }}
+              >
+                <option value="">-- Elige un cliente --</option>
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    👤 {c.nombre} {c.telefono ? `(${c.telefono})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setComandaAsignarCliente(null);
+                  setClienteSeleccionadoId("");
+                }}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                  background: "var(--bg-card)",
+                  color: "var(--text)",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!clienteSeleccionadoId || procesandoId === comandaAsignarCliente.id}
+                onClick={handleConfirmarCreditoConCliente}
+                style={{
+                  flex: 2,
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#dc2626",
+                  color: "#ffffff",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: !clienteSeleccionadoId ? "not-allowed" : "pointer",
+                  opacity: !clienteSeleccionadoId ? 0.6 : 1,
+                }}
+              >
+                {procesandoId === comandaAsignarCliente.id ? "Guardando..." : "✅ Asignar Deuda a Crédito"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Abono / Saldar Deuda Directo en Comandas */}
+      {comandaAbono && (() => {
+        const comandaTotal = Number(comandaAbono.total_usd) || 0;
+        const abonoVal = typeof montoAbonoUsd === "number" ? montoAbonoUsd : 0;
+        const restanteUsd = Math.max(0, comandaTotal - abonoVal);
+        const esTotal = abonoVal >= comandaTotal - 0.01;
+
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Registrar Pago o Abono a Crédito"
+            className="modal-overlay"
+            style={{ zIndex: 1250 }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !procesandoAbono) cerrarModalAbono();
+            }}
+          >
+            <div
+              className="modal-recipe-card"
+              style={{
+                maxWidth: 480,
+                width: "95%",
+                maxHeight: "90vh",
+                overflowY: "auto",
+                borderRadius: 20,
+              }}
+            >
+              <div className="modal-recipe-header" style={{ paddingBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 28 }}>💰</span>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 18, color: "var(--text)" }}>
+                      Abonar / Saldar Deuda
+                    </h2>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+                      Comanda #{comandaAbono.numero_comanda?.toString().padStart(4, "0") || comandaAbono.id.slice(0, 6)} • Deuda: ${comandaTotal.toFixed(2)} USD
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={cerrarModalAbono}
+                  disabled={procesandoAbono}
+                  className="btn-modal-close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "12px 0" }}>
+                {/* Selector rápido: Pago Total vs Parcial */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playPop();
+                      setMontoAbonoUsd(comandaTotal);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: esTotal ? "2px solid #16a34a" : "1px solid var(--border)",
+                      background: esTotal ? "rgba(34, 197, 94, 0.12)" : "var(--surface)",
+                      color: esTotal ? "#16a34a" : "var(--text)",
+                      fontWeight: 800,
+                      fontSize: 12.5,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✅ Saldar Total (${comandaTotal.toFixed(2)})
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sounds.playPop();
+                      if (esTotal) setMontoAbonoUsd(Number((comandaTotal / 2).toFixed(2)));
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: !esTotal ? "2px solid var(--primary)" : "1px solid var(--border)",
+                      background: !esTotal ? "var(--primary-light)" : "var(--surface)",
+                      color: !esTotal ? "var(--primary-dark)" : "var(--text)",
+                      fontWeight: 800,
+                      fontSize: 12.5,
+                      cursor: "pointer",
+                    }}
+                  >
+                    🔀 Abono Parcial
+                  </button>
+                </div>
+
+                {/* Monto a Abonar Input */}
+                <div className="form-field">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>
+                      Monto a Abonar ($ USD):
+                    </label>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      ~Bs. {(abonoVal * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0.01"
+                    max={comandaTotal}
+                    value={montoAbonoUsd}
+                    onChange={(e) => {
+                      const val = e.target.value === "" ? "" : parseFloat(e.target.value);
+                      setMontoAbonoUsd(val);
+                    }}
+                    placeholder={`0.00 (Máx $${comandaTotal.toFixed(2)})`}
+                    className="form-input"
+                    style={{ fontSize: 16, fontWeight: 900, color: "var(--primary-dark)" }}
+                  />
+                  {!esTotal && abonoVal > 0 && (
+                    <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 700, marginTop: 4, display: "block" }}>
+                      ⚠️ Quedará pendiente una deuda de: ${restanteUsd.toFixed(2)} USD (~Bs. {(restanteUsd * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                    </span>
+                  )}
+                </div>
+
+                {/* Método de Pago del Abono */}
+                <div className="form-field">
+                  <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)", marginBottom: 4 }}>
+                    Método de Pago Recibido:
+                  </label>
+                  <select
+                    value={metodoPagoAbono}
+                    onChange={(e) => setMetodoPagoAbono(e.target.value as MetodoPago)}
+                    className="payment-select"
+                    style={{ fontSize: 13, fontWeight: 700 }}
+                  >
+                    <option value="pago_movil">📱 Pago Móvil (Bs)</option>
+                    <option value="efectivo_usd">💵 Efectivo USD</option>
+                    <option value="efectivo_bs">🇻🇪 Efectivo Bs</option>
+                    <option value="transferencia">🏦 Transferencia Bancaria (Bs)</option>
+                    <option value="binance">🟡 Binance Pay (USDT)</option>
+                    <option value="zelle">🟣 Zelle (USD)</option>
+                    <option value="pago_mixto">🔀 Pago Mixto / Fraccionado</option>
+                  </select>
+                </div>
+
+                {/* Subpanel si el método de abono es mixto */}
+                {metodoPagoAbono === "pago_mixto" && (
+                  <div
+                    style={{
+                      background: "rgba(245, 158, 11, 0.08)",
+                      border: "1.5px solid #f59e0b",
+                      borderRadius: 12,
+                      padding: "10px 12px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      maxHeight: "220px",
+                      overflowY: "auto",
+                      scrollbarWidth: "thin",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <span style={{ fontSize: 10.5, color: "var(--text-muted)", display: "block" }}>Meta a Abonar:</span>
+                        <strong style={{ fontSize: 13, color: "#d97706", fontWeight: 900 }}>
+                          ${abonoVal.toFixed(2)} USD
+                        </strong>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block" }}>Estado Desglose:</span>
+                        {Math.abs(abonoMixtoPendienteUsd) < 0.01 ? (
+                          <span style={{ fontSize: 10.5, fontWeight: 900, color: "#16a34a", background: "rgba(34, 197, 94, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                            ✅ Cuadrado
+                          </span>
+                        ) : abonoMixtoPendienteUsd > 0 ? (
+                          <span style={{ fontSize: 10.5, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                            ⚠️ Faltan ${abonoMixtoPendienteUsd.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 10.5, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
+                            ⚠️ Exceso ${Math.abs(abonoMixtoPendienteUsd).toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Desglose: Efectivo USD */}
+                    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 2 }}>💵 Efectivo USD:</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="0.00"
+                        value={abonoMixtoEfUsd}
+                        onChange={(e) => setAbonoMixtoEfUsd(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        className="cart-notes-input"
+                        style={{ fontSize: 12, fontWeight: 800 }}
+                      />
+                    </div>
+
+                    {/* Desglose: Pago Móvil Bs */}
+                    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 2 }}>📱 Pago Móvil (Bs):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="0.00"
+                        value={abonoMixtoPmBs}
+                        onChange={(e) => setAbonoMixtoPmBs(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        className="cart-notes-input"
+                        style={{ fontSize: 12, fontWeight: 800 }}
+                      />
+                    </div>
+
+                    {/* Desglose: Efectivo Bs */}
+                    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 2 }}>🇻🇪 Efectivo Bs:</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="0.00"
+                        value={abonoMixtoEfBs}
+                        onChange={(e) => setAbonoMixtoEfBs(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        className="cart-notes-input"
+                        style={{ fontSize: 12, fontWeight: 800 }}
+                      />
+                    </div>
+
+                    {/* Desglose: Transferencia Bs */}
+                    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 2 }}>🏦 Transferencia (Bs):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="0.00"
+                        value={abonoMixtoTransfBs}
+                        onChange={(e) => setAbonoMixtoTransfBs(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        className="cart-notes-input"
+                        style={{ fontSize: 12, fontWeight: 800 }}
+                      />
+                    </div>
+
+                    {/* Desglose: Binance USDT */}
+                    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 2 }}>🟡 Binance Pay (USDT):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="0.00"
+                        value={abonoMixtoBinance}
+                        onChange={(e) => setAbonoMixtoBinance(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        className="cart-notes-input"
+                        style={{ fontSize: 12, fontWeight: 800 }}
+                      />
+                    </div>
+
+                    {/* Desglose: Zelle USD */}
+                    <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px" }}>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 2 }}>🟣 Zelle (USD):</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="0"
+                        placeholder="0.00"
+                        value={abonoMixtoZelle}
+                        onChange={(e) => setAbonoMixtoZelle(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        className="cart-notes-input"
+                        style={{ fontSize: 12, fontWeight: 800 }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Notas / Referencia de Pago */}
+                <div className="form-field">
+                  <label style={{ fontSize: 12, fontWeight: 800, color: "var(--text)", marginBottom: 4 }}>
+                    Referencia / Nota del Pago:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Ref #4589 o 'Abonó $10 en efectivo en mostrador'"
+                    value={notasAbono}
+                    onChange={(e) => setNotasAbono(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+              </div>
+
+              {/* Botones de acción del Modal Abono */}
+              <div className="modal-recipe-actions" style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={cerrarModalAbono}
+                  disabled={procesandoAbono}
+                  className="btn-cancel"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmarAbono}
+                  disabled={procesandoAbono || !abonoVal || abonoVal <= 0}
+                  className="btn-submit-recipe"
+                  style={{
+                    background: esTotal ? "#16a34a" : "var(--primary-dark)",
+                    color: "#ffffff",
+                    fontWeight: 800,
+                  }}
+                >
+                  {procesandoAbono
+                    ? "Procesando..."
+                    : esTotal
+                    ? "✅ Confirmar Pago Total"
+                    : `💾 Registrar Abono ($${abonoVal.toFixed(2)})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }
 
 function ModalEditarComanda({
   venta,
+  clientes = [],
   onCerrar,
   onGuardado,
 }: {
   venta: Venta;
+  clientes?: Cliente[];
   onCerrar: () => void;
   onGuardado: (updated: Partial<Venta> & { id: string }) => void;
 }) {
   const tasaBcv = Number(venta.tasa_bcv) || 1;
+  const [clienteId, setClienteId] = useState<string>(venta.cliente_id || "");
 
   // Extraer el subtotal de comida original sin el delivery
   const subtotalComidaUsd = useMemo(() => {
@@ -991,6 +1610,11 @@ function ModalEditarComanda({
       }
     }
 
+    if (metodoPago === "credito" && !clienteId) {
+      alert("Para registrar una comanda a crédito/debe, debes seleccionar a qué cliente pertenece.");
+      return;
+    }
+
     const res = await actualizarDetallesComanda({
       venta_id: venta.id,
       tipo_entrega: tipoEntrega,
@@ -999,6 +1623,7 @@ function ModalEditarComanda({
       direccion_delivery: tipoEntrega === "delivery" ? direccionDelivery : null,
       metodo_pago: metodoPago,
       notas_comanda: notasFinales || null,
+      cliente_id: clienteId || null,
     });
 
     setGuardando(false);
@@ -1007,6 +1632,8 @@ function ModalEditarComanda({
       alert(res.error || "No se pudo actualizar la comanda.");
       return;
     }
+
+    const cliObj = clientes.find((c) => c.id === clienteId);
 
     onGuardado({
       id: venta.id,
@@ -1018,7 +1645,10 @@ function ModalEditarComanda({
       total_usd: res.total_usd ?? nuevoTotalUsd,
       total_bs: res.total_bs ?? nuevoTotalBs,
       metodo_pago: metodoPago,
+      estado: res.estado ?? (metodoPago === "credito" ? "credito" : venta.estado === "credito" ? "completada" : venta.estado),
       notas_comanda: notasFinales || null,
+      cliente_id: clienteId || null,
+      cliente: cliObj || venta.cliente,
     });
   };
 
@@ -1159,6 +1789,41 @@ function ModalEditarComanda({
               <option value="credito">⏳ Crédito / Debe</option>
             </select>
           </div>
+
+          {/* Asignación de Cliente obligatoria si es Crédito */}
+          {metodoPago === "credito" && (
+            <div
+              style={{
+                background: "rgba(239, 68, 68, 0.08)",
+                border: "1.5px solid #dc2626",
+                borderRadius: 10,
+                padding: "10px 12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <label style={{ fontSize: 11.5, fontWeight: 800, color: "#dc2626" }}>
+                ⏳ CLIENTE DEUDOR (Cuentas por Cobrar):
+              </label>
+              <select
+                value={clienteId}
+                onChange={(e) => setClienteId(e.target.value)}
+                className="payment-select"
+                style={{ fontSize: 12.5, fontWeight: 700 }}
+              >
+                <option value="">-- Seleccionar cliente para la deuda --</option>
+                {clientes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    👤 {c.nombre} {c.telefono ? `(${c.telefono})` : ""}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+                Al guardar como crédito, esta comanda aparecerá en la sección de Clientes bajo Cuentas por Cobrar y no sumará a caja.
+              </span>
+            </div>
+          )}
 
           {/* Subpanel de Pago Mixto / Fraccionado en Modal Editar Comanda */}
           {metodoPago === "pago_mixto" && (

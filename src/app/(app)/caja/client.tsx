@@ -8,7 +8,7 @@ import { abrirSesionCaja, cerrarSesionCaja } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import { createClient } from "@/lib/supabase/client";
 import { esMismaFechaEnCaracas } from "@/lib/date-vzla";
-import { parsearPagoMixtoDeNotas } from "@/lib/pago-mixto";
+import { parsearPagoMixtoDeNotas, parsearAbonosCreditoDeNotas } from "@/lib/pago-mixto";
 
 interface CajaClientProps {
   sesionActiva: SesionCaja | null;
@@ -138,6 +138,7 @@ export default function CajaClient({
     let zelleUsd = 0;
 
     let totalUsd = 0;
+    let totalCreditoTurnoUsd = 0;
     let totalDeliveryUsd = 0;
     let totalDeliveryViajes = 0;
 
@@ -159,6 +160,72 @@ export default function CajaClient({
       if (v.tipo_entrega === "delivery" && Number(v.delivery_monto_usd || 0) > 0) {
         totalDeliveryUsd += Number(v.delivery_monto_usd);
         totalDeliveryViajes += 1;
+      }
+
+      // REVERSIÓN INMEDIATA: Si la comanda está a crédito/debe, NO ingresa a efectivo de gaveta ni a banco digital.
+      if (v.estado === "credito" || v.metodo_pago === "credito") {
+        totalCreditoTurnoUsd += vUsd;
+
+        // Si se han realizado abonos parciales registrados en notas, sumamos únicamente el dinero que sí ingresó
+        const abonos = parsearAbonosCreditoDeNotas(v.notas_comanda, tasaVenta);
+        for (const abono of abonos) {
+          if (abono.metodo_abono === "pago_mixto" && abono.desglose_mixto) {
+            for (const sub of abono.desglose_mixto) {
+              switch (sub.metodo) {
+                case "efectivo_usd":
+                  efectivoFisicoUsd += sub.monto_usd;
+                  break;
+                case "efectivo_bs":
+                  efectivoFisicoBs += sub.monto_bs;
+                  break;
+                case "pago_movil":
+                  pagoMovilBs += sub.monto_bs;
+                  break;
+                case "transferencia":
+                  transferenciaBs += sub.monto_bs;
+                  break;
+                case "binance":
+                  binanceUsd += sub.monto_usd;
+                  break;
+                case "zelle":
+                  zelleUsd += sub.monto_usd;
+                  break;
+                default:
+                  pagoMovilBs += sub.monto_bs;
+              }
+            }
+          } else {
+            const abonoUsd = abono.monto_usd;
+            const abonoBs = Number((abonoUsd * tasaVenta).toFixed(2));
+            switch (abono.metodo_abono) {
+              case "efectivo_usd":
+              case "efectivo":
+                efectivoFisicoUsd += abonoUsd;
+                break;
+              case "efectivo_bs":
+                efectivoFisicoBs += abonoBs;
+                break;
+              case "pago_movil_bs":
+              case "pago_movil":
+                pagoMovilBs += abonoBs;
+                break;
+              case "transferencia_bs":
+              case "transferencia":
+                transferenciaBs += abonoBs;
+                break;
+              case "binance":
+              case "binance_usdt":
+                binanceUsd += abonoUsd;
+                break;
+              case "zelle":
+                zelleUsd += abonoUsd;
+                break;
+              default:
+                pagoMovilBs += abonoBs;
+            }
+          }
+        }
+        return; // Salir para esta comanda a crédito, no sumar al switch estándar
       }
 
       switch (v.metodo_pago as string) {
@@ -264,6 +331,7 @@ export default function CajaClient({
       totalDeliveryViajes,
       ventaNetaComidaUsd,
       totalUsd,
+      totalCreditoTurnoUsd,
       teoricoEfectivoUsd,
       teoricoEfectivoBs,
     };
@@ -570,6 +638,42 @@ export default function CajaClient({
           </div>
         </div>
 
+        {/* 5. SECCIÓN: CRÉDITO OTORGADO & CUENTAS POR COBRAR */}
+        {resumenTurno.totalCreditoTurnoUsd > 0 && (
+          <div style={{ marginTop: 20, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 900, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              ⏳ 5. Crédito Otorgado (Cuentas por Cobrar / Fiado)
+            </h3>
+            <span style={{ fontSize: 12, fontWeight: 800, color: "#dc2626" }}>
+              ${resumenTurno.totalCreditoTurnoUsd.toFixed(2)} USD Revertidos / Por Cobrar
+            </span>
+          </div>
+        )}
+
+        {resumenTurno.totalCreditoTurnoUsd > 0 && (
+          <div className="caja-summary-grid">
+            <div className="caja-stat-card" style={{ borderColor: "rgba(239, 68, 68, 0.4)", background: "rgba(239, 68, 68, 0.05)" }}>
+              <span className="stat-label">⏳ Crédito Otorgado en el Período ($ USD)</span>
+              <strong className="stat-value" style={{ color: "#dc2626" }}>
+                ${resumenTurno.totalCreditoTurnoUsd.toFixed(2)} USD
+              </strong>
+              <span className="stat-hint">
+                ≈ {(resumenTurno.totalCreditoTurnoUsd * (tasaBcv > 0 ? tasaBcv : 1)).toFixed(2)} Bs • NO ingresa a gaveta ni banco
+              </span>
+            </div>
+
+            <div className="caja-stat-card" style={{ borderColor: "rgba(59, 130, 246, 0.4)", background: "rgba(59, 130, 246, 0.04)" }}>
+              <span className="stat-label">👥 Gestión de Deudores</span>
+              <strong className="stat-value" style={{ color: "#2563eb", fontSize: 16, marginTop: 4 }}>
+                Consultar Módulo Clientes
+              </strong>
+              <span className="stat-hint">
+                Ver libreta de deudores, abonos y cobro por WhatsApp en la pestaña Clientes
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Gran Total Facturado del Turno */}
         <div className="caja-totals-hero">
           <div>
@@ -641,13 +745,17 @@ export default function CajaClient({
                         padding: "2px 6px",
                         borderRadius: 6,
                         background:
-                          v.estado === "pendiente"
+                          v.estado === "credito" || v.metodo_pago === "credito"
+                            ? "rgba(239, 68, 68, 0.15)"
+                            : v.estado === "pendiente"
                             ? "rgba(245, 158, 11, 0.15)"
                             : v.estado === "preparando"
                             ? "rgba(249, 115, 22, 0.15)"
                             : "rgba(34, 197, 94, 0.15)",
                         color:
-                          v.estado === "pendiente"
+                          v.estado === "credito" || v.metodo_pago === "credito"
+                            ? "#dc2626"
+                            : v.estado === "pendiente"
                             ? "#b45309"
                             : v.estado === "preparando"
                             ? "#ea580c"
@@ -655,13 +763,25 @@ export default function CajaClient({
                         textTransform: "uppercase",
                       }}
                     >
-                      {v.estado}
+                      {v.estado === "credito" || v.metodo_pago === "credito" ? "⏳ Crédito / Debe" : v.estado}
                     </span>
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <span style={{ fontSize: 12, color: v.metodo_pago === "pago_mixto" ? "#d97706" : "var(--text-muted)", fontWeight: v.metodo_pago === "pago_mixto" ? 800 : 500, textTransform: "capitalize" }}>
-                      {v.metodo_pago === "pago_mixto" ? "🔀 Pago Mixto" : v.metodo_pago.replace("_", " ")}
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color:
+                          v.estado === "credito" || v.metodo_pago === "credito"
+                            ? "#dc2626"
+                            : v.metodo_pago === "pago_mixto"
+                            ? "#d97706"
+                            : "var(--text-muted)",
+                        fontWeight: v.estado === "credito" || v.metodo_pago === "credito" || v.metodo_pago === "pago_mixto" ? 800 : 500,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {v.metodo_pago === "credito" ? "⏳ Por Cobrar" : v.metodo_pago === "pago_mixto" ? "🔀 Pago Mixto" : v.metodo_pago.replace("_", " ")}
                     </span>
                     <div style={{ textAlign: "right" }}>
                       <strong style={{ display: "block", color: "var(--text)" }}>
