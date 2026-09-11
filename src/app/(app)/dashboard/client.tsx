@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto, ZonaDelivery } from "@/types/database";
 import { esMismaFechaEnCaracas, toFechaCaracasString } from "@/lib/date-vzla";
-import { parsearPagoMixtoDeNotas } from "@/lib/pago-mixto";
+import { parsearPagoMixtoDeNotas, parsearAbonosCreditoDeNotas, calcularSaldoPendienteComanda } from "@/lib/pago-mixto";
 import { registrarDeliveryEmpresa } from "./delivery-actions";
 import { useRouter } from "next/navigation";
 
@@ -356,6 +356,19 @@ export default function DashboardClient({
     const totalDeliveryViajes = ventasFiltradas.filter((v) => v.tipo_entrega === "delivery").length;
     const ventasNetasComidaUsd = Math.max(0, totalFacturadoUsd - totalDeliveryUsd);
 
+    // Separación financiera: Crédito Otorgado vs Cobrado Real
+    // Una comanda a crédito tiene un saldo adeudado pendiente de cobro
+    let totalCreditoPendienteUsd = 0;
+    ventasFiltradas.forEach((v) => {
+      if (v.estado === "credito" || v.metodo_pago === "credito") {
+        const { saldoPendienteUsd } = calcularSaldoPendienteComanda(v, tasaBcv);
+        totalCreditoPendienteUsd += saldoPendienteUsd;
+      }
+    });
+
+    // Cobrado Real = Total Facturado - Crédito aún pendiente por cobrar ("en la calle")
+    const totalCobradoRealUsd = Math.max(0, Number((totalFacturadoUsd - totalCreditoPendienteUsd).toFixed(2)));
+
     // Gastos del periodo y desgloses
     const totalGastosUsd = gastosFiltrados.reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
     const gastosProveedoresInsumosUsd = gastosFiltrados
@@ -365,15 +378,17 @@ export default function DashboardClient({
       .filter((g) => g.categoria !== "proveedores")
       .reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
 
-    // Ganancia Neta Real (Flujo real en caja: Facturado Total - Gastos Totales Realizados)
-    const gananciaNetaRealUsd = totalFacturadoUsd - totalGastosUsd;
-    const margenNetoRealPct = totalFacturadoUsd > 0
+    // Ganancia Neta Real (Flujo real en caja: Cobrado Real Efectivo - Gastos Totales Realizados)
+    const gananciaNetaRealUsd = Number((totalCobradoRealUsd - totalGastosUsd).toFixed(2));
+    const margenNetoRealPct = totalCobradoRealUsd > 0
+      ? ((gananciaNetaRealUsd / totalCobradoRealUsd) * 100).toFixed(1)
+      : totalFacturadoUsd > 0
       ? ((gananciaNetaRealUsd / totalFacturadoUsd) * 100).toFixed(1)
       : "0.0";
 
-    // Ratio de Gastos sobre Facturado
-    const pctGastosSobreFacturado = totalFacturadoUsd > 0
-      ? ((totalGastosUsd / totalFacturadoUsd) * 100).toFixed(1)
+    // Ratio de Gastos sobre Cobrado Real
+    const pctGastosSobreFacturado = totalCobradoRealUsd > 0
+      ? ((totalGastosUsd / totalCobradoRealUsd) * 100).toFixed(1)
       : "0.0";
 
     // Ratio de Costo de Materia Prima sobre Facturado
@@ -400,6 +415,8 @@ export default function DashboardClient({
     return {
       totalFacturadoUsd,
       totalFacturadoBs,
+      totalCreditoPendienteUsd,
+      totalCobradoRealUsd,
       totalDeliveryUsd,
       totalDeliveryViajes,
       ventasNetasComidaUsd,
@@ -985,52 +1002,65 @@ export default function DashboardClient({
             border: "1px solid var(--border-subtle)",
           }}
         >
-          {/* Facturado */}
+          {/* 1. Total Facturado */}
           <div>
             <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
               1. Total Facturado
             </span>
             <strong style={{ fontSize: 20, color: "var(--primary)", display: "block", marginTop: 2 }}>
-              +${finanzas.totalFacturadoUsd.toFixed(2)} USD
+              ${finanzas.totalFacturadoUsd.toFixed(2)} USD
             </strong>
             <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              Base 100% ingresos de ventas
+              Ventas totales ({finanzas.totalComandas} comandas)
             </span>
           </div>
 
-          {/* Costo Materia Prima */}
+          {/* 2. Cobrado Real */}
           <div>
             <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              2. Costo Materia Prima (COGS)
+              2. Cobrado Efectivo / Bancos
             </span>
-            <strong style={{ fontSize: 20, color: "#d97706", display: "block", marginTop: 2 }}>
-              ${finanzas.costoInsumosUsd.toFixed(2)} USD
+            <strong style={{ fontSize: 20, color: "#10b981", display: "block", marginTop: 2 }}>
+              +${finanzas.totalCobradoRealUsd.toFixed(2)} USD
             </strong>
-            <span style={{ fontSize: 11, color: "#d97706", fontWeight: 600 }}>
-              {finanzas.pctCostoMateriaPrima}% de tus ventas (Recetas)
+            <span style={{ fontSize: 11, color: "#10b981", fontWeight: 600 }}>
+              Dinero que ingresó realmente
             </span>
           </div>
 
-          {/* Gastos Totales */}
+          {/* 3. Crédito Pendiente / En la calle */}
           <div>
             <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              3. Total Gastos / Egresos
+              3. Crédito / Por Cobrar
+            </span>
+            <strong style={{ fontSize: 20, color: "#dc2626", display: "block", marginTop: 2 }}>
+              ${finanzas.totalCreditoPendienteUsd.toFixed(2)} USD
+            </strong>
+            <span style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>
+              {finanzas.totalFacturadoUsd > 0 ? ((finanzas.totalCreditoPendienteUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}% fiado / en la calle
+            </span>
+          </div>
+
+          {/* 4. Gastos Totales */}
+          <div>
+            <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              4. Total Gastos / Egresos
             </span>
             <strong style={{ fontSize: 20, color: "#ef4444", display: "block", marginTop: 2 }}>
               -${finanzas.totalGastosUsd.toFixed(2)} USD
             </strong>
             <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 600 }}>
-              {finanzas.pctGastosSobreFacturado}% de lo facturado
+              {finanzas.pctGastosSobreFacturado}% sobre lo cobrado
             </span>
             <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block", marginTop: 2 }}>
               📦 Compras: ${finanzas.gastosProveedoresInsumosUsd.toFixed(2)} | 🏢 Operativos: ${finanzas.gastosOperativosUsd.toFixed(2)}
             </span>
           </div>
 
-          {/* Ganancia Neta */}
+          {/* 5. Ganancia Neta Real */}
           <div>
             <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              4. Ganancia Neta Real
+              5. Ganancia Neta Real
             </span>
             <strong
               style={{
@@ -1050,6 +1080,9 @@ export default function DashboardClient({
               }}
             >
               {finanzas.margenNetoRealPct}% margen neto libre (En Bolsillo)
+            </span>
+            <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block", marginTop: 2 }}>
+              Cálculo: Cobrado Real - Gastos Realizados
             </span>
           </div>
         </div>
@@ -1097,10 +1130,21 @@ export default function DashboardClient({
                   transition: "width 0.3s ease",
                 }}
               />
-              {/* Ganancia Neta */}
+              {/* Crédito Otorgado (Por Cobrar) */}
+              {finanzas.totalCreditoPendienteUsd > 0 && (
+                <div
+                  title={`Crédito Pendiente (Por Cobrar): ${finanzas.totalFacturadoUsd > 0 ? ((finanzas.totalCreditoPendienteUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%`}
+                  style={{
+                    width: `${Math.min(100, (finanzas.totalCreditoPendienteUsd / finanzas.totalFacturadoUsd) * 100)}%`,
+                    background: "#dc2626",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              )}
+              {/* Ganancia Neta Real Cobrada */}
               {finanzas.gananciaNetaRealUsd > 0 && (
                 <div
-                  title={`Ganancia Neta: ${finanzas.margenNetoRealPct}%`}
+                  title={`Ganancia Neta Cobrada: ${finanzas.totalFacturadoUsd > 0 ? ((finanzas.gananciaNetaRealUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%`}
                   style={{
                     width: `${Math.min(100, (finanzas.gananciaNetaRealUsd / finanzas.totalFacturadoUsd) * 100)}%`,
                     background: "#10b981",
@@ -1119,9 +1163,15 @@ export default function DashboardClient({
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#ef4444", display: "inline-block" }} />
                 Gastos Operativos: ${finanzas.gastosOperativosUsd.toFixed(2)} ({finanzas.totalFacturadoUsd > 0 ? ((finanzas.gastosOperativosUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%)
               </span>
+              {finanzas.totalCreditoPendienteUsd > 0 && (
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#dc2626", display: "inline-block" }} />
+                  Crédito / Por Cobrar: ${finanzas.totalCreditoPendienteUsd.toFixed(2)} ({finanzas.totalFacturadoUsd > 0 ? ((finanzas.totalCreditoPendienteUsd / finanzas.totalFacturadoUsd) * 100).toFixed(1) : 0}%)
+                </span>
+              )}
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
-                Ganancia Neta: ${finanzas.gananciaNetaRealUsd.toFixed(2)} ({finanzas.margenNetoRealPct}%)
+                Ganancia Neta Cobrada: ${finanzas.gananciaNetaRealUsd.toFixed(2)} ({finanzas.margenNetoRealPct}%)
               </span>
             </div>
           </div>

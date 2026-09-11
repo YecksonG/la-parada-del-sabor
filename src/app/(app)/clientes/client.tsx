@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Cliente, Venta, MetodoPago, EstadoVenta } from "@/types/database";
 import { guardarCliente, eliminarCliente, registrarPagoComandaCredito } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import { calcularSaldoPendienteComanda } from "@/lib/pago-mixto";
 
 interface ClientesClientProps {
   clientes: Cliente[];
@@ -129,19 +130,23 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
       const cliente = listaClientes.find((c) => c.id === comanda.cliente_id) || comanda.cliente;
       if (!cliente) continue;
 
+      const { saldoPendienteUsd } = calcularSaldoPendienteComanda(comanda, tasaBcv);
+      // Si el saldo pendiente es 0 o menor, ya fue saldada
+      if (saldoPendienteUsd <= 0.005) continue;
+
       const existente = map.get(cliente.id) || {
         cliente,
         totalDeudaUsd: 0,
         comandas: [],
       };
 
-      existente.totalDeudaUsd += Number(comanda.total_usd) || 0;
+      existente.totalDeudaUsd = Number((existente.totalDeudaUsd + saldoPendienteUsd).toFixed(2));
       existente.comandas.push(comanda);
       map.set(cliente.id, existente);
     }
 
     return map;
-  }, [comandasCredito, listaClientes]);
+  }, [comandasCredito, listaClientes, tasaBcv]);
 
   const totalDeudaGlobalUsd = useMemo(() => {
     return Array.from(deudoresMap.values()).reduce((acc, curr) => acc + curr.totalDeudaUsd, 0);
@@ -152,8 +157,8 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
   const abrirModalAbono = (comanda: Venta) => {
     sounds.playPop();
     setComandaAbono(comanda);
-    const montoTotal = Number(comanda.total_usd) || 0;
-    setMontoAbonoUsd(montoTotal);
+    const { saldoPendienteUsd } = calcularSaldoPendienteComanda(comanda, tasaBcv);
+    setMontoAbonoUsd(saldoPendienteUsd);
     setMetodoPagoAbono("pago_movil");
     setNotasAbono("");
     setAbonoMixtoEfUsd("");
@@ -194,15 +199,15 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
   const handleConfirmarAbono = async () => {
     if (!comandaAbono || procesandoAbono) return;
     const abonoNum = Number(montoAbonoUsd);
-    const comandaTotalUsd = Number(comandaAbono.total_usd) || 0;
+    const { saldoPendienteUsd } = calcularSaldoPendienteComanda(comandaAbono, tasaBcv);
 
     if (!abonoNum || abonoNum <= 0) {
       alert("Por favor ingrese un monto válido a abonar o saldar.");
       return;
     }
 
-    if (abonoNum > comandaTotalUsd + 0.01) {
-      alert(`El monto a abonar ($${abonoNum.toFixed(2)}) no puede exceder la deuda de la comanda ($${comandaTotalUsd.toFixed(2)}).`);
+    if (abonoNum > saldoPendienteUsd + 0.01) {
+      alert(`El monto a abonar ($${abonoNum.toFixed(2)}) no puede exceder el saldo pendiente de la comanda ($${saldoPendienteUsd.toFixed(2)}).`);
       return;
     }
 
@@ -215,8 +220,8 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
 
     setProcesandoAbono(true);
 
-    const esPagoTotal = abonoNum >= comandaTotalUsd - 0.01;
-    const restante = Math.max(0, comandaTotalUsd - abonoNum);
+    const esPagoTotal = abonoNum >= saldoPendienteUsd - 0.01;
+    const restante = Math.max(0, Number((saldoPendienteUsd - abonoNum).toFixed(2)));
 
     let tag = `[ABONO CRÉDITO: $${abonoNum.toFixed(2)} USD vía ${metodoPagoAbono.toUpperCase()}${
       esPagoTotal ? " - SALDADA TOTALMENTE" : ` - RESTA: $${restante.toFixed(2)} USD`
@@ -696,38 +701,51 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
                             )}
                           </div>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                            <div style={{ textAlign: "right" }}>
-                              <strong style={{ fontSize: 17, color: "#dc2626", fontWeight: 900, display: "block" }}>
-                                ${Number(v.total_usd).toFixed(2)} USD
-                              </strong>
-                              <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
-                                Bs. {(Number(v.total_usd) * (Number(v.tasa_bcv) || tasaBcv)).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </span>
-                            </div>
+                          {(() => {
+                            const { totalOriginalUsd, totalAbonadoUsd, saldoPendienteUsd } = calcularSaldoPendienteComanda(v, tasaBcv);
+                            return (
+                              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                <div style={{ textAlign: "right" }}>
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: "#dc2626", textTransform: "uppercase", display: "block" }}>
+                                    Debe / Saldo:
+                                  </span>
+                                  <strong style={{ fontSize: 17, color: "#dc2626", fontWeight: 900, display: "block" }}>
+                                    ${saldoPendienteUsd.toFixed(2)} USD
+                                  </strong>
+                                  <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
+                                    Bs. {(saldoPendienteUsd * (Number(v.tasa_bcv) || tasaBcv)).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                  {totalAbonadoUsd > 0 && (
+                                    <span style={{ fontSize: 10, color: "#16a34a", fontWeight: 700, display: "block", marginTop: 2 }}>
+                                      ✅ Abonado: ${totalAbonadoUsd.toFixed(2)} / Total: ${totalOriginalUsd.toFixed(2)}
+                                    </span>
+                                  )}
+                                </div>
 
-                            <button
-                              type="button"
-                              onClick={() => abrirModalAbono(v)}
-                              className="btn-primary-action"
-                              style={{
-                                padding: "8px 14px",
-                                fontSize: 12,
-                                fontWeight: 800,
-                                background: "#16a34a",
-                                color: "#ffffff",
-                                borderColor: "#16a34a",
-                                borderRadius: 10,
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 6,
-                              }}
-                            >
-                              <span>💰</span>
-                              <span>Abonar / Saldar</span>
-                            </button>
-                          </div>
+                                <button
+                                  type="button"
+                                  onClick={() => abrirModalAbono(v)}
+                                  className="btn-primary-action"
+                                  style={{
+                                    padding: "8px 14px",
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    background: "#16a34a",
+                                    color: "#ffffff",
+                                    borderColor: "#16a34a",
+                                    borderRadius: 10,
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                  }}
+                                >
+                                  <span>💰</span>
+                                  <span>Abonar / Saldar</span>
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -1443,9 +1461,10 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
 
       {/* Modal de Abono / Pago de Comanda a Crédito */}
       {comandaAbono && (() => {
-        const comandaTotal = Number(comandaAbono.total_usd) || 0;
+        const { totalOriginalUsd, totalAbonadoUsd, saldoPendienteUsd } = calcularSaldoPendienteComanda(comandaAbono, tasaBcv);
+        const comandaTotal = saldoPendienteUsd;
         const abonoVal = typeof montoAbonoUsd === "number" ? montoAbonoUsd : 0;
-        const restanteUsd = Math.max(0, comandaTotal - abonoVal);
+        const restanteUsd = Math.max(0, Number((comandaTotal - abonoVal).toFixed(2)));
         const esTotal = abonoVal >= comandaTotal - 0.01;
 
         return (
@@ -1476,7 +1495,7 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
                       Abonar / Saldar Deuda
                     </h2>
                     <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                      Comanda #{comandaAbono.numero_comanda?.toString().padStart(4, "0") || comandaAbono.id.slice(0, 6)} • Deuda Total: ${comandaTotal.toFixed(2)} USD
+                      Comanda #{comandaAbono.numero_comanda?.toString().padStart(4, "0") || comandaAbono.id.slice(0, 6)} • Saldo Pendiente: ${comandaTotal.toFixed(2)} USD {totalAbonadoUsd > 0 ? `(Abonado: $${totalAbonadoUsd.toFixed(2)} / Original: $${totalOriginalUsd.toFixed(2)})` : ""}
                     </span>
                   </div>
                 </div>
@@ -1511,7 +1530,7 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
                       cursor: "pointer",
                     }}
                   >
-                    ✅ Saldar Total (${comandaTotal.toFixed(2)})
+                    ✅ Saldar Deuda (${comandaTotal.toFixed(2)})
                   </button>
 
                   <button

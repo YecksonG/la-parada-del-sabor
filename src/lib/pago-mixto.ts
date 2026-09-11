@@ -197,3 +197,25 @@ export function parsearAbonosCreditoDeNotas(
 
   return abonos;
 }
+
+/**
+ * Calcula el saldo adeudado pendiente de una comanda a crédito,
+ * restando de su total_usd todos los abonos previos registrados en notas_comanda.
+ */
+export function calcularSaldoPendienteComanda(
+  venta: { total_usd?: number | string | null; notas_comanda?: string | null; tasa_bcv?: number | string | null },
+  tasaBcv: number = 832
+): { totalOriginalUsd: number; totalAbonadoUsd: number; saldoPendienteUsd: number } {
+  const totalOriginalUsd = Number(venta.total_usd) || 0;
+  const tasa = Number(venta.tasa_bcv) || tasaBcv || 1;
+  const abonos = parsearAbonosCreditoDeNotas(venta.notas_comanda, tasa);
+  const totalAbonadoUsd = abonos.reduce((acc, a) => acc + (Number(a.monto_usd) || 0), 0);
+  const saldoPendienteUsd = Math.max(0, Number((totalOriginalUsd - totalAbonadoUsd).toFixed(2)));
+
+  return {
+    totalOriginalUsd,
+    totalAbonadoUsd,
+    saldoPendienteUsd,
+  };
+}
+

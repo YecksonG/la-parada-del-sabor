@@ -14,6 +14,7 @@ import {
   METODOS_FRACCION_INFO,
   type MetodoPagoFraccion,
   type PagoFraccionItem,
+  calcularSaldoPendienteComanda,
 } from "@/lib/pago-mixto";
 
 interface VentasClientProps {
@@ -96,8 +97,8 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
   const abrirModalAbono = (comanda: Venta) => {
     sounds.playPop();
     setComandaAbono(comanda);
-    const montoTotal = Number(comanda.total_usd) || 0;
-    setMontoAbonoUsd(montoTotal);
+    const { saldoPendienteUsd } = calcularSaldoPendienteComanda(comanda, tasaBcv);
+    setMontoAbonoUsd(saldoPendienteUsd);
     setMetodoPagoAbono("pago_movil");
     setNotasAbono("");
     setAbonoMixtoEfUsd("");
@@ -138,15 +139,15 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
   const handleConfirmarAbono = async () => {
     if (!comandaAbono || procesandoAbono) return;
     const abonoNum = Number(montoAbonoUsd);
-    const comandaTotalUsd = Number(comandaAbono.total_usd) || 0;
+    const { saldoPendienteUsd } = calcularSaldoPendienteComanda(comandaAbono, tasaBcv);
 
     if (!abonoNum || abonoNum <= 0) {
       alert("Por favor ingrese un monto válido a abonar o saldar.");
       return;
     }
 
-    if (abonoNum > comandaTotalUsd + 0.01) {
-      alert(`El monto a abonar ($${abonoNum.toFixed(2)}) no puede exceder la deuda de la comanda ($${comandaTotalUsd.toFixed(2)}).`);
+    if (abonoNum > saldoPendienteUsd + 0.01) {
+      alert(`El monto a abonar ($${abonoNum.toFixed(2)}) no puede exceder el saldo pendiente de la comanda ($${saldoPendienteUsd.toFixed(2)}).`);
       return;
     }
 
@@ -159,8 +160,8 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
 
     setProcesandoAbono(true);
 
-    const esPagoTotal = abonoNum >= comandaTotalUsd - 0.01;
-    const restante = Math.max(0, comandaTotalUsd - abonoNum);
+    const esPagoTotal = abonoNum >= saldoPendienteUsd - 0.01;
+    const restante = Math.max(0, Number((saldoPendienteUsd - abonoNum).toFixed(2)));
 
     let tag = `[ABONO CRÉDITO: $${abonoNum.toFixed(2)} USD vía ${metodoPagoAbono.toUpperCase()}${
       esPagoTotal ? " - SALDADA TOTALMENTE" : ` - RESTA: $${restante.toFixed(2)} USD`
@@ -880,36 +881,39 @@ ${estadoPago}`;
                     )}
 
                     {/* 3.1 Si está a Crédito / Debe */}
-                    {v.estado === "credito" && (
-                      <div style={{ display: "flex", gap: 6, width: "100%", flexDirection: "column" }}>
-                        <button
-                          type="button"
-                          disabled={procesandoId === v.id}
-                          onClick={() => abrirModalAbono(v)}
-                          className="btn-comanda-complete"
-                          style={{ background: "#16a34a" }}
-                          title="Marcar como saldada o registrar pago total"
-                        >
-                          💰 Saldar Deuda (${Number(v.total_usd).toFixed(2)})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => abrirModalAbono(v)}
-                          style={{
-                            padding: "6px 10px",
-                            borderRadius: 10,
-                            border: "1px solid var(--border)",
-                            background: "var(--bg-card)",
-                            color: "var(--text)",
-                            fontSize: 11.5,
-                            fontWeight: 800,
-                            cursor: "pointer",
-                          }}
-                        >
-                          🔀 Registrar Abono Parcial
-                        </button>
-                      </div>
-                    )}
+                    {v.estado === "credito" && (() => {
+                      const { saldoPendienteUsd } = calcularSaldoPendienteComanda(v, tasaBcv);
+                      return (
+                        <div style={{ display: "flex", gap: 6, width: "100%", flexDirection: "column" }}>
+                          <button
+                            type="button"
+                            disabled={procesandoId === v.id}
+                            onClick={() => abrirModalAbono(v)}
+                            className="btn-comanda-complete"
+                            style={{ background: "#16a34a" }}
+                            title="Marcar como saldada o registrar pago total"
+                          >
+                            💰 Saldar Deuda (${saldoPendienteUsd.toFixed(2)})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => abrirModalAbono(v)}
+                            style={{
+                              padding: "6px 10px",
+                              borderRadius: 10,
+                              border: "1px solid var(--border)",
+                              background: "var(--bg-card)",
+                              color: "var(--text)",
+                              fontSize: 11.5,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                            }}
+                          >
+                            🔀 Registrar Abono Parcial
+                          </button>
+                        </div>
+                      );
+                    })()}
 
                     {/* 4. Opción de Cancelar / Reactivar */}
                     {v.estado !== "cancelada" && v.estado !== "completada" && (
@@ -1051,9 +1055,10 @@ ${estadoPago}`;
 
       {/* Modal de Abono / Saldar Deuda Directo en Comandas */}
       {comandaAbono && (() => {
-        const comandaTotal = Number(comandaAbono.total_usd) || 0;
+        const { totalOriginalUsd, totalAbonadoUsd, saldoPendienteUsd } = calcularSaldoPendienteComanda(comandaAbono, tasaBcv);
+        const comandaTotal = saldoPendienteUsd;
         const abonoVal = typeof montoAbonoUsd === "number" ? montoAbonoUsd : 0;
-        const restanteUsd = Math.max(0, comandaTotal - abonoVal);
+        const restanteUsd = Math.max(0, Number((comandaTotal - abonoVal).toFixed(2)));
         const esTotal = abonoVal >= comandaTotal - 0.01;
 
         return (
@@ -1085,7 +1090,7 @@ ${estadoPago}`;
                       Abonar / Saldar Deuda
                     </h2>
                     <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                      Comanda #{comandaAbono.numero_comanda?.toString().padStart(4, "0") || comandaAbono.id.slice(0, 6)} • Deuda: ${comandaTotal.toFixed(2)} USD
+                      Comanda #{comandaAbono.numero_comanda?.toString().padStart(4, "0") || comandaAbono.id.slice(0, 6)} • Saldo Pendiente: ${comandaTotal.toFixed(2)} USD {totalAbonadoUsd > 0 ? `(Abonado: $${totalAbonadoUsd.toFixed(2)} / Original: $${totalOriginalUsd.toFixed(2)})` : ""}
                     </span>
                   </div>
                 </div>
@@ -1120,7 +1125,7 @@ ${estadoPago}`;
                       cursor: "pointer",
                     }}
                   >
-                    ✅ Saldar Total (${comandaTotal.toFixed(2)})
+                    ✅ Saldar Deuda (${comandaTotal.toFixed(2)})
                   </button>
 
                   <button
