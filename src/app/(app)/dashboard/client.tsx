@@ -2548,6 +2548,8 @@ export default function DashboardClient({
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
+                if (guardandoDeliveryEmpresa) return;
+
                 const zona = zonasDelivery.find((z) => z.id === zonaEmpresaId) || zonasDelivery[0];
                 if (!zona) {
                   setErrorDeliveryEmpresa("Por favor selecciona una zona o nivel de delivery.");
@@ -2581,8 +2583,8 @@ export default function DashboardClient({
                   setMotivoDeliveryEmpresa("");
                   setTrayectoDeliveryEmpresa("");
                   router.refresh();
-                } catch (err: any) {
-                  setErrorDeliveryEmpresa(err?.message || "Ocurrió un error inesperado.");
+                } catch (err: unknown) {
+                  setErrorDeliveryEmpresa(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
                 } finally {
                   setGuardandoDeliveryEmpresa(false);
                 }

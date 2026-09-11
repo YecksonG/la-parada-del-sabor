@@ -107,7 +107,7 @@ export async function registrarDeliveryEmpresa(payload: RegistrarDeliveryEmpresa
 
   // 4. Asentar también como Gasto Operativo en categoría "servicios"
   const descripcionGasto = `🛵 Delivery Operativo (${payload.zona_nombre}): ${motivoLimpio}`;
-  await supabase.from("gastos").insert({
+  const { error: gastoError } = await supabase.from("gastos").insert({
     fecha: toFechaCaracasString(new Date(fechaStr)),
     categoria: "servicios",
     subcategoria: "Transporte / Delivery Empresa",
@@ -121,6 +121,11 @@ export async function registrarDeliveryEmpresa(payload: RegistrarDeliveryEmpresa
     notas: `Generado automáticamente desde Conciliación Semanal. Comanda #${venta?.numero_comanda || venta?.id}`,
     creado_por: usuario,
   });
+
+  if (gastoError) {
+    console.error("Error al registrar asiento de gasto para delivery de empresa:", gastoError);
+    return { ok: false, error: `Viaje registrado en comanda pero el asiento de gasto falló: ${gastoError.message}` };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/gastos");
