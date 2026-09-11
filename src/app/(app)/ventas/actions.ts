@@ -18,6 +18,7 @@ const METODOS_PAGO_VALIDOS: MetodoPago[] = [
   "binance",
   "zelle",
   "pesos_cop",
+  "pago_mixto",
 ];
 
 const TRANSICIONES_VALIDAS: Record<EstadoVenta, EstadoVenta[]> = {
@@ -85,6 +86,10 @@ export async function actualizarMetodoPagoVenta(venta_id: string, nuevoMetodoPag
     return { ok: false, error: "Método de pago no válido." };
   }
 
+  if (nuevoMetodoPago === "pago_mixto") {
+    return { ok: false, error: "El pago mixto solo puede ser configurado con su desglose desde el POS." };
+  }
+
   const supabase = await createClient();
   const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
@@ -122,6 +127,13 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
 
   if (!METODOS_PAGO_VALIDOS.includes(payload.metodo_pago)) {
     return { ok: false, error: "Método de pago no válido." };
+  }
+
+  if (payload.metodo_pago === "pago_mixto") {
+    const tieneTag = /\[Pago Mixto:\s*[^\]]+\]/i.test(payload.notas_comanda || "");
+    if (!tieneTag) {
+      return { ok: false, error: "No se puede establecer pago mixto sin su desglose detallado." };
+    }
   }
 
   const supabase = await createClient();

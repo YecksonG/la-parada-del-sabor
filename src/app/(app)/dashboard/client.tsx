@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto } from "@/types/database";
 import { esMismaFechaEnCaracas, toFechaCaracasString } from "@/lib/date-vzla";
+import { parsearPagoMixtoDeNotas } from "@/lib/pago-mixto";
 
 type PeriodoDashboard = "hoy" | "semana" | "mes" | "todo";
 
@@ -51,6 +52,8 @@ export function getMetodoPagoBadge(metodo?: string | null) {
       return { label: "🟣 Zelle", color: "#9333ea", bg: "rgba(147, 51, 234, 0.12)" };
     case "pesos_cop":
       return { label: "🇨🇴 Pesos COP", color: "#ea580c", bg: "rgba(234, 88, 12, 0.12)" };
+    case "pago_mixto":
+      return { label: "🔀 Pago Mixto", color: "#4f46e5", bg: "rgba(79, 70, 229, 0.12)" };
     default:
       return { label: metodo ? `💳 ${metodo}` : "💵 Efectivo USD", color: "var(--text)", bg: "var(--bg-subtle)" };
   }
@@ -535,29 +538,61 @@ export default function DashboardClient({
       const totalVentasUsdCalc = comandasTurno.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
       const totalVentasBsCalc = comandasTurno.reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
 
-      const efectivoCalc = comandasTurno
-        .filter((v) => v.metodo_pago === "efectivo_usd" || v.metodo_pago === "efectivo")
-        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+      let efectivoCalc = 0;
+      let efectivoBsCalc = 0;
+      let pagoMovilCalc = 0;
+      let puntoCalc = 0;
+      let transferenciaCalc = 0;
+      let digitalesCalc = 0;
 
-      const efectivoBsCalc = comandasTurno
-        .filter((v) => v.metodo_pago === "efectivo_bs")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+      comandasTurno.forEach((v) => {
+        const montoUsd = Number(v.total_usd) || 0;
+        const montoBs = Number(v.total_bs) || 0;
+        const tasa = Number(v.tasa_bcv) || tasaBcv || 1;
 
-      const pagoMovilCalc = comandasTurno
-        .filter((v) => v.metodo_pago === "pago_movil" || v.metodo_pago === "pago_movil_bs")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+        if (v.metodo_pago === "pago_mixto") {
+          const fracc = parsearPagoMixtoDeNotas(v.notas_comanda, tasa);
+          if (fracc && fracc.length > 0) {
+            fracc.forEach((f) => {
+              if (f.metodo === "efectivo_usd") efectivoCalc += f.monto_usd;
+              else if (f.metodo === "efectivo_bs") efectivoBsCalc += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "pago_movil") pagoMovilCalc += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "punto") puntoCalc += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "transferencia") transferenciaCalc += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "zelle" || f.metodo === "binance") digitalesCalc += f.monto_usd;
+            });
+            return;
+          }
+        }
 
-      const puntoCalc = comandasTurno
-        .filter((v) => v.metodo_pago === "punto" || v.metodo_pago === "punto_bs" || v.metodo_pago === "pos")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
-
-      const transferenciaCalc = comandasTurno
-        .filter((v) => v.metodo_pago === "transferencia" || v.metodo_pago === "transferencia_bs")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
-
-      const digitalesCalc = comandasTurno
-        .filter((v) => v.metodo_pago === "binance" || v.metodo_pago === "binance_usdt" || v.metodo_pago === "zelle")
-        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+        switch (v.metodo_pago) {
+          case "efectivo_usd":
+          case "efectivo":
+            efectivoCalc += montoUsd;
+            break;
+          case "efectivo_bs":
+            efectivoBsCalc += montoBs;
+            break;
+          case "pago_movil":
+          case "pago_movil_bs":
+            pagoMovilCalc += montoBs;
+            break;
+          case "punto":
+          case "punto_bs":
+          case "pos":
+            puntoCalc += montoBs;
+            break;
+          case "transferencia":
+          case "transferencia_bs":
+            transferenciaCalc += montoBs;
+            break;
+          case "binance":
+          case "binance_usdt":
+          case "zelle":
+            digitalesCalc += montoUsd;
+            break;
+        }
+      });
 
       const d = new Date(c.fecha_apertura);
       const fechaTexto = d.toLocaleDateString("es-VE", {
@@ -624,29 +659,61 @@ export default function DashboardClient({
       const totalUsd = comandasDelDia.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
       const totalBs = comandasDelDia.reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
 
-      const efectivoUsd = comandasDelDia
-        .filter((v) => v.metodo_pago === "efectivo_usd" || v.metodo_pago === "efectivo")
-        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+      let efectivoUsd = 0;
+      let efectivoBs = 0;
+      let pagoMovilBs = 0;
+      let transferenciaBs = 0;
+      let puntoBs = 0;
+      let dolaresDigitalesUsd = 0;
 
-      const efectivoBs = comandasDelDia
-        .filter((v) => v.metodo_pago === "efectivo_bs")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+      comandasDelDia.forEach((v) => {
+        const montoUsd = Number(v.total_usd) || 0;
+        const montoBs = Number(v.total_bs) || 0;
+        const tasa = Number(v.tasa_bcv) || tasaBcv || 1;
 
-      const pagoMovilBs = comandasDelDia
-        .filter((v) => v.metodo_pago === "pago_movil" || v.metodo_pago === "pago_movil_bs")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
+        if (v.metodo_pago === "pago_mixto") {
+          const fracc = parsearPagoMixtoDeNotas(v.notas_comanda, tasa);
+          if (fracc && fracc.length > 0) {
+            fracc.forEach((f) => {
+              if (f.metodo === "efectivo_usd") efectivoUsd += f.monto_usd;
+              else if (f.metodo === "efectivo_bs") efectivoBs += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "pago_movil") pagoMovilBs += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "punto") puntoBs += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "transferencia") transferenciaBs += f.monto_bs || Number((f.monto_usd * tasa).toFixed(2));
+              else if (f.metodo === "zelle" || f.metodo === "binance") dolaresDigitalesUsd += f.monto_usd;
+            });
+            return;
+          }
+        }
 
-      const transferenciaBs = comandasDelDia
-        .filter((v) => v.metodo_pago === "transferencia" || v.metodo_pago === "transferencia_bs")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
-
-      const puntoBs = comandasDelDia
-        .filter((v) => v.metodo_pago === "punto" || v.metodo_pago === "punto_bs" || v.metodo_pago === "pos")
-        .reduce((acc, v) => acc + (Number(v.total_bs) || 0), 0);
-
-      const dolaresDigitalesUsd = comandasDelDia
-        .filter((v) => v.metodo_pago === "binance" || v.metodo_pago === "binance_usdt" || v.metodo_pago === "zelle")
-        .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+        switch (v.metodo_pago) {
+          case "efectivo_usd":
+          case "efectivo":
+            efectivoUsd += montoUsd;
+            break;
+          case "efectivo_bs":
+            efectivoBs += montoBs;
+            break;
+          case "pago_movil":
+          case "pago_movil_bs":
+            pagoMovilBs += montoBs;
+            break;
+          case "transferencia":
+          case "transferencia_bs":
+            transferenciaBs += montoBs;
+            break;
+          case "punto":
+          case "punto_bs":
+          case "pos":
+            puntoBs += montoBs;
+            break;
+          case "binance":
+          case "binance_usdt":
+          case "zelle":
+            dolaresDigitalesUsd += montoUsd;
+            break;
+        }
+      });
 
       list.push({
         id: `jornada-${fIso}`,

@@ -22,6 +22,7 @@ export interface ComandaTelegramPayload {
   total_usd: number;
   total_bs?: number | null;
   metodo_pago?: string | null;
+  notas?: string | null;
   items?: Array<{
     cantidad: number;
     nombre: string;
@@ -68,6 +69,21 @@ export async function notificarComandaTelegram(payload: ComandaTelegramPayload):
       ? `🛵 Delivery (${escapeHtml(payload.delivery_zona || "A Domicilio")})`
       : "🛍️ Para Llevar / Retiro";
 
+  const METODOS_LABELS: Record<string, string> = {
+    pago_movil: "📱 Pago Móvil (Bs)",
+    efectivo_usd: "💵 Efectivo (USD)",
+    efectivo_bs: "🇻🇪 Efectivo (Bs)",
+    punto: "💳 Punto de Venta",
+    transferencia: "🏦 Transferencia Bancaria",
+    zelle: "🟣 Zelle (USD)",
+    binance: "🟡 Binance Pay (USDT)",
+    pago_mixto: "🔀 Pago Mixto / Fraccionado",
+  };
+
+  const metodoLabel = payload.metodo_pago
+    ? METODOS_LABELS[payload.metodo_pago] || payload.metodo_pago
+    : "Pendiente";
+
   const mensaje = `🔔 <b>¡NUEVA COMANDA #${escapeHtml(String(payload.numero_comanda))}!</b>
 <b>Origen:</b> ${origenEmoji}
 <b>Modalidad:</b> ${entregaEmoji}
@@ -76,8 +92,8 @@ export async function notificarComandaTelegram(payload: ComandaTelegramPayload):
 📞 <b>Teléfono:</b> ${escapeHtml(payload.telefono || "No registrado")}
 ${payload.direccion ? `📍 <b>Dirección:</b> ${escapeHtml(payload.direccion)}\n` : ""}
 💵 <b>Total:</b> $${payload.total_usd.toFixed(2)} USD${payload.total_bs ? ` / Bs. ${payload.total_bs.toFixed(2)}` : ""}
-💳 <b>Método:</b> ${escapeHtml(payload.metodo_pago || "Pendiente")}
-
+💳 <b>Método:</b> ${escapeHtml(metodoLabel)}
+${payload.notas ? `📝 <b>Observaciones:</b> ${escapeHtml(payload.notas)}\n` : ""}
 📋 <b>Detalle del Pedido:</b>
 ${itemsList || "  • Sin detalles especificados"}`;
 

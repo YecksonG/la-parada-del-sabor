@@ -6,6 +6,7 @@ import { Venta } from "@/types/database";
 import type { MetodoPago } from "@/types/database";
 import { cambiarEstadoVenta, actualizarMetodoPagoVenta, actualizarDetallesComanda } from "./actions";
 import { toFechaCaracasString, fechaHoyEnCaracas } from "@/lib/date-vzla";
+import { parsearPagoMixtoDeNotas, METODOS_FRACCION_INFO } from "@/lib/pago-mixto";
 
 interface VentasClientProps {
   ventas: Venta[];
@@ -380,6 +381,9 @@ ${estadoPago}`;
                       <option value="binance">🟡 Binance Pay</option>
                       <option value="zelle">🟣 Zelle</option>
                       <option value="pesos_cop">🇨🇴 Pesos COP</option>
+                      {v.metodo_pago === "pago_mixto" && (
+                        <option value="pago_mixto" disabled>🔀 Pago Mixto (Configurado en POS)</option>
+                      )}
                     </select>
 
                     {v.origen_pedido === "instagram" ? (
@@ -504,6 +508,28 @@ ${estadoPago}`;
                       </div>
                     </div>
                   )}
+
+                  {v.metodo_pago === "pago_mixto" && (() => {
+                    const fraccion = parsearPagoMixtoDeNotas(v.notas_comanda, Number(v.tasa_bcv) || 1);
+                    if (!fraccion || fraccion.length === 0) return null;
+                    return (
+                      <div style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.35)", borderRadius: 8, padding: "6px 8px", marginTop: 4 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: 900, color: "#d97706", display: "block", marginBottom: 2 }}>
+                          🔀 Pago Fraccionado:
+                        </span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {fraccion.map((f, fIdx) => {
+                            const info = METODOS_FRACCION_INFO[f.metodo] || { label: f.metodo, icon: "💳", moneda: "USD" };
+                            return (
+                              <span key={fIdx} style={{ fontSize: 10.5, fontWeight: 700, background: "var(--bg-card)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>
+                                {info.icon} ${f.monto_usd.toFixed(2)} {info.label.split(" ")[0]}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {v.notas_comanda && (
                     <div className="comanda-notes-box">
@@ -729,10 +755,11 @@ function ModalEditarComanda({
   );
   const [metodoPago, setMetodoPago] = useState<MetodoPago>(venta.metodo_pago || "efectivo_usd");
 
-  // Limpiar notas previas quitando cualquier tag previo de vuelto
+  // Limpiar notas previas quitando cualquier tag previo de vuelto o pago mixto si se edita
   const notasBase = useMemo(() => {
     return (venta.notas_comanda || "")
       .replace(/•?\s*\[[^\]]*(?:[Vv]uelto\s*:)[^\]]*\]/g, "")
+      .replace(/•?\s*\[Pago Mixto:\s*[^\]]+\]/gi, "")
       .trim();
   }, [venta.notas_comanda]);
 
@@ -792,7 +819,12 @@ function ModalEditarComanda({
     setGuardando(true);
 
     let notasFinales = notasTexto.trim();
-    if (incluirVuelto && metodoPago === "efectivo_usd" && Number(billeteRecibidoUsd) > 0) {
+    if (metodoPago === "pago_mixto") {
+      const matchMixto = (venta.notas_comanda || "").match(/\[Pago Mixto:\s*[^\]]+\]/i);
+      if (matchMixto) {
+        notasFinales = notasFinales ? `${notasFinales} • ${matchMixto[0]}` : matchMixto[0];
+      }
+    } else if (incluirVuelto && metodoPago === "efectivo_usd" && Number(billeteRecibidoUsd) > 0) {
       const rec = Number(billeteRecibidoUsd);
       if (modoVuelto === "mixto") {
         const partes: string[] = [];
@@ -983,6 +1015,9 @@ function ModalEditarComanda({
               <option value="binance">🟡 Binance Pay</option>
               <option value="zelle">🟣 Zelle</option>
               <option value="pesos_cop">🇨🇴 Pesos COP</option>
+              {venta.metodo_pago === "pago_mixto" && (
+                <option value="pago_mixto">🔀 Mantener Pago Mixto Original</option>
+              )}
             </select>
           </div>
 
@@ -1096,7 +1131,10 @@ function ModalEditarComanda({
                           min="0"
                           placeholder="0.00"
                           value={vueltoEfUsd}
-                          onChange={(e) => setVueltoEfUsd(parseFloat(e.target.value) || "")}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setVueltoEfUsd(isNaN(val) ? "" : Math.max(0, val));
+                          }}
                           className="cart-notes-input"
                           style={{ fontSize: 11.5, padding: "3px 6px" }}
                         />
@@ -1120,7 +1158,10 @@ function ModalEditarComanda({
                           min="0"
                           placeholder="0.00"
                           value={vueltoPmUsd}
-                          onChange={(e) => setVueltoPmUsd(parseFloat(e.target.value) || "")}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setVueltoPmUsd(isNaN(val) ? "" : Math.max(0, val));
+                          }}
                           className="cart-notes-input"
                           style={{ fontSize: 11.5, padding: "3px 6px" }}
                         />
@@ -1149,7 +1190,10 @@ function ModalEditarComanda({
                           min="0"
                           placeholder="0.00"
                           value={vueltoEfBsUsd}
-                          onChange={(e) => setVueltoEfBsUsd(parseFloat(e.target.value) || "")}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setVueltoEfBsUsd(isNaN(val) ? "" : Math.max(0, val));
+                          }}
                           className="cart-notes-input"
                           style={{ fontSize: 11.5, padding: "3px 6px" }}
                         />

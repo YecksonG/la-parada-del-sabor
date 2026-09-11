@@ -7,6 +7,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
 import { obtenerEstadoRecibo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import { parsearPagoMixtoDeNotas, METODOS_FRACCION_INFO } from "@/lib/pago-mixto";
 
 type ReciboItemExtra = {
   id: string;
@@ -70,6 +71,7 @@ const METODOS_PAGO_LABEL: Record<string, string> = {
   zelle: "🟣 Zelle",
   credito: "📝 A Crédito (Pendiente)",
   pesos_cop: "🇨🇴 Pesos Colombianos (COP)",
+  pago_mixto: "🔀 Pago Mixto / Fraccionado",
 };
 
 const TIPOS_ENTREGA_LABEL: Record<string, { label: string; icon: string }> = {
@@ -695,6 +697,30 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               <span>Método de Pago:</span>
               <strong>{metodoPago}</strong>
             </div>
+            {venta.metodo_pago === "pago_mixto" && (() => {
+              const fraccion = parsearPagoMixtoDeNotas(venta.notas_comanda, Number(venta.tasa_bcv) || 1);
+              if (!fraccion || fraccion.length === 0) return null;
+              return (
+                <div style={{ background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: 8, padding: "8px 10px", margin: "4px 0" }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#d97706", display: "block", marginBottom: 4 }}>
+                    Desglose de Pago Fraccionado:
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                    {fraccion.map((f, fIdx) => {
+                      const info = METODOS_FRACCION_INFO[f.metodo] || { label: f.metodo, icon: "💳", moneda: "USD" };
+                      return (
+                        <div key={fIdx} style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "var(--text)" }}>
+                          <span>{info.icon} {info.label}:</span>
+                          <strong>
+                            ${f.monto_usd.toFixed(2)} USD {info.moneda === "Bs" ? `(~Bs. ${f.monto_bs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})` : ""}
+                          </strong>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="recibo-total-line">
               <span>Tasa de Cambio Aplicada:</span>
               <strong>{Number(venta.tasa_bcv).toFixed(2)} Bs / USD</strong>

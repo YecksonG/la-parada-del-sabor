@@ -178,7 +178,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
       delivery_monto_bs: deliveryBs,
       direccion_delivery: payload.direccion_delivery || null,
       estado: "pendiente",
-      notas_comanda: payload.notas_comanda ? payload.notas_comanda.trim().slice(0, 500) : null,
+      notas_comanda: payload.notas_comanda ? payload.notas_comanda.trim().slice(0, 1000) : null,
       creado_por: nombreOperador,
       origen_pedido: "pos",
       total_usd: totalUsdCalculado,
@@ -291,6 +291,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
       total_usd: totalUsdCalculado,
       total_bs: totalBsCalculado,
       metodo_pago: payload.metodo_pago,
+      notas: payload.notas_comanda,
       items: itemNames,
     }).catch((err) => console.error("Error Telegram POS:", err));
   } catch (tErr) {

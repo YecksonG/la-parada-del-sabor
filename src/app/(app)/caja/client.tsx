@@ -8,6 +8,7 @@ import { abrirSesionCaja, cerrarSesionCaja } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import { createClient } from "@/lib/supabase/client";
 import { esMismaFechaEnCaracas } from "@/lib/date-vzla";
+import { parsearPagoMixtoDeNotas } from "@/lib/pago-mixto";
 
 interface CajaClientProps {
   sesionActiva: SesionCaja | null;
@@ -188,6 +189,48 @@ export default function CajaClient({
         case "zelle":
           zelleUsd += vUsd;
           break;
+        case "pago_mixto": {
+          const fraccion = parsearPagoMixtoDeNotas(v.notas_comanda, tasaVenta);
+          if (fraccion && fraccion.length > 0) {
+            for (const item of fraccion) {
+              const itemUsd = Number(item.monto_usd) || 0;
+              const itemBs =
+                Number(item.monto_bs) > 0
+                  ? Number(item.monto_bs)
+                  : Number((itemUsd * tasaVenta).toFixed(2));
+
+              switch (item.metodo) {
+                case "efectivo_usd":
+                  efectivoFisicoUsd += itemUsd;
+                  break;
+                case "efectivo_bs":
+                  efectivoFisicoBs += itemBs;
+                  break;
+                case "pago_movil":
+                  pagoMovilBs += itemBs;
+                  break;
+                case "punto":
+                  puntoBs += itemBs;
+                  break;
+                case "transferencia":
+                  transferenciaBs += itemBs;
+                  break;
+                case "zelle":
+                  zelleUsd += itemUsd;
+                  break;
+                case "binance":
+                  binanceUsd += itemUsd;
+                  break;
+                default:
+                  pagoMovilBs += itemBs;
+              }
+            }
+          } else {
+            // Si por alguna razón no tiene desglose en notas, sumar como pago_movil por defecto seguro
+            pagoMovilBs += vBs;
+          }
+          break;
+        }
         default:
           if (vUsd > 0 && vBs === 0) {
             efectivoFisicoUsd += vUsd;
@@ -617,8 +660,8 @@ export default function CajaClient({
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "capitalize" }}>
-                      {v.metodo_pago.replace("_", " ")}
+                    <span style={{ fontSize: 12, color: v.metodo_pago === "pago_mixto" ? "#d97706" : "var(--text-muted)", fontWeight: v.metodo_pago === "pago_mixto" ? 800 : 500, textTransform: "capitalize" }}>
+                      {v.metodo_pago === "pago_mixto" ? "🔀 Pago Mixto" : v.metodo_pago.replace("_", " ")}
                     </span>
                     <div style={{ textAlign: "right" }}>
                       <strong style={{ display: "block", color: "var(--text)" }}>
