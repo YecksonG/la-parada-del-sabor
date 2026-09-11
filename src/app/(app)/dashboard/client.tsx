@@ -2,9 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto } from "@/types/database";
+import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto, ZonaDelivery } from "@/types/database";
 import { esMismaFechaEnCaracas, toFechaCaracasString } from "@/lib/date-vzla";
 import { parsearPagoMixtoDeNotas } from "@/lib/pago-mixto";
+import { registrarDeliveryEmpresa } from "./delivery-actions";
+import { useRouter } from "next/navigation";
 
 type PeriodoDashboard = "hoy" | "semana" | "mes" | "todo";
 
@@ -66,6 +68,7 @@ interface DashboardClientProps {
   productos: Producto[];
   historialCajas?: SesionCaja[];
   gastos?: Gasto[];
+  zonasDelivery?: ZonaDelivery[];
   tasaBcv: number;
 }
 
@@ -76,14 +79,25 @@ export default function DashboardClient({
   productos,
   historialCajas = [],
   gastos = [],
+  zonasDelivery = [],
   tasaBcv,
 }: DashboardClientProps) {
+  const router = useRouter();
   const [periodo, setPeriodo] = useState<"hoy" | "semana" | "mes" | "todo">("mes");
   const [modalGraficasHistoricas, setModalGraficasHistoricas] = useState(false);
   const [agrupacionGrafica, setAgrupacionGrafica] = useState<"semana" | "mes">("semana");
   const [semanaDeliveryKey, setSemanaDeliveryKey] = useState<string>("");
   const [busquedaDelivery, setBusquedaDelivery] = useState<string>("");
   const [copiadoDelivery, setCopiadoDelivery] = useState(false);
+
+  // Modal para registrar Delivery de Insumos / Diligencias de la Empresa
+  const [modalDeliveryEmpresa, setModalDeliveryEmpresa] = useState(false);
+  const [zonaEmpresaId, setZonaEmpresaId] = useState<string>("");
+  const [motivoDeliveryEmpresa, setMotivoDeliveryEmpresa] = useState<string>("");
+  const [trayectoDeliveryEmpresa, setTrayectoDeliveryEmpresa] = useState<string>("");
+  const [fechaDeliveryEmpresa, setFechaDeliveryEmpresa] = useState<string>(toFechaCaracasString(new Date()));
+  const [guardandoDeliveryEmpresa, setGuardandoDeliveryEmpresa] = useState(false);
+  const [errorDeliveryEmpresa, setErrorDeliveryEmpresa] = useState<string>("");
 
   // Modal para ver comandas del cierre seleccionado
   const [cierreSeleccionado, setCierreSeleccionado] = useState<JornadaCierreItem | null>(null);
@@ -1333,32 +1347,54 @@ export default function DashboardClient({
             </p>
           </div>
 
-          {/* Selector de Semanas */}
-          {metricasDeliverySemanales.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)" }}>Semana:</label>
-              <select
-                value={semanaDeliveryActiva?.key || ""}
-                onChange={(e) => setSemanaDeliveryKey(e.target.value)}
-                style={{
-                  background: "var(--bg-card)",
-                  color: "var(--text)",
-                  border: "1px solid var(--border)",
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                {metricasDeliverySemanales.map((sem) => (
-                  <option key={sem.key} value={sem.key}>
-                    {sem.label} ({sem.totalViajes} viajes • ${sem.totalDeliveryUsd.toFixed(2)})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {/* Botón Registrar Delivery Empresa / Insumos */}
+            <button
+              type="button"
+              onClick={() => {
+                setErrorDeliveryEmpresa("");
+                setMotivoDeliveryEmpresa("");
+                setTrayectoDeliveryEmpresa("");
+                setFechaDeliveryEmpresa(toFechaCaracasString(new Date()));
+                if (zonasDelivery.length > 0 && !zonaEmpresaId) {
+                  setZonaEmpresaId(zonasDelivery[0].id);
+                }
+                setModalDeliveryEmpresa(true);
+              }}
+              className="btn-primary-action"
+              style={{ fontSize: 12.5, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              <span>🛵</span>
+              <span>+ Registrar Delivery de Empresa (Insumos)</span>
+            </button>
+
+            {/* Selector de Semanas */}
+            {metricasDeliverySemanales.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)" }}>Semana:</label>
+                <select
+                  value={semanaDeliveryActiva?.key || ""}
+                  onChange={(e) => setSemanaDeliveryKey(e.target.value)}
+                  style={{
+                    background: "var(--bg-card)",
+                    color: "var(--text)",
+                    border: "1px solid var(--border)",
+                    padding: "6px 12px",
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  {metricasDeliverySemanales.map((sem) => (
+                    <option key={sem.key} value={sem.key}>
+                      {sem.label} ({sem.totalViajes} viajes • ${sem.totalDeliveryUsd.toFixed(2)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {!semanaDeliveryActiva || semanaDeliveryActiva.totalViajes === 0 ? (
@@ -1454,7 +1490,7 @@ export default function DashboardClient({
                 />
               </div>
 
-              {/* Botón Copiar Reporte WhatsApp */}
+              {/* Botón Copiar Reporte WhatsApp (Estilo Alineado al Sistema) */}
               <button
                 type="button"
                 onClick={() => {
@@ -1463,10 +1499,19 @@ export default function DashboardClient({
                   setCopiadoDelivery(true);
                   setTimeout(() => setCopiadoDelivery(false), 2500);
                 }}
-                className="btn btn-outline"
-                style={{ fontSize: 12, padding: "8px 14px", display: "inline-flex", alignItems: "center", gap: 6 }}
+                className="btn-refresh-action"
+                style={{
+                  fontSize: 12.5,
+                  padding: "8px 16px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
               >
-                {copiadoDelivery ? "✅ ¡Reporte Copiado!" : "📋 Copiar Resumen para WhatsApp de la Empresa"}
+                <span>{copiadoDelivery ? "✅" : "📋"}</span>
+                <span>{copiadoDelivery ? "¡Reporte Copiado con Éxito!" : "Copiar Resumen para WhatsApp de la Empresa"}</span>
               </button>
             </div>
 
@@ -1502,11 +1547,22 @@ export default function DashboardClient({
                           {new Date(v.fecha).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </td>
                         <td style={{ padding: "8px 10px" }}>
-                          <strong>{v.cliente?.nombre || "Cliente"}</strong>
-                          {v.cliente?.telefono && (
-                            <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>
-                              {v.cliente.telefono}
-                            </span>
+                          {v.origen_pedido === "delivery_empresa" ? (
+                            <div>
+                              <span style={{ background: "rgba(59, 130, 246, 0.12)", color: "#2563eb", padding: "2px 6px", borderRadius: 4, fontWeight: 800, fontSize: 10.5, textTransform: "uppercase", display: "inline-block", marginBottom: 2 }}>
+                                🏢 Empresa / Insumos
+                              </span>
+                              <strong style={{ display: "block", fontSize: 12 }}>{v.notas_comanda ? v.notas_comanda.replace("[DELIVERY INTERNO EMPRESA / INSUMOS]\n", "").split("\n")[0] : "Diligencia Operativa"}</strong>
+                            </div>
+                          ) : (
+                            <>
+                              <strong>{v.cliente?.nombre || "Cliente"}</strong>
+                              {v.cliente?.telefono && (
+                                <span style={{ display: "block", fontSize: 11, color: "var(--text-muted)" }}>
+                                  {v.cliente.telefono}
+                                </span>
+                              )}
+                            </>
                           )}
                         </td>
                         <td style={{ padding: "8px 10px" }}>
@@ -2432,6 +2488,210 @@ export default function DashboardClient({
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL: REGISTRAR DELIVERY DE LA EMPRESA (INSUMOS / DILIGENCIAS) */}
+      {modalDeliveryEmpresa && (
+        <div
+          className="combo-modal-overlay"
+          onClick={() => !guardandoDeliveryEmpresa && setModalDeliveryEmpresa(false)}
+          role="dialog"
+          aria-modal="true"
+          style={{ zIndex: 1100 }}
+        >
+          <div
+            className="combo-modal-card"
+            style={{ maxWidth: 560, width: "95%", borderRadius: 20, padding: "24px 22px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div className="combo-modal-header" style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 28, background: "rgba(248, 197, 66, 0.15)", padding: "8px 10px", borderRadius: 12 }}>🛵</span>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 900, color: "var(--text)" }}>
+                    Registrar Delivery de la Empresa
+                  </h3>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
+                    Para compra de insumos, materiales o traslados operativos de La Parada del Sabor
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !guardandoDeliveryEmpresa && setModalDeliveryEmpresa(false)}
+                className="combo-modal-close-btn"
+                aria-label="Cerrar modal"
+              >
+                ✕
+              </button>
+            </div>
+
+            {errorDeliveryEmpresa && (
+              <div
+                style={{
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  color: "#ef4444",
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginBottom: 14,
+                }}
+              >
+                ⚠️ {errorDeliveryEmpresa}
+              </div>
+            )}
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const zona = zonasDelivery.find((z) => z.id === zonaEmpresaId) || zonasDelivery[0];
+                if (!zona) {
+                  setErrorDeliveryEmpresa("Por favor selecciona una zona o nivel de delivery.");
+                  return;
+                }
+                if (!motivoDeliveryEmpresa.trim()) {
+                  setErrorDeliveryEmpresa("Por favor describe el motivo o insumo que se fue a buscar.");
+                  return;
+                }
+
+                setGuardandoDeliveryEmpresa(true);
+                setErrorDeliveryEmpresa("");
+
+                try {
+                  const res = await registrarDeliveryEmpresa({
+                    zona_id: zona.id,
+                    zona_nombre: zona.nombre,
+                    monto_usd: Number(zona.precio_usd),
+                    motivo: motivoDeliveryEmpresa.trim(),
+                    trayecto: trayectoDeliveryEmpresa.trim() || null,
+                    fecha: fechaDeliveryEmpresa,
+                  });
+
+                  if (!res.ok) {
+                    setErrorDeliveryEmpresa(res.error || "Error al registrar el delivery.");
+                    setGuardandoDeliveryEmpresa(false);
+                    return;
+                  }
+
+                  setModalDeliveryEmpresa(false);
+                  setMotivoDeliveryEmpresa("");
+                  setTrayectoDeliveryEmpresa("");
+                  router.refresh();
+                } catch (err: any) {
+                  setErrorDeliveryEmpresa(err?.message || "Ocurrió un error inesperado.");
+                } finally {
+                  setGuardandoDeliveryEmpresa(false);
+                }
+              }}
+              style={{ display: "flex", flexDirection: "column", gap: 14 }}
+            >
+              {/* Selector de Nivel / Zona */}
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>
+                  📍 Zona / Nivel de Delivery:
+                </label>
+                <select
+                  value={zonaEmpresaId}
+                  onChange={(e) => setZonaEmpresaId(e.target.value)}
+                  className="form-input"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700 }}
+                  required
+                >
+                  {zonasDelivery.map((z) => {
+                    const precioBs = tasaBcv > 0 ? (Number(z.precio_usd) * tasaBcv).toFixed(2) : null;
+                    return (
+                      <option key={z.id} value={z.id}>
+                        {z.nombre} — ${Number(z.precio_usd).toFixed(2)} USD {precioBs ? `(Bs. ${precioBs})` : ""} | {z.descripcion}
+                      </option>
+                    );
+                  })}
+                </select>
+                {(() => {
+                  const zSel = zonasDelivery.find((z) => z.id === zonaEmpresaId) || zonasDelivery[0];
+                  if (!zSel) return null;
+                  return (
+                    <div style={{ marginTop: 6, padding: "8px 12px", background: "var(--bg-subtle)", borderRadius: 8, fontSize: 12, color: "var(--text-muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>Sectores: <strong>{zSel.descripcion}</strong></span>
+                      <strong style={{ color: "var(--primary-dark)", fontSize: 13 }}>${Number(zSel.precio_usd).toFixed(2)} USD</strong>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Motivo o Insumo */}
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>
+                  📦 Motivo o Insumo Buscado:
+                </label>
+                <input
+                  type="text"
+                  value={motivoDeliveryEmpresa}
+                  onChange={(e) => setMotivoDeliveryEmpresa(e.target.value)}
+                  placeholder="Ej. Compra de 2 sacos de harina PAN, búsqueda de queso en mercado..."
+                  className="form-input"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13 }}
+                  required
+                />
+              </div>
+
+              {/* Trayecto / Ubicación */}
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>
+                  🗺️ Trayecto / Dirección de Retiro (Opcional):
+                </label>
+                <input
+                  type="text"
+                  value={trayectoDeliveryEmpresa}
+                  onChange={(e) => setTrayectoDeliveryEmpresa(e.target.value)}
+                  placeholder="Ej. Desde Distribuidora Polar en Santa Irene hasta el local"
+                  className="form-input"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13 }}
+                />
+              </div>
+
+              {/* Fecha del Viaje */}
+              <div>
+                <label style={{ display: "block", fontSize: 12.5, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>
+                  🗓️ Fecha del Viaje:
+                </label>
+                <input
+                  type="date"
+                  value={fechaDeliveryEmpresa}
+                  onChange={(e) => setFechaDeliveryEmpresa(e.target.value)}
+                  className="form-input"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 600 }}
+                  required
+                />
+                <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", marginTop: 4 }}>
+                  Se sumará automáticamente a la semana correspondiente para la liquidación del lunes.
+                </span>
+              </div>
+
+              {/* Botones de Acción */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={() => !guardandoDeliveryEmpresa && setModalDeliveryEmpresa(false)}
+                  className="combo-btn-cancel"
+                  style={{ padding: "10px 18px", fontSize: 13, width: "auto", flex: "none" }}
+                  disabled={guardandoDeliveryEmpresa}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary-action"
+                  style={{ fontSize: 13, padding: "10px 22px" }}
+                  disabled={guardandoDeliveryEmpresa}
+                >
+                  {guardandoDeliveryEmpresa ? "⏳ Guardando..." : "💾 Registrar en Conciliación"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
