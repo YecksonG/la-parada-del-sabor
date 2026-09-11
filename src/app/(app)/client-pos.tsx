@@ -1169,6 +1169,9 @@ ${estadoPago}`;
                 display: "flex",
                 flexDirection: "column",
                 gap: 8,
+                maxHeight: "260px",
+                overflowY: "auto",
+                scrollbarWidth: "thin",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1484,6 +1487,9 @@ ${estadoPago}`;
                 display: "flex",
                 flexDirection: "column",
                 gap: 8,
+                maxHeight: darVuelto ? "260px" : "auto",
+                overflowY: darVuelto ? "auto" : "visible",
+                scrollbarWidth: "thin",
                 transition: "all 0.2s ease",
               }}
             >
