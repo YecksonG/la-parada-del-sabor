@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Cliente, Venta } from "@/types/database";
 import type { MetodoPago } from "@/types/database";
@@ -32,6 +32,12 @@ interface VentasClientProps {
 
 export default function VentasClient({ ventas: initialVentas, clientes = [], tasaBcv = 832 }: VentasClientProps) {
   const [ventas, setVentas] = useState<Venta[]>(initialVentas);
+
+  // Sincronizar con datos del servidor cuando Next.js revalida la página
+  useEffect(() => {
+    setVentas(initialVentas);
+  }, [initialVentas]);
+
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
   const [filtroFecha, setFiltroFecha] = useState<"hoy" | "ayer" | "todas" | "fecha">("hoy");
   const [fechaEspecifica, setFechaEspecifica] = useState<string>("");
@@ -353,6 +359,15 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
     setProcesandoId(null);
     if (!res.ok) {
       alert(res.error || "No se pudo actualizar el estado de la comanda.");
+    } else {
+      if (nuevoEstado === "preparando" || nuevoEstado === "lista" || nuevoEstado === "completada") {
+        sounds.playKitchenBell();
+      } else if (nuevoEstado === "cancelada") {
+        sounds.playDelete();
+      }
+      setVentas((prev) =>
+        prev.map((v) => (v.id === ventaId ? { ...v, estado: nuevoEstado } : v))
+      );
     }
   };
 
