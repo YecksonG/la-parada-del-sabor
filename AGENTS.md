@@ -82,3 +82,4 @@ estado: activo
 ---
 ```
 2. **Wikilink de conexión:** Toda nota vinculada a este proyecto debe incluir obligatoriamente la línea `**Proyecto:** [[La-Parada-del-Sabor]]` en el cuerpo del documento para integrarse al grafo.
+3. **Consulta de Reglas de Negocio (Bajo Consumo de Tokens):** Al iniciar cualquier tarea o consultar escandallos, métodos de pago o políticas de caja, los agentes deben leer directamente `~/ObsidianVault/02-Proyectos/La-Parada-del-Sabor-Contexto-Esencial.md` en lugar de indexar notas dispersas.
