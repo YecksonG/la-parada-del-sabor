@@ -43,6 +43,25 @@ export default function ModalPersonalizarCombo({
     return Object.values(rellenos).reduce((acc, curr) => acc + (curr || 0), 0);
   }, [rellenos]);
 
+  // Recargo total acumulado por seleccionar arepas especiales o gourmet (+0.50$ c/u)
+  const recargoTotal = useMemo(() => {
+    let extraSuma = 0;
+    for (const relleno of RELLENOS_AREPAS_COMBO) {
+      const cant = rellenos[relleno.id] || 0;
+      if (cant > 0) {
+        const extraNombre = RELLENO_A_EXTRA_NOMBRE[relleno.id];
+        const extraEnBd = extraNombre ? extrasPorNombre.get(extraNombre.toLowerCase().trim()) : null;
+        const precioUnitExtra = Number(extraEnBd?.precio_extra_usd ?? relleno.recargo ?? 0);
+        extraSuma += precioUnitExtra * cant;
+      }
+    }
+    return extraSuma;
+  }, [rellenos, extrasPorNombre]);
+
+  const precioFinalCombo = useMemo(() => {
+    return Number(producto.precio_usd || 0) + recargoTotal;
+  }, [producto.precio_usd, recargoTotal]);
+
   const faltantes = Math.max(0, totalArepas - totalSeleccionadas);
   const esCompleto = totalSeleccionadas === totalArepas;
 
@@ -157,7 +176,7 @@ export default function ModalPersonalizarCombo({
                 Elige los Rellenos del Combo
               </h2>
               <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, fontWeight: 700 }}>
-                {producto.nombre}
+                {producto.nombre} {recargoTotal > 0 && <span style={{ color: "#d97706" }}>(+${recargoTotal.toFixed(2)} por gourmet)</span>}
               </p>
             </div>
           </div>
@@ -214,6 +233,10 @@ export default function ModalPersonalizarCombo({
             const cant = rellenos[relleno.id] || 0;
             const puedeSumar = totalSeleccionadas < totalArepas;
 
+            const extraNombre = RELLENO_A_EXTRA_NOMBRE[relleno.id];
+            const extraEnBd = extraNombre ? extrasPorNombre.get(extraNombre.toLowerCase().trim()) : null;
+            const precioUnitExtra = Number(extraEnBd?.precio_extra_usd ?? relleno.recargo ?? 0);
+
             return (
               <div
                 key={relleno.id}
@@ -234,8 +257,23 @@ export default function ModalPersonalizarCombo({
                     </span>
                   )}
                   <div>
-                    <div className="combo-flavor-name">
-                      {relleno.nombre}
+                    <div className="combo-flavor-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span>{relleno.nombre}</span>
+                      {precioUnitExtra > 0 && (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 800,
+                            color: "#b45309",
+                            background: "#fef3c7",
+                            border: "1px solid #fde68a",
+                            padding: "1px 6px",
+                            borderRadius: 6,
+                          }}
+                        >
+                          +${precioUnitExtra.toFixed(2)}
+                        </span>
+                      )}
                     </div>
                     <div className="combo-flavor-desc">
                       {relleno.desc}
@@ -302,7 +340,9 @@ export default function ModalPersonalizarCombo({
             onClick={handleConfirmar}
             className="combo-btn-confirm"
           >
-            {esCompleto ? `Listo • Agregar Combo ($${Number(producto.precio_usd).toFixed(2)})` : `Elige ${faltantes} más`}
+            {esCompleto
+              ? `Listo • Agregar Combo ($${precioFinalCombo.toFixed(2)})`
+              : `Elige ${faltantes} más`}
           </button>
         </div>
       </div>

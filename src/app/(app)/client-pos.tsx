@@ -239,12 +239,30 @@ export default function PosClient({
 
     setCarrito((prev) => {
       const nuevo = [...prev];
-      const cant = Math.min(50, nuevo[index].cantidad + delta);
-      if (cant <= 0) {
+      const itemActual = nuevo[index];
+      const cantAnterior = itemActual.cantidad;
+      const cantNueva = Math.min(50, cantAnterior + delta);
+
+      if (cantNueva <= 0) {
         nuevo.splice(index, 1);
-      } else {
-        nuevo[index].cantidad = cant;
+        return nuevo;
       }
+
+      // Escalar proporcionalmente los extras si el item tiene modificadores asociados
+      const extrasEscalados = (itemActual.extras || []).map((ext) => {
+        const basePorItem = cantAnterior > 0 ? ext.cantidad / cantAnterior : 1;
+        return {
+          ...ext,
+          cantidad: Math.round(basePorItem * cantNueva),
+        };
+      });
+
+      nuevo[index] = {
+        ...itemActual,
+        cantidad: cantNueva,
+        extras: extrasEscalados,
+      };
+
       return nuevo;
     });
   };

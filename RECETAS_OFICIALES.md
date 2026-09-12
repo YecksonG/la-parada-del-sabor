@@ -94,6 +94,21 @@ Este documento contiene la ficha técnica autoritativa, descripción, gramajes e
 
 ---
 
+
+### 1.7 Arepa de Chorizo Ahumado con Pico de Gallo
+- **Precio de Venta:** `$3.50 USD` (Recomendado)
+- **Descripción:** Arepa asada o frita rellena con chorizo ahumado en rodajas, una cama fresca de pico de gallo y queso blanco llanero rallado.
+- **Escandallo de Ingredientes:**
+  | Ingrediente / Insumo | Cantidad / Peso | Unidad |
+  | :--- | :--- | :--- |
+  | Harina PAN (Masa base) | 27.59 | g |
+  | Mantequilla / Margarina | 7.50 | g |
+  | Chorizo Ahumado (E) | 40.00 | g |
+  | Pico de Gallo (Mise en Place) | 50.00 | g |
+  | Queso Blanco de Res | 50.00 | g |
+  | **Peso Total Relleno:** | **140.00** | **g** |
+
+---
 ## 🍱 2. Combos Oficiales de Arepas
 
 > **Nota de Operaciones & Empaques:** Ninguna arepa individual lleva caja descartable. Únicamente los combos descuentan empaque en su escandallo automático.

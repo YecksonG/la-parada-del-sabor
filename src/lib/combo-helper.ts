@@ -6,6 +6,7 @@ export interface RellenoArepa {
   desc: string;
   icono: string;
   imagen: string;
+  recargo?: number;
 }
 
 export type SaborArepa = RellenoArepa;
@@ -19,11 +20,19 @@ export const RELLENO_A_EXTRA_NOMBRE: Record<string, string> = {
   pelua:               "Pelúa (Carne Mechada + Queso Amarillo)",
   jamon_queso_amarillo:"Jamón y Queso Amarillo",
   reina_pepiada:       "Reina Pepiada (Aguacate + Pollo)",
-  especial_pollo:      "Especial de Pollo Esmechado (Gourmet)",
   especial_carne:      "Especial de Carne Esmechada (Gourmet)",
+  especial_pollo:      "Especial de Pollo Esmechado (Gourmet)",
+  choriarepa:          "Choriarepa (Chorizo Ahumado + Pico de Gallo)",
 };
 
 export const RELLENOS_AREPAS_COMBO: RellenoArepa[] = [
+  {
+    id: "pelua",
+    nombre: "Arepa Pelúa",
+    desc: "Carne mechada + Queso amarillo",
+    icono: "🧀",
+    imagen: "/images/arepas/arepa-pelua.jpg",
+  },
   {
     id: "catira",
     nombre: "Arepa Catira",
@@ -39,18 +48,35 @@ export const RELLENOS_AREPAS_COMBO: RellenoArepa[] = [
     imagen: "/images/arepas/arepa-jamon-queso.jpg",
   },
   {
-    id: "pelua",
-    nombre: "Arepa Pelúa",
-    desc: "Carne mechada + Queso amarillo",
-    icono: "🧀",
-    imagen: "/images/arepas/arepa-pelua.jpg",
-  },
-  {
     id: "reina_pepiada",
     nombre: "Arepa Reina Pepiada",
     desc: "Pollo desmechado con aguacate y mayonesa",
     icono: "🥑",
     imagen: "/images/arepas/arepa-reina-pepiada.jpg",
+  },
+  {
+    id: "choriarepa",
+    nombre: "Choriarepa",
+    desc: "Chorizo ahumado + Pico de gallo + Queso blanco (+0.50$)",
+    icono: "🌭",
+    imagen: "",
+    recargo: 0.50,
+  },
+  {
+    id: "especial_carne",
+    nombre: "Especial de Carne Gourmet",
+    desc: "Carne mechada + Jamón + Queso blanco + Salsas (+0.50$)",
+    icono: "🥩",
+    imagen: "/images/arepas/arepa-especial-carne.jpg",
+    recargo: 0.50,
+  },
+  {
+    id: "especial_pollo",
+    nombre: "Especial de Pollo Gourmet",
+    desc: "Pollo mechado + Jamón + Queso blanco + Salsas (+0.50$)",
+    icono: "🍗",
+    imagen: "/images/arepas/arepa-especial-pollo.jpg",
+    recargo: 0.50,
   },
 ];
 
@@ -86,6 +112,7 @@ export function getProductImage(prod?: { nombre?: string | null; imagen_url?: st
   const norm = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   
   // Arepas individuales
+  if (norm.includes("chorizo") || norm.includes("choriarepa")) return prod.imagen_url || null;
   if (norm.includes("catira")) return "/images/arepas/arepa-catira.jpg";
   if (norm.includes("especial") && norm.includes("pollo")) return "/images/arepas/arepa-especial-pollo.jpg";
   if (norm.includes("reina") || norm.includes("pepiada")) return "/images/arepas/arepa-reina-pepiada.jpg";
@@ -121,13 +148,18 @@ export function serializarRellenosCombo(
   for (const relleno of RELLENOS_AREPAS_COMBO) {
     const cant = rellenosSeleccionados[relleno.id] || 0;
     if (cant > 0) {
-      lineas.push(`${cant}x ${relleno.nombre}`);
+      // Limpiar prefijo "Arepa " o sufijo "(Gourmet)" para concisión en comanda térmica
+      const nombreCorto = relleno.nombre
+        .replace(/^Arepa\s+/i, "")
+        .replace(/\s+Gourmet/i, "")
+        .trim();
+      lineas.push(`${cant}x ${nombreCorto}`);
     }
   }
 
   let res = `Rellenos: ${lineas.join(", ")}`;
   if (notaAdicional?.trim()) {
-    const obsLimpia = notaAdicional.trim().slice(0, 60);
+    const obsLimpia = notaAdicional.trim().slice(0, 50);
     res += ` — Obs: ${obsLimpia}`;
   }
 
