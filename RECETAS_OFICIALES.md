@@ -161,6 +161,25 @@ Este documento contiene la ficha técnica autoritativa, descripción, gramajes e
 
 ---
 
+### 2.4 Promo 50 Mini Arepas Coctel ($1 c/u)
+- **Precio de Venta:** `$50.00 USD`
+- **Descripción:** Bandeja para eventos de 50 mini arepas tipo coctel (50g de masa cruda en balanza c/u = 17.24g Harina PAN seca c/u) con porciones de rellenos surtidos (carne mechada, pollo mechado, reina pepiada, queso amarillo y chorizo con pico de gallo).
+- **Escandallo Base:**
+  | Ingrediente / Insumo | Cantidad / Peso | Unidad |
+  | :--- | :--- | :--- |
+  | Harina PAN Maíz Blanco (50 mini arepitas) | 862.00 | g |
+  | Margarina Mavesa | 100.00 | g |
+  | Guiso de Carne Mechada | 250.00 | g |
+  | Guiso de Pollo Mechado | 250.00 | g |
+  | Relleno Reina Pepiada | 250.00 | g |
+  | Queso Amarillo Rallado | 250.00 | g |
+  | Chorizo Ahumado (E) | 200.00 | g |
+  | Pico de Gallo (Mise en Place) | 200.00 | g |
+  | Caja Descartable Familiar (2 bandejas) | 2.00 | und |
+  | Servilletas Europapel | 25.00 | und |
+
+---
+
 ## 🥤 3. Bebidas
 
 ### 3.1 Pepsi 1.5L
