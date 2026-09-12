@@ -58,3 +58,20 @@ export function toFechaCaracasString(fecha: string | Date): string {
   const f = toFechaCaracas(fecha);
   return `${f.anio}-${f.mes}-${f.dia}`;
 }
+
+/** Devuelve { anio, mes, dia } en hora de Caracas. */
+export function toFechaCaracasObj(fecha: string | Date): FechaCaracas {
+  return toFechaCaracas(fecha);
+}
+
+/**
+ * Compara si una venta/fecha coincide con el mes y año actual en Caracas (mes calendario).
+ */
+export function esMismoMesEnCaracas(
+  fechaISO: string | Date,
+  ref?: { anio: string; mes: string; dia: string }
+): boolean {
+  const fechaVenta = toFechaCaracas(fechaISO);
+  const referencia = ref ?? fechaHoyEnCaracas();
+  return fechaVenta.anio === referencia.anio && fechaVenta.mes === referencia.mes;
+}

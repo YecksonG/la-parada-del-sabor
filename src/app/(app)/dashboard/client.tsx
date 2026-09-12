@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto, ZonaDelivery } from "@/types/database";
-import { esMismaFechaEnCaracas, toFechaCaracasString } from "@/lib/date-vzla";
+import { esMismaFechaEnCaracas, toFechaCaracasString, esMismoMesEnCaracas } from "@/lib/date-vzla";
 import { parsearPagoMixtoDeNotas, parsearAbonosCreditoDeNotas, calcularSaldoPendienteComanda } from "@/lib/pago-mixto";
 import { registrarDeliveryEmpresa } from "./delivery-actions";
 import { useRouter } from "next/navigation";
@@ -117,8 +117,7 @@ export default function DashboardClient({
         return fechaVenta >= hace7Dias;
       }
       if (periodo === "mes") {
-        const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return fechaVenta >= hace30Dias;
+        return esMismoMesEnCaracas(v.fecha);
       }
       return true;
     });
@@ -138,8 +137,7 @@ export default function DashboardClient({
         return fechaGasto >= hace7Dias;
       }
       if (periodo === "mes") {
-        const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
-        return fechaGasto >= hace30Dias;
+        return esMismoMesEnCaracas(g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`);
       }
       return true;
     });
@@ -650,12 +648,12 @@ export default function DashboardClient({
         fondoInicialUsd: Number(c.monto_inicial_usd || 0),
         totalUsd: totalVentasUsdCalc,
         totalBs: totalVentasBsCalc,
-        efectivoUsd: c.estado === "cerrada" && c.total_ventas_efectivo_usd ? Number(c.total_ventas_efectivo_usd) : efectivoCalc,
+        efectivoUsd: c.estado === "cerrada" && Number(c.total_ventas_efectivo_usd) > 0 ? Number(c.total_ventas_efectivo_usd) : efectivoCalc,
         efectivoBs: efectivoBsCalc,
-        pagoMovilBs: c.estado === "cerrada" && c.total_ventas_pago_movil_bs ? Number(c.total_ventas_pago_movil_bs) : pagoMovilCalc,
-        transferenciaBs: c.estado === "cerrada" && c.total_ventas_transferencia_bs ? Number(c.total_ventas_transferencia_bs) : transferenciaCalc,
-        puntoBs: c.estado === "cerrada" && c.total_ventas_punto_bs ? Number(c.total_ventas_punto_bs) : puntoCalc,
-        dolaresDigitalesUsd: c.estado === "cerrada" && c.total_ventas_binance_usd ? Number(c.total_ventas_binance_usd) : digitalesCalc,
+        pagoMovilBs: c.estado === "cerrada" && Number(c.total_ventas_pago_movil_bs) > 0 ? Number(c.total_ventas_pago_movil_bs) : pagoMovilCalc,
+        transferenciaBs: c.estado === "cerrada" && Number(c.total_ventas_transferencia_bs) > 0 ? Number(c.total_ventas_transferencia_bs) : transferenciaCalc,
+        puntoBs: c.estado === "cerrada" && Number(c.total_ventas_punto_bs) > 0 ? Number(c.total_ventas_punto_bs) : puntoCalc,
+        dolaresDigitalesUsd: c.estado === "cerrada" && Number(c.total_ventas_binance_usd) > 0 ? Number(c.total_ventas_binance_usd) : digitalesCalc,
         diferenciaUsd: c.diferencia_usd,
         notasCierre: c.notas_cierre,
         comandas: comandasTurno,
