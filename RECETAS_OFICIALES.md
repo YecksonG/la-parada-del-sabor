@@ -2,6 +2,11 @@
 
 Este documento contiene la ficha técnica autoritativa, descripción, gramajes exactos por ingrediente (BOM) y precios de venta al público en USD (con conversión automática a tasa BCV) para todos los productos, arepas, combos, bebidas y modificadores extras de **La Parada del Sabor**.
 
+> 💡 **Regla de Oro de Masa e Hidratación (Unificación Oficial):**
+> - **En Balanza de Cocina (Masa húmeda amasada):** Se bolean porciones de **80.00 gramos** de masa.
+> - **En Sistema / Despensa (Harina P.A.N. seca en polvo):** Se descuentan **27.59 gramos** por arepa estándar (Factor de hidratación 2.9x: $80\text{g} / 2.9 = 27.59\text{g}$). Un paquete de 1 kg rinde **~36 arepas**.
+> - **Mini Arepas Coctel:** Bola de masa húmeda en balanza $\approx 30.00\text{ g}$ $\rightarrow$ Harina seca en sistema: **$10.34\text{ g}$**.
+
 ---
 
 ## 🫓 1. Arepas Individuales
@@ -51,14 +56,16 @@ Este documento contiene la ficha técnica autoritativa, descripción, gramajes e
 ### 1.4 Arepa Pelúa
 - **Precio de Venta:** `$2.80 USD`
 - **Descripción:** Arepa asada o frita rellena con carne de res esmechada en sofrito criollo tradicional y queso amarillo rallado.
-- **Escandallo de Ingredientes:**
+- **Escandallo de Ingredientes (Calibrado en Producción):**
   | Ingrediente / Insumo | Cantidad / Peso | Unidad |
   | :--- | :--- | :--- |
-  | Harina PAN (Masa base) | 27.59 | g |
-  | Mantequilla / Margarina | 7.50 | g |
-  | Carne de Res Mechada | 50.00 | g |
-  | Queso Amarillo Rallado | 50.00 | g |
-  | **Peso Total Relleno:** | **100.00** | **g** |
+  | Harina PAN Maíz Blanco (27.59g seca = 80g masa) | 27.59 | g |
+  | Margarina Mavesa | 5.00 | g |
+  | Guiso de Carne Mechada | 35.00 | g |
+  | Queso Amarillo (Oriany / Edam Porven) | 35.00 | g |
+  | Papel Antigraso Breakfast | 1.00 | und |
+  | Servilletas Europapel | 1.00 | und |
+  | **Peso Total Relleno:** | **70.00** | **g** |
 
 ---
 
