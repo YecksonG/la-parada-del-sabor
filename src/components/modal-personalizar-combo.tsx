@@ -27,6 +27,8 @@ export default function ModalPersonalizarCombo({
   onCerrar,
 }: ModalPersonalizarComboProps) {
   const [rellenos, setRellenos] = useState<Record<string, number>>({});
+  // Recargos gourmet aplicados por relleno (por defecto igual a la cantidad seleccionada)
+  const [recargosAplicados, setRecargosAplicados] = useState<Record<string, number>>({});
   const [notaOpcional, setNotaOpcional] = useState("");
   const modalCardRef = useRef<HTMLDivElement>(null);
 
@@ -52,11 +54,15 @@ export default function ModalPersonalizarCombo({
         const extraNombre = RELLENO_A_EXTRA_NOMBRE[relleno.id];
         const extraEnBd = extraNombre ? extrasPorNombre.get(extraNombre.toLowerCase().trim()) : null;
         const precioUnitExtra = Number(extraEnBd?.precio_extra_usd ?? relleno.recargo ?? 0);
-        extraSuma += precioUnitExtra * cant;
+        if (precioUnitExtra > 0) {
+          const aplicados = recargosAplicados[relleno.id] ?? cant;
+          const numCobrar = Math.min(cant, Math.max(0, aplicados));
+          extraSuma += precioUnitExtra * numCobrar;
+        }
       }
     }
     return extraSuma;
-  }, [rellenos, extrasPorNombre]);
+  }, [rellenos, extrasPorNombre, recargosAplicados]);
 
   const precioFinalCombo = useMemo(() => {
     return Number(producto.precio_usd || 0) + recargoTotal;
@@ -102,17 +108,16 @@ export default function ModalPersonalizarCombo({
   }, [handleKeyDown]);
 
   const handleModificarRelleno = (rellenoId: string, delta: number) => {
+    const actual = rellenos[rellenoId] || 0;
+    const nuevo = actual + delta;
+    if (nuevo < 0) return;
+
+    if (delta > 0 && totalSeleccionadas >= totalArepas) return;
+
+    if (delta > 0) sounds.playPop();
+    else sounds.playDelete();
+
     setRellenos((prev) => {
-      const actual = prev[rellenoId] || 0;
-      const nuevo = actual + delta;
-      if (nuevo < 0) return prev;
-
-      const totalActual = Object.values(prev).reduce((acc, c) => acc + (c || 0), 0);
-      if (delta > 0 && totalActual >= totalArepas) return prev;
-
-      if (delta > 0) sounds.playPop();
-      else sounds.playDelete();
-
       const next = { ...prev };
       if (nuevo === 0) {
         delete next[rellenoId];
@@ -121,6 +126,31 @@ export default function ModalPersonalizarCombo({
       }
       return next;
     });
+
+    setRecargosAplicados((prevRecargos) => {
+      const nextRecargos = { ...prevRecargos };
+      if (nuevo === 0) {
+        delete nextRecargos[rellenoId];
+      } else if (delta > 0) {
+        nextRecargos[rellenoId] = (nextRecargos[rellenoId] ?? actual) + 1;
+      } else {
+        nextRecargos[rellenoId] = Math.max(0, Math.min(nuevo, nextRecargos[rellenoId] ?? actual));
+      }
+      return nextRecargos;
+    });
+  };
+
+  const handleModificarRecargo = (rellenoId: string, delta: number) => {
+    const cant = rellenos[rellenoId] || 0;
+    if (cant <= 0) return;
+    const actual = recargosAplicados[rellenoId] ?? cant;
+    const nuevo = Math.max(0, Math.min(cant, actual + delta));
+    if (nuevo === actual) return;
+
+    if (delta > 0) sounds.playPop();
+    else sounds.playDelete();
+
+    setRecargosAplicados((prev) => ({ ...prev, [rellenoId]: nuevo }));
   };
 
   const handleConfirmar = () => {
@@ -128,14 +158,16 @@ export default function ModalPersonalizarCombo({
     sounds.playKitchenBell();
     const textoNotas = serializarRellenosCombo(rellenos, notaOpcional);
 
-    // Construir extrasIds: por cada arepa elegida, buscar el extra de la BD N veces
+    // Construir extrasIds: por cada arepa elegida, buscar el extra de la BD N veces (según recargos cobrados)
     const extrasIds: string[] = [];
     for (const [rellenoId, cantidad] of Object.entries(rellenos)) {
       const extraNombre = RELLENO_A_EXTRA_NOMBRE[rellenoId];
       if (!extraNombre) continue;
       const extraEnBd = extrasPorNombre.get(extraNombre.toLowerCase().trim());
       if (extraEnBd) {
-        for (let i = 0; i < cantidad; i++) {
+        const aplicados = recargosAplicados[rellenoId] ?? cantidad;
+        const numCobrar = Math.min(cantidad, Math.max(0, aplicados));
+        for (let i = 0; i < numCobrar; i++) {
           extrasIds.push(extraEnBd.id);
         }
       }
@@ -236,77 +268,197 @@ export default function ModalPersonalizarCombo({
             const extraNombre = RELLENO_A_EXTRA_NOMBRE[relleno.id];
             const extraEnBd = extraNombre ? extrasPorNombre.get(extraNombre.toLowerCase().trim()) : null;
             const precioUnitExtra = Number(extraEnBd?.precio_extra_usd ?? relleno.recargo ?? 0);
+            const numRecargos = Math.min(cant, Math.max(0, recargosAplicados[relleno.id] ?? cant));
 
             return (
               <div
                 key={relleno.id}
                 className={`combo-flavor-row ${cant > 0 ? "flavor-selected" : ""}`}
+                style={
+                  precioUnitExtra > 0 && cant > 0
+                    ? { flexDirection: "column", alignItems: "stretch", gap: 10 }
+                    : undefined
+                }
               >
-                <div className="combo-flavor-info">
-                  {relleno.imagen ? (
-                    <Image
-                      src={relleno.imagen}
-                      alt={relleno.nombre}
-                      width={48}
-                      height={48}
-                      className="combo-flavor-img"
-                    />
-                  ) : (
-                    <span className="combo-flavor-icon" aria-hidden="true">
-                      {relleno.icono}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                  <div className="combo-flavor-info">
+                    {relleno.imagen ? (
+                      <Image
+                        src={relleno.imagen}
+                        alt={relleno.nombre}
+                        width={48}
+                        height={48}
+                        className="combo-flavor-img"
+                      />
+                    ) : (
+                      <span className="combo-flavor-icon" aria-hidden="true">
+                        {relleno.icono}
+                      </span>
+                    )}
+                    <div>
+                      <div className="combo-flavor-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>{relleno.nombre}</span>
+                        {precioUnitExtra > 0 && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 800,
+                              color: "#b45309",
+                              background: "#fef3c7",
+                              border: "1px solid #fde68a",
+                              padding: "1px 6px",
+                              borderRadius: 6,
+                            }}
+                          >
+                            +${precioUnitExtra.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="combo-flavor-desc">
+                        {relleno.desc}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Controles de Cantidad */}
+                  <div className="combo-stepper-wrap">
+                    <button
+                      type="button"
+                      disabled={cant <= 0}
+                      onClick={() => handleModificarRelleno(relleno.id, -1)}
+                      className="combo-stepper-btn"
+                      aria-label={`Restar una ${relleno.nombre}`}
+                    >
+                      −
+                    </button>
+
+                    <span className={`combo-stepper-num ${cant > 0 ? "has-count" : ""}`}>
+                      {cant}
                     </span>
-                  )}
-                  <div>
-                    <div className="combo-flavor-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span>{relleno.nombre}</span>
-                      {precioUnitExtra > 0 && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 800,
-                            color: "#b45309",
-                            background: "#fef3c7",
-                            border: "1px solid #fde68a",
-                            padding: "1px 6px",
-                            borderRadius: 6,
-                          }}
-                        >
-                          +${precioUnitExtra.toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="combo-flavor-desc">
-                      {relleno.desc}
-                    </div>
+
+                    <button
+                      type="button"
+                      disabled={!puedeSumar}
+                      onClick={() => handleModificarRelleno(relleno.id, 1)}
+                      className={`combo-stepper-btn ${puedeSumar ? "plus-active" : ""}`}
+                      aria-label={`Sumar una ${relleno.nombre}`}
+                    >
+                      +
+                    </button>
                   </div>
                 </div>
 
-                {/* Controles de Cantidad */}
-                <div className="combo-stepper-wrap">
-                  <button
-                    type="button"
-                    disabled={cant <= 0}
-                    onClick={() => handleModificarRelleno(relleno.id, -1)}
-                    className="combo-stepper-btn"
-                    aria-label={`Restar una ${relleno.nombre}`}
+                {/* Control de Recargo Gourmet para este Relleno */}
+                {precioUnitExtra > 0 && cant > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "6px 10px",
+                      background: numRecargos === 0 ? "rgba(34, 197, 94, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                      border: `1px solid ${numRecargos === 0 ? "rgba(34, 197, 94, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+                      borderRadius: 8,
+                      fontSize: 11.5,
+                    }}
                   >
-                    −
-                  </button>
-
-                  <span className={`combo-stepper-num ${cant > 0 ? "has-count" : ""}`}>
-                    {cant}
-                  </span>
-
-                  <button
-                    type="button"
-                    disabled={!puedeSumar}
-                    onClick={() => handleModificarRelleno(relleno.id, 1)}
-                    className={`combo-stepper-btn ${puedeSumar ? "plus-active" : ""}`}
-                    aria-label={`Sumar una ${relleno.nombre}`}
-                  >
-                    +
-                  </button>
-                </div>
+                    <span style={{ fontWeight: 800, color: numRecargos === 0 ? "#16a34a" : "#b45309" }}>
+                      {numRecargos === 0 ? (
+                        `✨ Recargo $${precioUnitExtra.toFixed(2)} exonerado (0 cobrados)`
+                      ) : (
+                        `⚡ Recargo (+$${(numRecargos * precioUnitExtra).toFixed(2)}): ${numRecargos} de ${cant} arepa${cant > 1 ? "s" : ""}`
+                      )}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <button
+                        type="button"
+                        disabled={numRecargos <= 0}
+                        onClick={() => handleModificarRecargo(relleno.id, -1)}
+                        aria-label={`Restar un recargo de $${precioUnitExtra.toFixed(2)}`}
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 6,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg-card)",
+                          color: "var(--text)",
+                          fontWeight: 900,
+                          fontSize: 13,
+                          cursor: numRecargos <= 0 ? "not-allowed" : "pointer",
+                          opacity: numRecargos <= 0 ? 0.35 : 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        −
+                      </button>
+                      <span style={{ minWidth: 20, textAlign: "center", fontWeight: 900, fontSize: 12 }}>
+                        {numRecargos}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={numRecargos >= cant}
+                        onClick={() => handleModificarRecargo(relleno.id, 1)}
+                        aria-label={`Sumar un recargo de $${precioUnitExtra.toFixed(2)}`}
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 6,
+                          border: "1px solid var(--border)",
+                          background: "var(--bg-card)",
+                          color: "var(--text)",
+                          fontWeight: 900,
+                          fontSize: 13,
+                          cursor: numRecargos >= cant ? "not-allowed" : "pointer",
+                          opacity: numRecargos >= cant ? 0.35 : 1,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        +
+                      </button>
+                      {numRecargos > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setRecargosAplicados((prev) => ({ ...prev, [relleno.id]: 0 }))}
+                          style={{
+                            marginLeft: 4,
+                            padding: "3px 7px",
+                            fontSize: 10,
+                            fontWeight: 800,
+                            borderRadius: 5,
+                            border: "none",
+                            background: "rgba(239, 68, 68, 0.15)",
+                            color: "#dc2626",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Exonerar
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setRecargosAplicados((prev) => ({ ...prev, [relleno.id]: cant }))}
+                          style={{
+                            marginLeft: 4,
+                            padding: "3px 7px",
+                            fontSize: 10,
+                            fontWeight: 800,
+                            borderRadius: 5,
+                            border: "none",
+                            background: "rgba(34, 197, 94, 0.15)",
+                            color: "#16a34a",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cobrar todo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

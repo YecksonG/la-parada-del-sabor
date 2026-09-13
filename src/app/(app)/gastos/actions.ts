@@ -298,7 +298,6 @@ export async function eliminarGasto(id: string) {
   revalidatePath("/gastos");
   revalidatePath("/compras");
   revalidatePath("/insumos");
-  revalidatePath("/despensa");
   revalidatePath("/recetas");
   revalidatePath("/caja");
   revalidatePath("/dashboard");
@@ -463,7 +462,6 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
   }
 
   revalidatePath("/gastos");
-  revalidatePath("/despensa");
   revalidatePath("/insumos");
   revalidatePath("/compras");
   revalidatePath("/proveedores");

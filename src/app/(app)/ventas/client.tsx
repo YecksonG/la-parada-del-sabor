@@ -165,7 +165,7 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
     }
 
     if (metodoPagoAbono === "pago_mixto") {
-      if (Math.abs(abonoMixtoPendienteUsd) > 0.05) {
+      if (Math.abs(abonoMixtoPendienteUsd) > 0.005) {
         alert(`El desglose de pago mixto debe coincidir exactamente con el monto a abonar ($${abonoNum.toFixed(2)}). Diferencia: $${abonoMixtoPendienteUsd.toFixed(2)}.`);
         return;
       }
@@ -1036,11 +1036,10 @@ ${estadoPago}`;
           clientes={clientes}
           onCerrar={() => setComandaParaEditar(null)}
           onGuardado={(updatedVenta) => {
-            // Actualizar localmente la venta en el estado
-            const idx = ventas.findIndex((v) => v.id === updatedVenta.id);
-            if (idx >= 0) {
-              Object.assign(ventas[idx], updatedVenta);
-            }
+            // Actualizar localmente la venta en el estado de forma inmutable
+            setVentas((prev) =>
+              prev.map((v) => (v.id === updatedVenta.id ? { ...v, ...updatedVenta } : v))
+            );
             setComandaParaEditar(null);
           }}
         />
@@ -1408,7 +1407,7 @@ ${estadoPago}`;
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block" }}>Estado Desglose:</span>
-                        {Math.abs(abonoMixtoPendienteUsd) < 0.01 ? (
+                        {Math.abs(abonoMixtoPendienteUsd) <= 0.005 ? (
                           <span style={{ fontSize: 10.5, fontWeight: 900, color: "#16a34a", background: "rgba(34, 197, 94, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
                             ✅ Cuadrado
                           </span>
@@ -1581,16 +1580,19 @@ function ModalEditarComanda({
   const tasaBcv = Number(venta.tasa_bcv) || 1;
   const [clienteId, setClienteId] = useState<string>(venta.cliente_id || "");
 
-  // Extraer el subtotal de comida original sin el delivery
-  const subtotalComidaUsd = useMemo(() => {
+  // Extraer el subtotal de comida inicial de la comanda
+  const subtotalComidaInicial = useMemo(() => {
+    const deliveryAnt = Number(venta.delivery_monto_usd) || 0;
+    const porTotal = Math.max(0, Number(venta.total_usd) - deliveryAnt);
+    if (porTotal > 0) return porTotal;
     const itemsTotal = (venta.items || []).reduce(
       (acc, it) => acc + (Number(it.subtotal_usd) || 0),
       0
     );
-    if (itemsTotal > 0) return itemsTotal;
-    const deliveryAnt = Number(venta.delivery_monto_usd) || 0;
-    return Math.max(0, Number(venta.total_usd) - deliveryAnt);
+    return itemsTotal;
   }, [venta]);
+
+  const [subtotalComidaUsd, setSubtotalComidaUsd] = useState<number | "">(subtotalComidaInicial);
 
   const [tipoEntrega, setTipoEntrega] = useState<"puerta_cerrada" | "mesa" | "pickup" | "delivery">(
     (venta.tipo_entrega as any) || "puerta_cerrada"
@@ -1680,7 +1682,8 @@ function ModalEditarComanda({
 
   // Cálculos dinámicos
   const costoDeliveryActual = tipoEntrega === "delivery" ? Math.max(0, Number(deliveryMontoUsd) || 0) : 0;
-  const nuevoTotalUsd = Number((subtotalComidaUsd + costoDeliveryActual).toFixed(2));
+  const comidaUsdEfectivo = Math.max(0, Number(subtotalComidaUsd) || 0);
+  const nuevoTotalUsd = Number((comidaUsdEfectivo + costoDeliveryActual).toFixed(2));
   const nuevoTotalBs = Number((nuevoTotalUsd * tasaBcv).toFixed(2));
 
   // Cálculos de Pago Mixto
@@ -1729,6 +1732,24 @@ function ModalEditarComanda({
 
   const handleGuardar = async () => {
     if (guardando) return;
+
+    if (subtotalComidaUsd === "" || isNaN(Number(subtotalComidaUsd)) || Number(subtotalComidaUsd) < 0) {
+      alert("Por favor ingresa un subtotal de comida válido.");
+      return;
+    }
+
+    const maxPermitido = Math.max(500, Math.round(subtotalComidaInicial * 3) + 50);
+    if (comidaUsdEfectivo > maxPermitido) {
+      alert(`El subtotal de comida no puede exceder $${maxPermitido.toFixed(2)} USD.`);
+      return;
+    }
+
+    if (comidaUsdEfectivo === 0 && subtotalComidaInicial > 0) {
+      const confirmarCero = window.confirm(
+        "⚠️ ¿Confirmas que deseas establecer el subtotal de comida en $0.00 (100% cortesía / exonerado)?"
+      );
+      if (!confirmarCero) return;
+    }
 
     if (metodoPago === "pago_mixto") {
       if (Math.abs(pagoMixtoPendienteUsd) > 0.005) {
@@ -1824,6 +1845,7 @@ function ModalEditarComanda({
       metodo_pago: metodoPago,
       notas_comanda: notasFinales || null,
       cliente_id: clienteId || null,
+      subtotal_comida_usd: comidaUsdEfectivo,
     });
 
     setGuardando(false);
@@ -1846,7 +1868,7 @@ function ModalEditarComanda({
       total_bs: res.total_bs ?? nuevoTotalBs,
       metodo_pago: metodoPago,
       estado: res.estado ?? (metodoPago === "credito" ? "credito" : venta.estado === "credito" ? "completada" : venta.estado),
-      notas_comanda: notasFinales || null,
+      notas_comanda: res.notas_comanda !== undefined ? res.notas_comanda : (notasFinales || null),
       cliente_id: clienteId || null,
       cliente: cliObj || venta.cliente,
     });
@@ -1968,6 +1990,106 @@ function ModalEditarComanda({
             </div>
           )}
 
+          {/* Subtotal Comida y Ajuste / Exoneración de Recargos */}
+          <div
+            style={{
+              background: "var(--bg-card)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: "10px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+              <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text)" }}>
+                SUBTOTAL COMIDA ($ USD):
+              </label>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  title="Restar un recargo de $0.50"
+                  onClick={() => {
+                    const actual = Number(subtotalComidaUsd) || 0;
+                    setSubtotalComidaUsd(Math.max(0, Number((actual - 0.5).toFixed(2))));
+                  }}
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: "2px 7px",
+                    borderRadius: 5,
+                    border: "1px solid #f59e0b",
+                    background: "rgba(245, 158, 11, 0.12)",
+                    color: "#b45309",
+                    cursor: "pointer",
+                  }}
+                >
+                  −$0.50 (1 Recargo)
+                </button>
+                <button
+                  type="button"
+                  title="Restar dos recargos de $0.50 ($1.00)"
+                  onClick={() => {
+                    const actual = Number(subtotalComidaUsd) || 0;
+                    setSubtotalComidaUsd(Math.max(0, Number((actual - 1.0).toFixed(2))));
+                  }}
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    padding: "2px 7px",
+                    borderRadius: 5,
+                    border: "1px solid #f59e0b",
+                    background: "rgba(245, 158, 11, 0.12)",
+                    color: "#b45309",
+                    cursor: "pointer",
+                  }}
+                >
+                  −$1.00 (2 Recargos)
+                </button>
+                {subtotalComidaUsd !== "" && Number(subtotalComidaUsd) !== subtotalComidaInicial && (
+                  <button
+                    type="button"
+                    title="Restablecer subtotal original"
+                    onClick={() => setSubtotalComidaUsd(subtotalComidaInicial)}
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: "2px 7px",
+                      borderRadius: 5,
+                      border: "1px solid var(--border)",
+                      background: "var(--bg-subtle)",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ↺ Reset (${subtotalComidaInicial.toFixed(2)})
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 900, color: "var(--text-muted)" }}>$</span>
+              <input
+                type="number"
+                step="any"
+                min="0"
+                max={Math.max(500, Math.round(subtotalComidaInicial * 3) + 50)}
+                placeholder="0.00"
+                value={subtotalComidaUsd}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setSubtotalComidaUsd(isNaN(val) ? "" : Math.max(0, val));
+                }}
+                className="cart-notes-input"
+                style={{ fontSize: 13, fontWeight: 900 }}
+              />
+            </div>
+            <span style={{ fontSize: 10.5, color: "var(--text-muted)" }}>
+              Puedes ajustar el monto si se acordó una cortesía, descuento especial o se quitó el recargo de arepas gourmet.
+            </span>
+          </div>
+
           {/* Método de Pago */}
           <div>
             <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
@@ -2053,7 +2175,7 @@ function ModalEditarComanda({
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontSize: 10, color: "var(--text-muted)", display: "block" }}>Estado Desglose:</span>
-                  {Math.abs(pagoMixtoPendienteUsd) < 0.005 ? (
+                  {Math.abs(pagoMixtoPendienteUsd) <= 0.005 ? (
                     <span style={{ fontSize: 11, fontWeight: 900, color: "#16a34a", background: "rgba(34, 197, 94, 0.15)", padding: "2px 6px", borderRadius: 4 }}>
                       ✅ 100% Cuadrado
                     </span>
@@ -2388,7 +2510,7 @@ function ModalEditarComanda({
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
                         <span>Vuelto Total: <strong>${Math.max(0, vueltoTotalUsd).toFixed(2)} USD</strong></span>
-                        {Math.abs(vueltoPendienteUsd) < 0.005 ? (
+                        {Math.abs(vueltoPendienteUsd) <= 0.005 ? (
                           <span style={{ color: "#16a34a", fontWeight: 900 }}>✅ 100% Cuadrado</span>
                         ) : vueltoPendienteUsd > 0 ? (
                           <span style={{ color: "#dc2626", fontWeight: 900 }}>Faltan: ${vueltoPendienteUsd.toFixed(2)}</span>
@@ -2583,7 +2705,7 @@ function ModalEditarComanda({
           <div style={{ background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.4)", borderRadius: 10, padding: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>
-                Comida: ${subtotalComidaUsd.toFixed(2)} {tipoEntrega === "delivery" ? `+ Delivery: $${costoDeliveryActual.toFixed(2)}` : ""}
+                Comida: ${comidaUsdEfectivo.toFixed(2)} {tipoEntrega === "delivery" ? `+ Delivery: $${costoDeliveryActual.toFixed(2)}` : ""}
               </span>
               <strong style={{ fontSize: 16, color: "#16a34a", fontWeight: 900 }}>
                 Nuevo Total: ${nuevoTotalUsd.toFixed(2)} USD

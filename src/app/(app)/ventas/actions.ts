@@ -151,6 +151,7 @@ export type ActualizarComandaPayload = {
   metodo_pago: MetodoPago;
   notas_comanda?: string | null;
   cliente_id?: string | null;
+  subtotal_comida_usd?: number;
 };
 
 export async function actualizarDetallesComanda(payload: ActualizarComandaPayload) {
@@ -191,14 +192,30 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
   const nuevoDeliveryBs = Number((nuevoDeliveryUsd * tasaBcv).toFixed(2));
 
   // Subtotal base de los items (comida)
-  const subtotalItemsUsd = (venta.items || []).reduce(
+  const deliveryAnteriorUsd = Number(venta.delivery_monto_usd) || 0;
+  const porTotal = Math.max(0, Number(venta.total_usd) - deliveryAnteriorUsd);
+  const itemsTotal = (venta.items || []).reduce(
     (acc: number, item: any) => acc + (Number(item.subtotal_usd) || 0),
     0
   );
+  const comidaBaseCalculada = porTotal > 0 ? porTotal : itemsTotal;
 
-  // Si no hay items registrados (o items dan 0), tomar el total anterior restándole el delivery anterior
-  const deliveryAnteriorUsd = Number(venta.delivery_monto_usd) || 0;
-  const comidaBaseUsd = subtotalItemsUsd > 0 ? subtotalItemsUsd : Math.max(0, Number(venta.total_usd) - deliveryAnteriorUsd);
+  let comidaBaseUsd: number;
+  if (
+    typeof payload.subtotal_comida_usd === "number" &&
+    !isNaN(payload.subtotal_comida_usd) &&
+    payload.subtotal_comida_usd >= 0
+  ) {
+    const maxPermitido = Math.max(500, Math.round(comidaBaseCalculada * 3) + 50);
+    if (payload.subtotal_comida_usd > maxPermitido) {
+      return { ok: false, error: `El subtotal de comida no puede exceder $${maxPermitido.toFixed(2)} USD.` };
+    }
+    comidaBaseUsd = Number(payload.subtotal_comida_usd.toFixed(2));
+  } else if (comidaBaseCalculada > 0) {
+    comidaBaseUsd = comidaBaseCalculada;
+  } else {
+    comidaBaseUsd = itemsTotal;
+  }
 
   const nuevoTotalUsd = Number((comidaBaseUsd + nuevoDeliveryUsd).toFixed(2));
   const nuevoTotalBs = Number((nuevoTotalUsd * tasaBcv).toFixed(2));
@@ -211,6 +228,18 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
     nuevoEstado = "completada";
   }
 
+  let notasFinales = payload.notas_comanda ? payload.notas_comanda.trim() : null;
+  // Trazabilidad de auditoría: si se modificó el subtotal de comida, dejar constancia en notas si no existe ya
+  if (
+    typeof payload.subtotal_comida_usd === "number" &&
+    Math.abs(comidaBaseUsd - comidaBaseCalculada) > 0.005
+  ) {
+    const tagAjuste = `[Ajuste comida: $${comidaBaseCalculada.toFixed(2)} → $${comidaBaseUsd.toFixed(2)}]`;
+    if (!notasFinales?.includes("[Ajuste comida:")) {
+      notasFinales = notasFinales ? `${notasFinales} • ${tagAjuste}` : tagAjuste;
+    }
+  }
+
   const updateFields: Record<string, any> = {
     tipo_entrega: payload.tipo_entrega,
     delivery_monto_usd: nuevoDeliveryUsd,
@@ -219,7 +248,7 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
     total_bs: nuevoTotalBs,
     metodo_pago: payload.metodo_pago,
     estado: nuevoEstado,
-    notas_comanda: payload.notas_comanda ? payload.notas_comanda.trim() : null,
+    notas_comanda: notasFinales,
     direccion_delivery: payload.direccion_delivery ? payload.direccion_delivery.trim() : null,
   };
 
@@ -244,5 +273,5 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
   revalidatePath("/dashboard");
   revalidatePath("/");
 
-  return { ok: true, total_usd: nuevoTotalUsd, total_bs: nuevoTotalBs, estado: nuevoEstado };
+  return { ok: true, total_usd: nuevoTotalUsd, total_bs: nuevoTotalBs, estado: nuevoEstado, notas_comanda: notasFinales };
 }
