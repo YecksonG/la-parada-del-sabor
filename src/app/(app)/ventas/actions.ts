@@ -275,3 +275,68 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
 
   return { ok: true, total_usd: nuevoTotalUsd, total_bs: nuevoTotalBs, estado: nuevoEstado, notas_comanda: notasFinales };
 }
+
+export async function eliminarComanda(venta_id: string) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!venta_id || !UUID_REGEX.test(venta_id)) {
+    return { ok: false, error: "Identificador de venta no válido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // 1. Obtener estado actual y notas de la comanda
+  const { data: ventaActual, error: errorFetch } = await supabase
+    .from("ventas")
+    .select("id, estado, numero_comanda, notas_comanda")
+    .eq("id", venta_id)
+    .single();
+
+  if (errorFetch || !ventaActual) {
+    return { ok: false, error: "La comanda no existe o no se pudo encontrar." };
+  }
+
+  // Proteger coherencia financiera: no permitir borrar comanda con abonos ya cobrados
+  if (/\[ABONO CRÉDITO:[^\]]+\]/i.test(ventaActual.notas_comanda || "")) {
+    return {
+      ok: false,
+      error: "No se puede eliminar una comanda con abonos ya cobrados en caja. Primero debes limpiar o eliminar los abonos en Clientes.",
+    };
+  }
+
+  // 2. Si no estaba cancelada y descontó inventario, pasar a 'cancelada'
+  // para que el trigger de base de datos devuelva todo el stock a insumos
+  if (ventaActual.estado !== "cancelada") {
+    const { error: errorCancelar } = await supabase
+      .from("ventas")
+      .update({ estado: "cancelada" })
+      .eq("id", venta_id);
+
+    if (errorCancelar) {
+      return { ok: false, error: `Error al revertir stock de la comanda: ${errorCancelar.message}` };
+    }
+  }
+
+  // 3. Eliminar la comanda (ON DELETE CASCADE en FK elimina automáticamente sus ventas_items y extras)
+  const { error: errorVenta } = await supabase
+    .from("ventas")
+    .delete()
+    .eq("id", venta_id);
+
+  if (errorVenta) {
+    return {
+      ok: false,
+      error: `El stock fue revertido a insumos correctamente, pero ocurrió un error al eliminar el registro: ${errorVenta.message}. Puedes reintentar la eliminación.`,
+    };
+  }
+
+  revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/clientes");
+  revalidatePath("/dashboard");
+  revalidatePath("/insumos");
+  revalidatePath("/");
+
+  return { ok: true };
+}

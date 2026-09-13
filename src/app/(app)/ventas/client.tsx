@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Cliente, Venta } from "@/types/database";
 import type { MetodoPago } from "@/types/database";
-import { cambiarEstadoVenta, actualizarMetodoPagoVenta, actualizarDetallesComanda } from "./actions";
+import { cambiarEstadoVenta, actualizarMetodoPagoVenta, actualizarDetallesComanda, eliminarComanda } from "./actions";
 import {
   registrarPagoComandaCredito,
   eliminarAbonoComandaCredito,
@@ -1042,6 +1042,10 @@ ${estadoPago}`;
             );
             setComandaParaEditar(null);
           }}
+          onEliminada={(id) => {
+            setVentas((prev) => prev.filter((v) => v.id !== id));
+            setComandaParaEditar(null);
+          }}
         />
       )}
 
@@ -1571,11 +1575,13 @@ function ModalEditarComanda({
   clientes = [],
   onCerrar,
   onGuardado,
+  onEliminada,
 }: {
   venta: Venta;
   clientes?: Cliente[];
   onCerrar: () => void;
   onGuardado: (updated: Partial<Venta> & { id: string }) => void;
+  onEliminada: (id: string) => void;
 }) {
   const tasaBcv = Number(venta.tasa_bcv) || 1;
   const [clienteId, setClienteId] = useState<string>(venta.cliente_id || "");
@@ -1679,6 +1685,33 @@ function ModalEditarComanda({
   });
 
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+
+  const handleEliminar = async () => {
+    if (guardando || eliminando) return;
+
+    if (abonosEnComanda.length > 0) {
+      alert("No se puede eliminar una comanda a crédito que ya tiene abonos registrados en caja. Primero debes limpiar o eliminar los abonos en la sección de Clientes.");
+      return;
+    }
+
+    const conf = window.confirm(
+      `⚠️ ¿Estás seguro de eliminar permanentemente la Comanda #${venta.numero_comanda}?\n\nEsta acción revertirá automáticamente el inventario descontado y removerá la comanda de caja y reportes.`
+    );
+    if (!conf) return;
+
+    setEliminando(true);
+    const res = await eliminarComanda(venta.id);
+    setEliminando(false);
+
+    if (!res.ok) {
+      alert(res.error || "No se pudo eliminar la comanda.");
+      return;
+    }
+
+    sounds.playDelete();
+    onEliminada(venta.id);
+  };
 
   // Cálculos dinámicos
   const costoDeliveryActual = tipoEntrega === "delivery" ? Math.max(0, Number(deliveryMontoUsd) || 0) : 0;
@@ -2720,6 +2753,25 @@ function ModalEditarComanda({
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <button
               type="button"
+              disabled={guardando || eliminando}
+              onClick={handleEliminar}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                background: "rgba(239, 68, 68, 0.1)",
+                color: "#dc2626",
+                fontSize: 12,
+                fontWeight: 800,
+                cursor: guardando || eliminando ? "not-allowed" : "pointer",
+                opacity: guardando || eliminando ? 0.6 : 1,
+              }}
+            >
+              {eliminando ? "Eliminando..." : "🗑️ Eliminar"}
+            </button>
+            <button
+              type="button"
+              disabled={guardando || eliminando}
               onClick={onCerrar}
               style={{
                 flex: 1,
@@ -2730,7 +2782,7 @@ function ModalEditarComanda({
                 color: "var(--text)",
                 fontSize: 12,
                 fontWeight: 800,
-                cursor: "pointer",
+                cursor: guardando || eliminando ? "not-allowed" : "pointer",
               }}
             >
               Cancelar
