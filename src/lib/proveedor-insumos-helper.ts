@@ -46,26 +46,3 @@ export function serializeProveedorInsumos(
   });
 }
 
-/**
- * Obtiene todos los proveedores que suministran un insumo dado.
- */
-export function getProveedoresPorInsumo(
-  proveedores: Proveedor[],
-  insumoId: string
-): Proveedor[] {
-  return proveedores.filter((p) => {
-    const { insumos_ids } = parseProveedorInsumos(p.notas);
-    return insumos_ids.includes(insumoId);
-  });
-}
-
-/**
- * Obtiene la lista de objetos Insumo suministrados por un proveedor.
- */
-export function getInsumosPorProveedor(
-  insumos: Insumo[],
-  insumos_ids: string[]
-): Insumo[] {
-  const idSet = new Set(insumos_ids);
-  return insumos.filter((ins) => idSet.has(ins.id));
-}

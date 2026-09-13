@@ -69,54 +69,6 @@ async function limpiarLoginExitoso(
   }
 }
 
-export async function login(
-  prevState: LoginState,
-  formData: FormData
-): Promise<LoginState> {
-  const email = (formData.get("email") as string)?.trim().toLowerCase();
-  const password = formData.get("password") as string;
-
-  if (!email || !password) {
-    return { error: "Por favor ingresa tu correo y contraseña." };
-  }
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email) || email.length > 100) {
-    return { error: "Formato de correo electrónico no válido." };
-  }
-
-  if (password.length > 128) {
-    return { error: "Contraseña inválida." };
-  }
-
-  const reqHeaders = await headers();
-  const ip = reqHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rateLimitKey = `${ip}_${email}`;
-
-  const supabase = await createClient();
-
-  const rateCheck = await verificarRateLimitLogin(rateLimitKey);
-  if (!rateCheck.permitido) {
-    return {
-      error: `Demasiados intentos fallidos. Por seguridad tu acceso ha sido bloqueado por ${rateCheck.minutosRestantes} minutos.`,
-    };
-  }
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    return {
-      error: "Credenciales incorrectas. Verifica tu correo y contraseña.",
-    };
-  }
-
-  await limpiarLoginExitoso(rateLimitKey);
-  revalidatePath("/", "layout");
-  redirect("/");
-}
 
 export async function loginWithRateLimit(emailRaw: string, passwordRaw: string) {
   const email = emailRaw?.trim().toLowerCase();

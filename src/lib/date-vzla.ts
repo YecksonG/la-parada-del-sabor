@@ -59,10 +59,6 @@ export function toFechaCaracasString(fecha: string | Date): string {
   return `${f.anio}-${f.mes}-${f.dia}`;
 }
 
-/** Devuelve { anio, mes, dia } en hora de Caracas. */
-export function toFechaCaracasObj(fecha: string | Date): FechaCaracas {
-  return toFechaCaracas(fecha);
-}
 
 /**
  * Compara si una venta/fecha coincide con el mes y año actual en Caracas (mes calendario).

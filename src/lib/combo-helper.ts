@@ -166,4 +166,3 @@ export function serializarRellenosCombo(
   return res.slice(0, 145);
 }
 
-export const serializarSaboresCombo = serializarRellenosCombo;
