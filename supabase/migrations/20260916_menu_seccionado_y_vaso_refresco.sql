@@ -6,7 +6,7 @@
 -- 1. Desactivar Arepas Cóctel del Menú (Fin de Promoción)
 UPDATE public.productos
 SET activo = false
-WHERE ilike(nombre, '%coctel%');
+WHERE nombre ILIKE '%coctel%';
 
 -- 2. Reestructurar y Reordenar Categorías Oficiales (Orden: 1. Combos, 2. Arepas Individuales, 3. Bebidas)
 -- Categoría 1: Combos & Promociones
