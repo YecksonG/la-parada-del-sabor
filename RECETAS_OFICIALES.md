@@ -120,9 +120,9 @@ Este documento contiene la ficha técnica autoritativa, descripción, gramajes e
 
 > **Nota de Operaciones & Empaques:** Ninguna arepa individual lleva caja descartable. Únicamente los combos descuentan empaque en su escandallo automático.
 
-### 2.1 Combo Personal (2 Arepitas)
+### 2.1 Combo Personal / El Antojo Rápido (2 Arepitas + Vaso de Refresco)
 - **Precio de Venta:** `$4.00 USD`
-- **Descripción:** 2 arepitas calientes con sabores personalizados a elección del cliente + 1 vaso de bebida fría.
+- **Descripción:** 2 arepitas calientes con sabores personalizados a elección del cliente + 1 vaso de refresco bien frío.
 - **Escandallo Base:**
   | Ingrediente / Insumo | Cantidad / Peso | Unidad |
   | :--- | :--- | :--- |
@@ -130,10 +130,12 @@ Este documento contiene la ficha técnica autoritativa, descripción, gramajes e
   | Mantequilla (2 Arepitas) | 15.00 | g |
   | Rellenos a Elección | Descontado según selección | g |
   | Caja Descartable Personal | 1.00 | und |
+  | Vaso Desechable con Tapa | 1.00 | und |
+  | Porción Pepsi Cola 1.5L (Servido ~300ml) | 0.20 | und |
 
 ---
 
-### 2.2 Combo para Compartir (4 Arepitas)
+### 2.2 Combo para Compartir / El Dúo Dinámico (4 Arepitas)
 - **Precio de Venta:** `$7.00 USD`
 - **Descripción:** 4 arepitas calientes surtidas con los sabores elegidos + 1 Refresco de 1 Litro.
 - **Escandallo Base:**
@@ -147,7 +149,7 @@ Este documento contiene la ficha técnica autoritativa, descripción, gramajes e
 
 ---
 
-### 2.3 Combo Familiar (10 Arepitas)
+### 2.3 Combo Familiar / El Resuelve Familiar (10 Arepitas)
 - **Precio de Venta:** `$13.00 USD`
 - **Descripción:** 10 arepitas calientes para toda la familia con combinación libre de sabores + 1 Refresco Pepsi de 1.5 Litros.
 - **Escandallo Base:**
@@ -161,31 +163,32 @@ Este documento contiene la ficha técnica autoritativa, descripción, gramajes e
 
 ---
 
-### 2.4 Promo 50 Mini Arepas Coctel ($1 c/u)
-- **Precio de Venta:** `$50.00 USD`
-- **Descripción:** Bandeja para eventos de 50 mini arepas tipo coctel (50g de masa cruda en balanza c/u = 17.24g Harina PAN seca c/u) con porciones de rellenos surtidos (carne mechada, pollo mechado, reina pepiada, queso amarillo y chorizo con pico de gallo).
-- **Escandallo Base:**
-  | Ingrediente / Insumo | Cantidad / Peso | Unidad |
-  | :--- | :--- | :--- |
-  | Harina PAN Maíz Blanco (50 mini arepitas) | 862.00 | g |
-  | Margarina Mavesa | 100.00 | g |
-  | Guiso de Carne Mechada | 250.00 | g |
-  | Guiso de Pollo Mechado | 250.00 | g |
-  | Relleno Reina Pepiada | 250.00 | g |
-  | Queso Amarillo Rallado | 250.00 | g |
-  | Chorizo Ahumado (E) | 200.00 | g |
-  | Pico de Gallo (Mise en Place) | 200.00 | g |
-  | Caja Descartable Familiar (2 bandejas) | 2.00 | und |
-  | Servilletas Europapel | 25.00 | und |
+## 🥤 3. Bebidas
+
+### 3.1 Vaso de Refresco (Bebida Servida)
+- **Precio de Venta:** `$0.50 USD`
+- **Descripción:** Vaso de refresco Pepsi servido bien frío con vaso desechable y tapa.
+- **Escandallo de Ingredientes:**
+  | Ingrediente / Insumo | Cantidad / Porción | Costo Unitario ($) | Subtotal ($) |
+  | :--- | :--- | :--- | :--- |
+  | Vaso Desechable con Tapa | 1.00 und | $0.065 USD | $0.065 USD |
+  | Refresco Pepsi 1.5L (300 ml servido = 1/5 botella) | 0.20 und | $0.9867 USD | $0.197 USD |
+  | **Costo Total Producción:** | — | — | **$0.262 USD** |
+- **Margen de Ganancia:** **~47.6% - 50.0%** ($0.238 USD de ganancia neta por vaso).
 
 ---
 
-## 🥤 3. Bebidas
+### 3.2 Refresco Pepsi 1 Litro
+- **Precio de Venta:** `$1.00 USD`
+- **Descripción:** Botella de refresco Pepsi de 1 Litro bien fría.
+- **Insumo:** `1.00 und` Refresco Pepsi 1L (Costo: $0.81 USD | Margen: 19%).
 
-### 3.1 Pepsi 1.5L
-- **Precio de Venta:** `$2.00 USD`
-- **Descripción:** Botella de refresco Pepsi de 1.5 Litros (Litro y medio) bien fría.
-- **Insumo:** `1.00 und` Pepsi 1.5L
+---
+
+### 3.3 Refresco Pepsi 1.5 Litros
+- **Precio de Venta:** `$1.50 USD`
+- **Descripción:** Botella de refresco Pepsi familiar de 1.5 Litros fría.
+- **Insumo:** `1.00 und` Pepsi Cola 1.5L (Costo: $0.987 USD | Margen: 34.2%).
 
 ---
 

@@ -38,17 +38,28 @@ export default async function PedirPage() {
       .order("orden", { ascending: true }),
   ]);
 
-  // Excluir categoría y productos de empanadas si existen en DB
-  const empanadaCatIds = new Set(
+  // Excluir categoría y productos obsoletos (empanadas y extras de la carta principal)
+  const categoriasExcluidas = new Set(
     (catRes.data || [])
-      .filter((c) => c.nombre.toLowerCase().includes("empanada"))
+      .filter((c) => {
+        const nom = c.nombre.toLowerCase();
+        return nom.includes("empanada") || nom.includes("raciones") || nom.includes("extras");
+      })
       .map((c) => c.id)
   );
 
-  const categorias = (catRes.data || []).filter((c) => !empanadaCatIds.has(c.id));
-  const productos = (prodRes.data || []).filter(
-    (p) => !empanadaCatIds.has(p.categoria_id) && !p.nombre.toLowerCase().includes("empanada")
-  );
+  const categorias = (catRes.data || [])
+    .filter((c) => !categoriasExcluidas.has(c.id))
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  const productos = (prodRes.data || []).filter((p) => {
+    const nom = p.nombre.toLowerCase();
+    return (
+      !categoriasExcluidas.has(p.categoria_id) &&
+      !nom.includes("empanada") &&
+      !nom.includes("coctel")
+    );
+  });
   const extras = extRes.data || [];
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 0;
   

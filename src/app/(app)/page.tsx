@@ -63,8 +63,27 @@ export default async function PosPage() {
       .order("orden", { ascending: true }),
   ]);
 
-  const categorias = catRes.data || [];
-  const productos = prodRes.data || [];
+  const categoriasExcluidas = new Set(
+    (catRes.data || [])
+      .filter((c) => {
+        const nom = c.nombre.toLowerCase();
+        return nom.includes("empanada") || nom.includes("raciones") || nom.includes("extras");
+      })
+      .map((c) => c.id)
+  );
+
+  const categorias = (catRes.data || [])
+    .filter((c) => !categoriasExcluidas.has(c.id))
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  const productos = (prodRes.data || []).filter((p) => {
+    const nom = p.nombre.toLowerCase();
+    return (
+      !categoriasExcluidas.has(p.categoria_id) &&
+      !nom.includes("empanada") &&
+      !nom.includes("coctel")
+    );
+  });
   const extras = extRes.data || [];
   const bcvTasa = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 0;
   const pedidosPendientes = pedidosRes.data || [];

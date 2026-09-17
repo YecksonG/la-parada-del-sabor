@@ -177,6 +177,45 @@ export default function PosClient({
     });
   }, [productos, categoriaSeleccionada, busqueda]);
 
+  // Agrupación de productos por categoría para vista seccionada por defecto
+  const productosPorCategoria = useMemo(() => {
+    if (busqueda.trim() || categoriaSeleccionada) {
+      return null;
+    }
+
+    const ordenadas = [...categorias].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+    const secciones = ordenadas
+      .map((cat) => {
+        const items = productosFiltrados.filter((p) => p.categoria_id === cat.id);
+        return {
+          categoria: cat,
+          productos: items,
+        };
+      })
+      .filter((sec) => sec.productos.length > 0);
+
+    const idsEnSecciones = new Set(ordenadas.map((c) => c.id));
+    const huerfanos = productosFiltrados.filter(
+      (p) => !p.categoria_id || !idsEnSecciones.has(p.categoria_id)
+    );
+    if (huerfanos.length > 0) {
+      secciones.push({
+        categoria: {
+          id: "otros",
+          nombre: "Otras Especialidades",
+          icono: "✨",
+          orden: 99,
+          activo: true,
+          creado_el: "",
+        },
+        productos: huerfanos,
+      });
+    }
+
+    return secciones;
+  }, [categorias, productosFiltrados, busqueda, categoriaSeleccionada]);
+
   // Agregar producto al carrito con sonido pop (Límite máximo 50 por item)
   const agregarAlCarrito = (producto: Producto) => {
     const comboArepas = getComboArepasCount(producto);
@@ -781,92 +820,127 @@ ${estadoPago}`;
         </div>
 
         {/* Catálogo en Modo Grid o Filas */}
-        {modoVista === "grid" ? (
-          <div className="pos-products-grid">
-            {productosFiltrados.map((prod) => (
-              <button
-                key={prod.id}
-                type="button"
-                onClick={() => agregarAlCarrito(prod)}
-                className="pos-product-card"
-              >
-                <div className="product-card-top">
-                  {(() => {
-                    const imgUrl = getProductImage(prod);
-                    return imgUrl ? (
-                      <div style={{ position: "relative", width: "48px", height: "48px", borderRadius: "10px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
-                        <Image src={imgUrl} alt={prod.nombre} fill sizes="48px" style={{ objectFit: "cover" }} />
-                      </div>
-                    ) : (
-                      <span className="product-emoji">{prod.icono || "🫓"}</span>
-                    );
-                  })()}
-                  {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
-                </div>
+        {(() => {
+          const renderCardGrid = (prod: Producto) => (
+            <button
+              key={prod.id}
+              type="button"
+              onClick={() => agregarAlCarrito(prod)}
+              className="pos-product-card"
+            >
+              <div className="product-card-top">
+                {(() => {
+                  const imgUrl = getProductImage(prod);
+                  return imgUrl ? (
+                    <div style={{ position: "relative", width: "48px", height: "48px", borderRadius: "10px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
+                      <Image src={imgUrl} alt={prod.nombre} fill sizes="48px" style={{ objectFit: "cover" }} />
+                    </div>
+                  ) : (
+                    <span className="product-emoji">{prod.icono || "🫓"}</span>
+                  );
+                })()}
+                {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
+              </div>
 
-                <div className="product-card-info">
-                  <h3 className="product-title">{prod.nombre}</h3>
+              <div className="product-card-info">
+                <h3 className="product-title">{prod.nombre}</h3>
+                {prod.descripcion && (
+                  <p className="product-desc">{prod.descripcion}</p>
+                )}
+              </div>
+
+              <div className="product-card-footer">
+                <div className="price-tag">
+                  <span className="price-usd">${Number(prod.precio_usd).toFixed(2)}</span>
+                  <span className="price-bs">
+                    {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
+                  </span>
+                </div>
+                <span className="btn-add-circle">+</span>
+              </div>
+            </button>
+          );
+
+          const renderCardFila = (prod: Producto) => (
+            <button
+              key={prod.id}
+              type="button"
+              onClick={() => agregarAlCarrito(prod)}
+              className="pos-product-row-card"
+            >
+              <div className="pos-row-left">
+                {(() => {
+                  const imgUrl = getProductImage(prod);
+                  return imgUrl ? (
+                    <div style={{ position: "relative", width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                      <Image src={imgUrl} alt={prod.nombre} fill sizes="36px" style={{ objectFit: "cover" }} />
+                    </div>
+                  ) : (
+                    <span className="product-emoji" style={{ fontSize: 28 }}>{prod.icono || "🫓"}</span>
+                  );
+                })()}
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <strong className="product-title" style={{ fontSize: 15 }}>{prod.nombre}</strong>
+                    {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
+                  </div>
                   {prod.descripcion && (
-                    <p className="product-desc">{prod.descripcion}</p>
+                    <p className="product-desc" style={{ fontSize: 12, margin: 0 }}>{prod.descripcion}</p>
                   )}
                 </div>
+              </div>
 
-                <div className="product-card-footer">
-                  <div className="price-tag">
-                    <span className="price-usd">${Number(prod.precio_usd).toFixed(2)}</span>
-                    <span className="price-bs">
-                      {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
-                    </span>
-                  </div>
-                  <span className="btn-add-circle">+</span>
+              <div className="pos-row-right">
+                <div className="price-tag" style={{ textAlign: "right" }}>
+                  <span className="price-usd" style={{ fontSize: 16 }}>${Number(prod.precio_usd).toFixed(2)}</span>
+                  <span className="price-bs" style={{ fontSize: 12 }}>
+                    {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
+                  </span>
                 </div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="pos-products-rows-list">
-            {productosFiltrados.map((prod) => (
-              <button
-                key={prod.id}
-                type="button"
-                onClick={() => agregarAlCarrito(prod)}
-                className="pos-product-row-card"
-              >
-                <div className="pos-row-left">
-                  {(() => {
-                    const imgUrl = getProductImage(prod);
-                    return imgUrl ? (
-                      <div style={{ position: "relative", width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-                        <Image src={imgUrl} alt={prod.nombre} fill sizes="36px" style={{ objectFit: "cover" }} />
+                <span className="btn-add-circle" style={{ width: 34, height: 34, fontSize: 18 }}>+</span>
+              </div>
+            </button>
+          );
+
+          if (productosPorCategoria) {
+            return (
+              <div className="pos-sections-wrapper">
+                {productosPorCategoria.map(({ categoria, productos: prodsSeccion }) => (
+                  <section key={categoria.id} className="pos-menu-section">
+                    <div className="pos-section-header">
+                      <div className="pos-section-title-wrap">
+                        <span className="pos-section-icon">{categoria.icono || "🍽️"}</span>
+                        <h2 className="pos-section-title">{categoria.nombre}</h2>
+                      </div>
+                      <span className="pos-section-count">
+                        {prodsSeccion.length} {prodsSeccion.length === 1 ? "opción" : "opciones"}
+                      </span>
+                    </div>
+                    {modoVista === "grid" ? (
+                      <div className="pos-products-grid">
+                        {prodsSeccion.map(renderCardGrid)}
                       </div>
                     ) : (
-                      <span className="product-emoji" style={{ fontSize: 28 }}>{prod.icono || "🫓"}</span>
-                    );
-                  })()}
-                  <div style={{ textAlign: "left" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <strong className="product-title" style={{ fontSize: 15 }}>{prod.nombre}</strong>
-                      {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
-                    </div>
-                    {prod.descripcion && (
-                      <p className="product-desc" style={{ fontSize: 12, margin: 0 }}>{prod.descripcion}</p>
+                      <div className="pos-products-rows-list">
+                        {prodsSeccion.map(renderCardFila)}
+                      </div>
                     )}
-                  </div>
-                </div>
+                  </section>
+                ))}
+              </div>
+            );
+          }
 
-                <div className="pos-row-right">
-                  <div className="price-tag" style={{ textAlign: "right" }}>
-                    <span className="price-usd" style={{ fontSize: 16 }}>${Number(prod.precio_usd).toFixed(2)}</span>
-                    <span className="price-bs" style={{ fontSize: 12 }}>
-                      {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
-                    </span>
-                  </div>
-                  <span className="btn-add-circle" style={{ width: 34, height: 34, fontSize: 18 }}>+</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
+          return modoVista === "grid" ? (
+            <div className="pos-products-grid">
+              {productosFiltrados.map(renderCardGrid)}
+            </div>
+          ) : (
+            <div className="pos-products-rows-list">
+              {productosFiltrados.map(renderCardFila)}
+            </div>
+          );
+        })()}
       </section>
 
       {/* Columna Lateral: Comanda / Carrito */}

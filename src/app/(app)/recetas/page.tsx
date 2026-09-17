@@ -32,13 +32,36 @@ export default async function RecetasPage() {
       .limit(1),
   ]);
 
+  const categoriasExcluidas = new Set(
+    (categorias || [])
+      .filter((c) => {
+        const nom = c.nombre.toLowerCase();
+        return nom.includes("empanada") || nom.includes("raciones") || nom.includes("extras");
+      })
+      .map((c) => c.id)
+  );
+
+  const categoriasFiltradas = (categorias || [])
+    .filter((c) => !categoriasExcluidas.has(c.id))
+    .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  const productosFiltrados = (productos || []).filter((p) => {
+    const nom = p.nombre.toLowerCase();
+    return (
+      p.activo !== false &&
+      !categoriasExcluidas.has(p.categoria_id) &&
+      !nom.includes("empanada") &&
+      !nom.includes("coctel")
+    );
+  });
+
   const tasaBcv = Number(tasas?.[0]?.tasa_usd_bs || tasas?.[0]?.bcv_usd_bs) || 0;
 
   return (
     <RecetasClient
-      productos={(productos as Producto[]) || []}
+      productos={(productosFiltrados as Producto[]) || []}
       insumos={(insumos as Insumo[]) || []}
-      categorias={(categorias as Categoria[]) || []}
+      categorias={(categoriasFiltradas as Categoria[]) || []}
       tasaBcv={tasaBcv}
     />
   );

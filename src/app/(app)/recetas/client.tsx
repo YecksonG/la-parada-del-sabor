@@ -172,6 +172,19 @@ export default function RecetasClient({
   const [detalleProducto, setDetalleProducto] = useState<Producto | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [catFiltro, setCatFiltro] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState<string>("");
+
+  const productosFiltrados = useMemo(() => {
+    return productos.filter((prod) => {
+      const coincideCat = !catFiltro || prod.categoria_id === catFiltro;
+      const coincideBusqueda =
+        !busqueda.trim() ||
+        prod.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+        prod.descripcion?.toLowerCase().includes(busqueda.toLowerCase());
+      return coincideCat && coincideBusqueda;
+    });
+  }, [productos, catFiltro, busqueda]);
 
   // Cargar preferencia guardada al montar
   useEffect(() => {
@@ -355,6 +368,71 @@ export default function RecetasClient({
         </div>
       </div>
 
+      {/* Barra de Filtros por Categoría y Búsqueda */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 380 }}>
+            <input
+              type="text"
+              placeholder="🔍 Buscar por nombre de plato o receta..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="pos-search-input"
+              style={{ width: "100%", paddingRight: busqueda ? 32 : 12, borderRadius: 10 }}
+            />
+            {busqueda && (
+              <button
+                type="button"
+                onClick={() => setBusqueda("")}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                  fontSize: 14,
+                }}
+                title="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <div className="cat-scroll-container" style={{ margin: 0 }}>
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setCatFiltro(null);
+              }}
+              className={`cat-pill ${!catFiltro ? "cat-pill-active" : ""}`}
+            >
+              <span>🔥</span> Todas ({productos.length})
+            </button>
+            {categorias.map((cat) => {
+              const count = productos.filter((p) => p.categoria_id === cat.id).length;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    sounds.playPop();
+                    setCatFiltro(cat.id);
+                  }}
+                  className={`cat-pill ${catFiltro === cat.id ? "cat-pill-active" : ""}`}
+                >
+                  <span>{cat.icono}</span> {cat.nombre} ({count})
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {productos.length === 0 ? (
         <div className="recetas-empty-box">
           <span style={{ fontSize: 48 }}>🌾</span>
@@ -364,10 +442,30 @@ export default function RecetasClient({
             Crear Primera Receta
           </button>
         </div>
+      ) : productosFiltrados.length === 0 ? (
+        <div className="recetas-empty-box">
+          <span style={{ fontSize: 40 }}>🔍</span>
+          <h3>No encontramos recetas</h3>
+          <p>Intenta con otra palabra clave o selecciona otra categoría.</p>
+          {(catFiltro || busqueda) && (
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setCatFiltro(null);
+                setBusqueda("");
+              }}
+              className="btn-primary-action"
+              style={{ marginTop: 12 }}
+            >
+              Ver Todas las Recetas
+            </button>
+          )}
+        </div>
       ) : modoVista === "grid" ? (
         /* VISTA 1: CUADROS / GRID */
         <div className="recetas-grid">
-          {productos.map((prod) => {
+          {productosFiltrados.map((prod) => {
             const costoProd = (prod.ingredientes || []).reduce((acc, ing) => {
               const costoUnit = Number(ing.insumo?.costo_unitario_usd || 0);
               return acc + costoUnit * Number(ing.cantidad);
@@ -525,7 +623,7 @@ export default function RecetasClient({
               </tr>
             </thead>
             <tbody>
-              {productos.map((prod) => {
+              {productosFiltrados.map((prod) => {
                 const prodIngredientes = prod.ingredientes || [];
                 const costoProd = prodIngredientes.reduce((acc, ing) => {
                   const costoUnit = Number(ing.insumo?.costo_unitario_usd || 0);

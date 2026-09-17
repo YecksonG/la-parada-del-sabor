@@ -551,6 +551,46 @@ export default function MenuClienteView({
     });
   }, [productos, catSeleccionada, busqueda]);
 
+  // Agrupación de productos por categoría para mostrar el menú estructurado en secciones
+  const productosPorCategoria = useMemo(() => {
+    // Si el cliente está buscando o seleccionó un chip de categoría específico, no mostramos todas las secciones juntas
+    if (busqueda.trim() || catSeleccionada !== "todas") {
+      return null;
+    }
+
+    const ordenadas = [...categorias].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+    const secciones = ordenadas
+      .map((cat) => {
+        const items = productosFiltrados.filter((p) => p.categoria_id === cat.id);
+        return {
+          categoria: cat,
+          productos: items,
+        };
+      })
+      .filter((sec) => sec.productos.length > 0);
+
+    const idsEnSecciones = new Set(ordenadas.map((c) => c.id));
+    const huerfanos = productosFiltrados.filter(
+      (p) => !p.categoria_id || !idsEnSecciones.has(p.categoria_id)
+    );
+    if (huerfanos.length > 0) {
+      secciones.push({
+        categoria: {
+          id: "otros",
+          nombre: "Otras Especialidades",
+          icono: "✨",
+          orden: 99,
+          activo: true,
+          creado_el: "",
+        },
+        productos: huerfanos,
+      });
+    }
+
+    return secciones;
+  }, [categorias, productosFiltrados, busqueda, catSeleccionada]);
+
   const subtotalComidaUsd = useMemo(() => {
     return carrito.reduce((acc, item) => {
       const base = Number(item.producto.precio_usd || 0) * item.cantidad;
@@ -879,6 +919,114 @@ export default function MenuClienteView({
     }
   };
 
+  const renderCardProducto = (prod: Producto) => {
+    const precioUsd = Number(prod.precio_usd || 0);
+    const precioBs = precioUsd * tasaBcv;
+    const cantidadEnCarrito = carrito
+      .filter((item) => item.producto.id === prod.id)
+      .reduce((acc, item) => acc + item.cantidad, 0);
+    const isCombo = getComboArepasCount(prod) !== null;
+    const imgUrl = getProductImage(prod);
+
+    return (
+      <div key={prod.id} className="pedir-product-card">
+        <div className="pedir-product-card-body">
+          <div
+            className={`pedir-product-icon-wrap ${imgUrl ? "has-image" : ""}`}
+            onClick={() => {
+              if (imgUrl) setModalFotoZoom(prod);
+            }}
+            onKeyDown={(e) => {
+              if (imgUrl && (e.key === "Enter" || e.key === " ")) {
+                e.preventDefault();
+                setModalFotoZoom(prod);
+              }
+            }}
+            role={imgUrl ? "button" : undefined}
+            tabIndex={imgUrl ? 0 : undefined}
+            aria-label={imgUrl ? `Ver foto ampliada de ${prod.nombre}` : undefined}
+            title={imgUrl ? "Toca para agrandar foto" : undefined}
+          >
+            {imgUrl ? (
+              <div className="pedir-product-image-container">
+                <Image
+                  src={imgUrl}
+                  alt={prod.nombre}
+                  width={76}
+                  height={76}
+                  className="pedir-product-thumbnail-img"
+                />
+                <span className="pedir-zoom-badge" aria-hidden="true">🔍</span>
+              </div>
+            ) : (
+              <span className="pedir-product-glyph">{prod.icono || "🫓"}</span>
+            )}
+          </div>
+          <div className="pedir-product-details">
+            <div className="pedir-product-head">
+              <h3 className="pedir-product-title">{prod.nombre}</h3>
+              {prod.popular && <span className="pedir-badge-popular">🔥 Top</span>}
+            </div>
+            {prod.descripcion && (
+              <p className="pedir-product-desc">{prod.descripcion}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="pedir-product-footer">
+          <div className="pedir-product-price-box">
+            <span className="pedir-price-usd">${precioUsd.toFixed(2)}</span>
+            <span className="pedir-price-bs">Bs. {precioBs.toFixed(2)}</span>
+          </div>
+
+          {isCombo ? (
+            <button
+              type="button"
+              onClick={() => handleAgregarProductoDirecto(prod)}
+              className="pedir-btn-add"
+              style={{
+                background: "linear-gradient(135deg, #e65c00, #ff8c00)",
+                color: "#ffffff",
+                fontWeight: 800,
+                fontSize: 13,
+              }}
+            >
+              🍱 Armar Rellenos {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
+            </button>
+          ) : cantidadEnCarrito > 0 ? (
+            <div className="pedir-card-qty-controls">
+              <button
+                type="button"
+                onClick={() => handleModificarCantidadPorProducto(prod.id, -1)}
+                className="pedir-card-qty-btn"
+                aria-label="Restar una unidad"
+              >
+                -
+              </button>
+              <span className="pedir-card-qty-num">{cantidadEnCarrito}</span>
+              <button
+                type="button"
+                onClick={() => handleModificarCantidadPorProducto(prod.id, 1)}
+                className="pedir-card-qty-btn plus"
+                aria-label="Sumar una unidad"
+              >
+                +
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleAgregarProductoDirecto(prod)}
+              className="pedir-btn-add"
+            >
+              + Agregar
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="pedir-page-layout">
       <SplashScreen />
@@ -977,115 +1125,30 @@ export default function MenuClienteView({
             <h3>No encontramos productos</h3>
             <p>Intenta con otra palabra clave o selecciona otra categoría.</p>
           </div>
-        ) : (
-          <div className="pedir-products-grid">
-            {productosFiltrados.map((prod) => {
-              const precioUsd = Number(prod.precio_usd || 0);
-              const precioBs = precioUsd * tasaBcv;
-              const cantidadEnCarrito = carrito
-                .filter((item) => item.producto.id === prod.id)
-                .reduce((acc, item) => acc + item.cantidad, 0);
-              const isCombo = getComboArepasCount(prod) !== null;
-              const imgUrl = getProductImage(prod);
-
-              return (
-                <div key={prod.id} className="pedir-product-card">
-                  <div className="pedir-product-card-body">
-                    <div
-                      className={`pedir-product-icon-wrap ${imgUrl ? "has-image" : ""}`}
-                      onClick={() => {
-                        if (imgUrl) setModalFotoZoom(prod);
-                      }}
-                      onKeyDown={(e) => {
-                        if (imgUrl && (e.key === "Enter" || e.key === " ")) {
-                          e.preventDefault();
-                          setModalFotoZoom(prod);
-                        }
-                      }}
-                      role={imgUrl ? "button" : undefined}
-                      tabIndex={imgUrl ? 0 : undefined}
-                      aria-label={imgUrl ? `Ver foto ampliada de ${prod.nombre}` : undefined}
-                      title={imgUrl ? "Toca para agrandar foto" : undefined}
-                    >
-                      {imgUrl ? (
-                        <div className="pedir-product-image-container">
-                          <Image
-                            src={imgUrl}
-                            alt={prod.nombre}
-                            width={76}
-                            height={76}
-                            className="pedir-product-thumbnail-img"
-                          />
-                          <span className="pedir-zoom-badge" aria-hidden="true">🔍</span>
-                        </div>
-                      ) : (
-                        <span className="pedir-product-glyph">{prod.icono || "🫓"}</span>
-                      )}
-                    </div>
-                    <div className="pedir-product-details">
-                      <div className="pedir-product-head">
-                        <h3 className="pedir-product-title">{prod.nombre}</h3>
-                        {prod.popular && <span className="pedir-badge-popular">🔥 Top</span>}
-                      </div>
-                      {prod.descripcion && (
-                        <p className="pedir-product-desc">{prod.descripcion}</p>
-                      )}
-                    </div>
+        ) : productosPorCategoria ? (
+          /* VISTA SECCIONADA POR CATEGORÍAS (Combos, Arepas Individuales, Bebidas) */
+          <div className="pedir-sections-wrapper">
+            {productosPorCategoria.map(({ categoria, productos: prodsSeccion }) => (
+              <section key={categoria.id} id={`sec-${categoria.id}`} className="pedir-menu-section">
+                <div className="pedir-section-header">
+                  <div className="pedir-section-title-wrap">
+                    <span className="pedir-section-icon">{categoria.icono || "🍽️"}</span>
+                    <h2 className="pedir-section-title">{categoria.nombre}</h2>
                   </div>
-
-                  <div className="pedir-product-footer">
-                    <div className="pedir-product-price-box">
-                      <span className="pedir-price-usd">${precioUsd.toFixed(2)}</span>
-                      <span className="pedir-price-bs">Bs. {precioBs.toFixed(2)}</span>
-                    </div>
-
-                    {isCombo ? (
-                      <button
-                        type="button"
-                        onClick={() => handleAgregarProductoDirecto(prod)}
-                        className="pedir-btn-add"
-                        style={{
-                          background: "linear-gradient(135deg, #e65c00, #ff8c00)",
-                          color: "#ffffff",
-                          fontWeight: 800,
-                          fontSize: 13,
-                        }}
-                      >
-                        🍱 Armar Rellenos {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
-                      </button>
-                    ) : cantidadEnCarrito > 0 ? (
-                      <div className="pedir-card-qty-controls">
-                        <button
-                          type="button"
-                          onClick={() => handleModificarCantidadPorProducto(prod.id, -1)}
-                          className="pedir-card-qty-btn"
-                          aria-label="Restar una unidad"
-                        >
-                          -
-                        </button>
-                        <span className="pedir-card-qty-num">{cantidadEnCarrito}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleModificarCantidadPorProducto(prod.id, 1)}
-                          className="pedir-card-qty-btn plus"
-                          aria-label="Sumar una unidad"
-                        >
-                          +
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleAgregarProductoDirecto(prod)}
-                        className="pedir-btn-add"
-                      >
-                        + Agregar
-                      </button>
-                    )}
-                  </div>
+                  <span className="pedir-section-count">
+                    {prodsSeccion.length} {prodsSeccion.length === 1 ? "opción" : "opciones"}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="pedir-products-grid">
+                  {prodsSeccion.map((prod) => renderCardProducto(prod))}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          /* VISTA FILTRADA (Categoría individual o Búsqueda) */
+          <div className="pedir-products-grid">
+            {productosFiltrados.map((prod) => renderCardProducto(prod))}
           </div>
         )}
       </main>

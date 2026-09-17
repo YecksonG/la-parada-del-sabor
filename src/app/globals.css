@@ -5079,6 +5079,105 @@ a {
   margin-bottom: 8px;
 }
 
+/* Secciones del Menú en /pedir */
+.pedir-sections-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.pedir-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pedir-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border-subtle);
+}
+
+.pedir-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pedir-section-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.pedir-section-title {
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.pedir-section-count {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--primary-dark);
+  background: var(--primary-light);
+  border: 1px solid rgba(230, 92, 0, 0.15);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+/* Secciones del Menú en POS Admin */
+.pos-sections-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.pos-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pos-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 8px 4px;
+  border-bottom: 2px solid var(--border-subtle);
+}
+
+.pos-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pos-section-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.pos-section-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0;
+}
+
+.pos-section-count {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
 .pedir-products-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
