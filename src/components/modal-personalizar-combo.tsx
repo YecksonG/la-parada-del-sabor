@@ -37,7 +37,7 @@ export default function ModalPersonalizarCombo({
   // Recargos gourmet aplicados por relleno (por defecto igual a la cantidad seleccionada)
   const [recargosAplicados, setRecargosAplicados] = useState<Record<string, number>>({});
   const [notaOpcional, setNotaOpcional] = useState("");
-  const [coccionModo, setCoccionModo] = useState<CoccionModo>("todas_fritas");
+  const [coccionModo, setCoccionModo] = useState<CoccionModo | null>(null);
   const [coccionDesglose, setCoccionDesglose] = useState<Record<string, CoccionDesglose>>({});
   const modalCardRef = useRef<HTMLDivElement>(null);
 
@@ -79,6 +79,22 @@ export default function ModalPersonalizarCombo({
 
   const faltantes = Math.max(0, totalArepas - totalSeleccionadas);
   const esCompleto = totalSeleccionadas === totalArepas;
+
+  // Validación para modo mixto: debe tener al menos 1 asada y 1 frita
+  const desgloseMixtasValido = useMemo(() => {
+    if (coccionModo !== "mixtas") return true;
+    let totalAsadas = 0;
+    let totalFritas = 0;
+    for (const [rellenoId, cant] of Object.entries(rellenos)) {
+      if (!cant || cant <= 0) continue;
+      const d = coccionDesglose[rellenoId] || { asadas: 0, fritas: cant };
+      totalAsadas += d.asadas;
+      totalFritas += d.fritas;
+    }
+    return totalAsadas > 0 && totalFritas > 0;
+  }, [coccionModo, rellenos, coccionDesglose]);
+
+  const puedeConfirmar = esCompleto && coccionModo !== null && desgloseMixtasValido;
 
   // Bloqueo estricto del scroll de fondo para iOS y Android
   useEffect(() => {
@@ -132,6 +148,10 @@ export default function ModalPersonalizarCombo({
         delete next[rellenoId];
       } else {
         next[rellenoId] = nuevo;
+      }
+      const nuevoTotal = Object.values(next).reduce((a, b) => a + b, 0);
+      if (nuevoTotal < 2) {
+        setCoccionModo((actualModo) => (actualModo === "mixtas" ? null : actualModo));
       }
       return next;
     });
@@ -205,7 +225,7 @@ export default function ModalPersonalizarCombo({
   };
 
   const handleConfirmar = () => {
-    if (!esCompleto) return;
+    if (!puedeConfirmar || !coccionModo) return;
     sounds.playKitchenBell();
     const textoNotas = serializarRellenosCombo(rellenos, notaOpcional, coccionModo, coccionDesglose);
 
@@ -518,14 +538,23 @@ export default function ModalPersonalizarCombo({
         </div>
 
         {/* Selector de Cocción de las Arepas */}
-        <div className="combo-coccion-section">
+        <div className={`combo-coccion-section ${esCompleto && !coccionModo ? "combo-coccion-pending" : ""}`}>
           <div className="combo-coccion-head">
-            <span className="combo-coccion-title">Cocción de las Arepas:</span>
-            <span className="combo-coccion-badge">Mismo costo</span>
+            <span id="combo-coccion-title" className="combo-coccion-title">
+              Cocción de las Arepas: <span aria-hidden="true">*</span>
+            </span>
+            <span
+              className={`combo-coccion-badge ${!coccionModo ? "combo-coccion-badge-required" : ""}`}
+              aria-live="polite"
+            >
+              {coccionModo ? "Mismo costo" : "Obligatorio"}
+            </span>
           </div>
-          <div className="combo-coccion-tabs">
+          <div className="combo-coccion-tabs" role="radiogroup" aria-labelledby="combo-coccion-title" aria-required="true">
             <button
               type="button"
+              role="radio"
+              aria-checked={coccionModo === "todas_fritas"}
               onClick={() => {
                 sounds.playPop();
                 setCoccionModo("todas_fritas");
@@ -536,6 +565,8 @@ export default function ModalPersonalizarCombo({
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={coccionModo === "todas_asadas"}
               onClick={() => {
                 sounds.playPop();
                 setCoccionModo("todas_asadas");
@@ -546,15 +577,44 @@ export default function ModalPersonalizarCombo({
             </button>
             <button
               type="button"
+              role="radio"
+              aria-checked={coccionModo === "mixtas"}
+              disabled={totalSeleccionadas < 2}
+              aria-disabled={totalSeleccionadas < 2}
+              title={totalSeleccionadas < 2 ? "Requiere seleccionar al menos 2 arepas" : "Personalizar cuántas asadas y cuántas fritas"}
               onClick={() => {
+                if (totalSeleccionadas < 2) return;
                 sounds.playPop();
                 setCoccionModo("mixtas");
+                setCoccionDesglose((prev) => {
+                  const tieneDesglose = Object.values(prev).some((d) => d.asadas > 0);
+                  if (tieneDesglose) return prev;
+                  const nuevo: Record<string, CoccionDesglose> = {};
+                  let asadasPorAsignar = Math.max(1, Math.floor(totalSeleccionadas / 2));
+                  for (const [rellenoId, cant] of Object.entries(rellenos)) {
+                    if (!cant || cant <= 0) continue;
+                    const asadas = Math.min(cant, asadasPorAsignar);
+                    asadasPorAsignar -= asadas;
+                    nuevo[rellenoId] = { asadas, fritas: cant - asadas };
+                  }
+                  return nuevo;
+                });
               }}
               className={`combo-coccion-tab ${coccionModo === "mixtas" ? "active" : ""}`}
             >
               Mixtas
             </button>
           </div>
+          {!coccionModo && esCompleto && (
+            <span role="alert" aria-live="polite" style={{ fontSize: 11.5, color: "var(--primary-dark)", fontWeight: 700, textAlign: "center" }}>
+              Por favor selecciona cómo prefieres tus arepas (Fritas, Asadas o Mixtas)
+            </span>
+          )}
+          {coccionModo === "mixtas" && totalSeleccionadas >= 2 && !desgloseMixtasValido && (
+            <span role="alert" aria-live="polite" style={{ fontSize: 11.5, color: "#dc2626", fontWeight: 700, textAlign: "center" }}>
+              En modo Mixtas debes incluir al menos 1 asada y 1 frita
+            </span>
+          )}
 
           {/* Desglose para modo Mixtas */}
           {coccionModo === "mixtas" && (
@@ -655,13 +715,17 @@ export default function ModalPersonalizarCombo({
           </button>
           <button
             type="button"
-            disabled={!esCompleto}
+            disabled={!puedeConfirmar}
             onClick={handleConfirmar}
             className="combo-btn-confirm"
           >
-            {esCompleto
-              ? `Listo • Agregar Combo ($${precioFinalCombo.toFixed(2)})`
-              : `Elige ${faltantes} más`}
+            {!esCompleto
+              ? `Elige ${faltantes} más`
+              : !coccionModo
+              ? "Selecciona Fritas, Asadas o Mixtas"
+              : !desgloseMixtasValido
+              ? "Ajusta Asadas y Fritas"
+              : `Listo • Agregar Combo ($${precioFinalCombo.toFixed(2)})`}
           </button>
         </div>
       </div>

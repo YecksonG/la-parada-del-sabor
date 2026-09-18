@@ -7767,6 +7767,13 @@ a {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.combo-coccion-section.combo-coccion-pending {
+  border: 1.5px solid var(--primary);
+  background: rgba(230, 92, 0, 0.04);
+  box-shadow: 0 0 0 2px rgba(230, 92, 0, 0.15);
 }
 
 .combo-coccion-head {
@@ -7789,6 +7796,13 @@ a {
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid rgba(230, 92, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.combo-coccion-badge.combo-coccion-badge-required {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .combo-coccion-tabs {
@@ -7817,9 +7831,14 @@ a {
   white-space: nowrap;
 }
 
-.combo-coccion-tab:hover {
+.combo-coccion-tab:hover:not(:disabled) {
   color: var(--text);
   background: var(--bg-subtle);
+}
+
+.combo-coccion-tab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .combo-coccion-tab.active {

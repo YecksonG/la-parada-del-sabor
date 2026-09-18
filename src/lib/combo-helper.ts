@@ -131,6 +131,9 @@ export function getProductImage(prod?: { nombre?: string | null; imagen_url?: st
     if (norm.includes("1l") || norm.includes("1 l") || norm.includes("1 litro") || norm.includes("un litro")) return "/images/bebidas/pepsi-1l.jpg";
     return "/images/bebidas/pepsi-1l.jpg";
   }
+  if (norm.includes("vaso") || norm.includes("refresco")) {
+    return "/images/bebidas/vaso-refresco.jpg";
+  }
 
   return null;
 }
@@ -174,8 +177,9 @@ export function serializarRellenosCombo(
         .replace(/\s+Gourmet/i, "")
         .trim();
 
-      if (coccionModo === "mixtas" && coccionDesglose && coccionDesglose[relleno.id]) {
-        const { asadas = 0, fritas = 0 } = coccionDesglose[relleno.id];
+      if (coccionModo === "mixtas") {
+        const desglose = (coccionDesglose && coccionDesglose[relleno.id]) || { asadas: 0, fritas: cant };
+        const { asadas = 0, fritas = 0 } = desglose;
         if (asadas > 0 && fritas > 0) {
           lineas.push(`${nombreCorto} (${asadas}A/${fritas}F)`);
         } else if (asadas > 0) {
