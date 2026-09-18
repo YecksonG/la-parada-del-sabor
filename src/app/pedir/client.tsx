@@ -422,12 +422,12 @@ export default function MenuClienteView({
   const handleAsignarGpsSimulado = (lat = 11.69875, lng = -70.19853) => {
     const mapsUrl = `https://maps.google.com/?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
     setDireccionDelivery((prev) => {
-      const gpsTag = `📍 Ubicación GPS: ${mapsUrl}`;
+      const gpsTag = `Ubicación GPS: ${mapsUrl}`;
       if (!prev.trim()) {
         return gpsTag;
       }
       if (prev.includes("maps.google.com")) {
-        return prev.replace(/📍 Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, gpsTag);
+        return prev.replace(/(📍 )?Ubicación GPS: https:\/\/maps\.google\.com\/\?q=[^\s]+/, gpsTag);
       }
       return `${prev.trim()}\n${gpsTag}`;
     });
@@ -1002,7 +1002,12 @@ export default function MenuClienteView({
                   height={76}
                   className="pedir-product-thumbnail-img"
                 />
-                <span className="pedir-zoom-badge" aria-hidden="true">🔍</span>
+                <span className="pedir-zoom-badge" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
               </div>
             ) : (
               <span className="pedir-product-glyph">{prod.icono || "🫓"}</span>
@@ -1011,7 +1016,7 @@ export default function MenuClienteView({
           <div className="pedir-product-details">
             <div className="pedir-product-head">
               <h3 className="pedir-product-title">{prod.nombre}</h3>
-              {prod.popular && <span className="pedir-badge-popular">🔥 Top</span>}
+              {prod.popular && <span className="pedir-badge-popular">Top</span>}
             </div>
             {prod.descripcion && (
               <p className="pedir-product-desc">{prod.descripcion}</p>
@@ -1037,7 +1042,7 @@ export default function MenuClienteView({
                 fontSize: 13,
               }}
             >
-              🍱 Armar Rellenos {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
+              Armar Rellenos {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
             </button>
           ) : isArepa ? (
             <button
@@ -1134,7 +1139,11 @@ export default function MenuClienteView({
                 className="pedir-header-cart-btn"
                 aria-label="Ver carrito"
               >
-                <span>🛒</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="8" cy="21" r="1" />
+                  <circle cx="19" cy="21" r="1" />
+                  <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                </svg>
                 <span className="pedir-header-cart-badge">{totalItemsCount}</span>
               </button>
             )}
@@ -1145,7 +1154,7 @@ export default function MenuClienteView({
         <div className="pedir-search-container">
           <input
             type="search"
-            placeholder="🔍 Buscar arepas, bebidas, rellenos..."
+            placeholder="Buscar arepas, bebidas, rellenos..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             className="pedir-search-input"
@@ -1159,7 +1168,7 @@ export default function MenuClienteView({
             onClick={() => setCatSeleccionada("todas")}
             className={`pedir-cat-chip ${catSeleccionada === "todas" ? "active" : ""}`}
           >
-            🍽️ Todas
+            Todas
           </button>
           {categorias
             .filter((c) => !c.nombre.toLowerCase().includes("empanada"))
@@ -1181,7 +1190,10 @@ export default function MenuClienteView({
       <main className="pedir-products-container">
         {productosFiltrados.length === 0 ? (
           <div className="pedir-empty-catalog">
-            <span>🔍</span>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ margin: "0 auto 8px auto", display: "block" }}>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             <h3>No encontramos productos</h3>
             <p>Intenta con otra palabra clave o selecciona otra categoría.</p>
           </div>
@@ -1255,9 +1267,9 @@ export default function MenuClienteView({
             {/* Header con Título dinámico por paso */}
             <div className="pedir-drawer-header">
               <h2 style={{ fontSize: 17, fontWeight: 900, margin: 0 }}>
-                {pasoCheckout === 1 && `🛒 Tu Pedido (${totalItemsCount})`}
-                {pasoCheckout === 2 && "🛵 Modalidad de Entrega"}
-                {pasoCheckout === 3 && "💳 Método de Pago & Factura"}
+                {pasoCheckout === 1 && `Tu Pedido (${totalItemsCount})`}
+                {pasoCheckout === 2 && "Modalidad de Entrega"}
+                {pasoCheckout === 3 && "Método de Pago & Factura"}
               </h2>
               <button
                 type="button"
@@ -1368,7 +1380,7 @@ export default function MenuClienteView({
                                 </div>
                               )}
                               {item.notas_item && (
-                                <div className="pedir-cart-item-notes">📝 {item.notas_item}</div>
+                                <div className="pedir-cart-item-notes">{item.notas_item}</div>
                               )}
                               <div className="pedir-cart-item-price-wrap">
                                 <span className="pedir-cart-item-price-usd">${precioTotal.toFixed(2)} USD</span>
@@ -1408,7 +1420,7 @@ export default function MenuClienteView({
                     <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 5 }}>
                       <div className="pedir-form-group">
                         <label htmlFor="nombreClienteInput" style={{ display: "block", marginBottom: 6, fontSize: 12.5, fontWeight: 800 }}>
-                          👤 Tu Nombre y Apellido *
+                          Tu Nombre y Apellido *
                         </label>
                         <input
                           id="nombreClienteInput"
@@ -1426,7 +1438,7 @@ export default function MenuClienteView({
                       <div className="pedir-form-group">
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                           <label htmlFor="telefonoClienteInput" style={{ margin: 0, fontSize: 12.5, fontWeight: 800 }}>
-                            📱 Teléfono / WhatsApp *
+                            Teléfono / WhatsApp *
                           </label>
                           <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>
                             Ej: {paisSeleccionado.ejemplo}
@@ -1487,7 +1499,13 @@ export default function MenuClienteView({
                         className={`pedir-switch-card ${tipoEntrega === "pickup" ? "active" : ""}`}
                         onClick={() => setTipoEntrega("pickup")}
                       >
-                        <div className="pedir-switch-card-icon">🛍️</div>
+                        <div className="pedir-switch-card-icon">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                            <line x1="3" y1="6" x2="21" y2="6" />
+                            <path d="M16 10a4 4 0 0 1-8 0" />
+                          </svg>
+                        </div>
                         <div className="pedir-switch-card-body">
                           <span className="pedir-switch-card-title">Para Llevar / Retiro</span>
                           <span className="pedir-switch-card-sub">Retiras directo en nuestro local</span>
@@ -1507,7 +1525,14 @@ export default function MenuClienteView({
                           setModalZonaDelivery(true);
                         }}
                       >
-                        <div className="pedir-switch-card-icon">🛵</div>
+                        <div className="pedir-switch-card-icon">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="1" y="3" width="15" height="13" rx="2" />
+                            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                            <circle cx="5.5" cy="18.5" r="2.5" />
+                            <circle cx="18.5" cy="18.5" r="2.5" />
+                          </svg>
+                        </div>
                         <div className="pedir-switch-card-body">
                           <span className="pedir-switch-card-title">Delivery a Domicilio</span>
                           <span className="pedir-switch-card-sub">Te lo llevamos directo a tu puerta</span>
@@ -1526,7 +1551,7 @@ export default function MenuClienteView({
                         <div style={{ marginBottom: 14 }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                             <label className="pedir-form-label-destacado" style={{ margin: 0 }}>
-                              📍 Zona / Sector de Entrega *
+                              Zona / Sector de Entrega *
                             </label>
                             <button
                               type="button"
@@ -1597,7 +1622,20 @@ export default function MenuClienteView({
                         aria-label="Detectar ubicación GPS automáticamente"
                       >
                         <div className="pedir-btn-gps-hero-icon" aria-hidden="true">
-                          {cargandoGps ? "⏳" : gpsOk ? "✅" : "📍"}
+                          {cargandoGps ? (
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 0.8s linear infinite" }}>
+                              <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="10" />
+                            </svg>
+                          ) : gpsOk ? (
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                              <circle cx="12" cy="10" r="3" />
+                            </svg>
+                          )}
                         </div>
                         <div className="pedir-btn-gps-hero-content">
                           <span className="pedir-btn-gps-hero-title" aria-live="polite">
@@ -1635,7 +1673,7 @@ export default function MenuClienteView({
                             cursor: "pointer",
                           }}
                         >
-                          🧪 (Modo Local / PC): Asignar GPS de Prueba (Punto Fijo)
+                          (Modo Local / PC): Asignar GPS de Prueba (Punto Fijo)
                         </button>
                       )}
 
@@ -1660,7 +1698,7 @@ export default function MenuClienteView({
                           />
                           <div style={{ fontSize: 12.5, lineHeight: 1.4, color: "var(--text)" }}>
                             <strong style={{ color: "var(--primary-dark)", display: "block", marginBottom: 2 }}>
-                              ¡No te preocupes por el GPS! 🛵
+                              ¡No te preocupes por el GPS!
                             </strong>
                             {gpsDetalleError && (
                               <p style={{ margin: "0 0 6px", fontSize: 12, color: "#dc2626", fontWeight: 800 }}>
@@ -1691,7 +1729,7 @@ export default function MenuClienteView({
                       />
                       {gpsOk && (
                         <span className="pedir-gps-ok-hint">
-                          ✨ ¡Listo! Tu enlace de Google Maps se adjuntará automáticamente a la comanda para el repartidor.
+                          ¡Listo! Tu enlace de Google Maps se adjuntará automáticamente a la comanda para el repartidor.
                         </span>
                       )}
 
@@ -1713,7 +1751,10 @@ export default function MenuClienteView({
                         >
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 900, color: "#16a34a", display: "flex", alignItems: "center", gap: 6 }}>
-                              <span>✅</span> Coordenadas GPS fijadas con éxito
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              <span>Coordenadas GPS fijadas con éxito</span>
                             </div>
                             <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
                               Lat: {gpsCoordenadas.lat.toFixed(5)}, Lng: {gpsCoordenadas.lng.toFixed(5)}
@@ -1757,7 +1798,10 @@ export default function MenuClienteView({
                         gap: 10,
                       }}
                     >
-                      <span style={{ fontSize: 24 }}>🏬</span>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--primary-dark)", flexShrink: 0 }}>
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
                       <div>
                         <strong style={{ fontSize: 13, display: "block", color: "var(--text)" }}>
                           Retiro directo en La Parada del Sabor
@@ -1778,7 +1822,7 @@ export default function MenuClienteView({
                 <div className="pedir-checkout-form">
                   <div className="pedir-form-group" style={{ marginBottom: 12 }}>
                     <label htmlFor="metodoPagoSelect" className="pedir-form-label-destacado" style={{ marginBottom: 8 }}>
-                      💳 ¿Cómo deseas pagar? *
+                      ¿Cómo deseas pagar? *
                     </label>
                     <select
                       id="metodoPagoSelect"
@@ -1792,12 +1836,12 @@ export default function MenuClienteView({
                       className="pedir-form-input"
                       style={{ fontSize: 14, fontWeight: 700, padding: "12px 14px" }}
                     >
-                      <option value="pago_movil">📱 Pago Móvil (Bolívares)</option>
-                      <option value="efectivo_usd">💵 Efectivo Dólares (al recibir o retirar)</option>
-                      <option value="efectivo_bs">🇻🇪 Efectivo Bolívares (al recibir o retirar)</option>
-                      <option value="transferencia">🏦 Transferencia Bancaria BFC (Bolívares)</option>
-                      <option value="binance">🟡 Binance Pay (USDT)</option>
-                      <option value="zelle">🟣 Zelle (Dólares)</option>
+                      <option value="pago_movil">Pago Móvil (Bolívares)</option>
+                      <option value="efectivo_usd">Efectivo Dólares (al recibir o retirar)</option>
+                      <option value="efectivo_bs">Efectivo Bolívares (al recibir o retirar)</option>
+                      <option value="transferencia">Transferencia Bancaria BFC (Bolívares)</option>
+                      <option value="binance">Binance Pay (USDT)</option>
+                      <option value="zelle">Zelle (Dólares)</option>
                     </select>
                   </div>
 
@@ -1835,7 +1879,13 @@ export default function MenuClienteView({
                             cursor: "pointer",
                           }}
                         >
-                          <span>🪙</span> ¿Pagas con billete y necesitas vuelto?
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                            <path d="M12 6v2" />
+                            <path d="M12 16v2" />
+                          </svg>
+                          <span>¿Pagas con billete y necesitas vuelto?</span>
                         </label>
                         <input
                           type="checkbox"
@@ -1896,9 +1946,9 @@ export default function MenuClienteView({
                               className="pedir-form-input"
                               style={{ fontSize: 13, fontWeight: 700 }}
                             >
-                              <option value="pago_movil">📱 Pago Móvil (a mi teléfono/banco)</option>
-                              <option value="efectivo_bs">🇻🇪 Efectivo Bolívares (en físico)</option>
-                              <option value="efectivo_usd">💵 Efectivo Dólares (en físico si hay cambio)</option>
+                              <option value="pago_movil">Pago Móvil (a mi teléfono/banco)</option>
+                              <option value="efectivo_bs">Efectivo Bolívares (en físico)</option>
+                              <option value="efectivo_usd">Efectivo Dólares (en físico si hay cambio)</option>
                             </select>
                           </div>
 
@@ -1911,7 +1961,7 @@ export default function MenuClienteView({
                             if (difUsd < 0) {
                               return (
                                 <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444", borderRadius: 10, padding: "8px 12px", fontSize: 12, color: "#dc2626", fontWeight: 700 }}>
-                                  ⚠️ El billete (${billete.toFixed(2)}) es menor al total del pedido (${total.toFixed(2)} USD).
+                                  El billete (${billete.toFixed(2)}) es menor al total del pedido (${total.toFixed(2)} USD).
                                 </div>
                               );
                             }
@@ -1988,7 +2038,7 @@ export default function MenuClienteView({
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <span style={{ color: "var(--text-muted)" }}>Modalidad:</span>
-                      <strong>{tipoEntrega === "delivery" ? `🛵 Delivery • ${zonaDeliverySeleccionada?.nombre}` : "🛍️ Para Llevar / Retiro"}</strong>
+                      <strong>{tipoEntrega === "delivery" ? `Delivery • ${zonaDeliverySeleccionada?.nombre}` : "Para Llevar / Retiro"}</strong>
                     </div>
                   </div>
 
@@ -2007,7 +2057,13 @@ export default function MenuClienteView({
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 16 }}>🧾</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: "var(--primary-dark)" }}>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="16" y1="13" x2="8" y2="13" />
+                        <line x1="16" y1="17" x2="8" y2="17" />
+                        <polyline points="10 9 9 9 8 9" />
+                      </svg>
                       <span
                         style={{
                           fontSize: 11,
@@ -2038,7 +2094,7 @@ export default function MenuClienteView({
                       <span>${subtotalComidaUsd.toFixed(2)} USD</span>
                     </div>
                     <div className="pedir-checkout-line" style={{ color: "var(--primary)" }}>
-                      <span>🛵 Tarifa Delivery:</span>
+                      <span>Tarifa Delivery:</span>
                       <strong>+${costoDeliveryUsd.toFixed(2)} USD</strong>
                     </div>
                   </>
@@ -2061,7 +2117,7 @@ export default function MenuClienteView({
 
               {errorMsg && (
                 <div className="pedir-error-alert" role="alert" style={{ marginBottom: 10 }}>
-                  ⚠️ {errorMsg}
+                  {errorMsg}
                 </div>
               )}
 
@@ -2166,7 +2222,7 @@ export default function MenuClienteView({
               </p>
 
               <div className="pedir-modal-limite-info-box">
-                <span className="pedir-modal-limite-info-badge">⏳ En cola hacia cocina</span>
+                <span className="pedir-modal-limite-info-badge">En cola hacia cocina</span>
                 <p>
                   Para garantizar la máxima frescura y calidad de servicio, en cuanto nuestro equipo de cocina <strong>comience a preparar uno de tus pedidos anteriores</strong>, podrás registrar el siguiente de inmediato.
                 </p>
@@ -2178,7 +2234,7 @@ export default function MenuClienteView({
                   onClick={() => setModalLimitePedidos(false)}
                   className="btn btn-primary pedir-limite-btn-primary"
                 >
-                  ✅ Entendido, esperaré un momento
+                  Entendido, esperaré un momento
                 </button>
                 <a
                   href="https://wa.me/584122595386?text=¡Hola!%20Quisiera%20consultar%20el%20estado%20de%20mis%20pedidos%20en%20La%20Parada%20del%20Sabor"
@@ -2186,7 +2242,7 @@ export default function MenuClienteView({
                   rel="noopener noreferrer"
                   className="btn btn-outline pedir-limite-btn-outline"
                 >
-                  💬 Consultar por WhatsApp (+58 412-2595386)
+                  Consultar por WhatsApp (+58 412-2595386)
                 </a>
               </div>
             </div>
@@ -2281,7 +2337,7 @@ export default function MenuClienteView({
               <div className="pedir-modal-zoom-header">
                 <div>
                   <h3 className="pedir-modal-zoom-title">{modalFotoZoom.nombre}</h3>
-                  {modalFotoZoom.popular && <span className="pedir-badge-popular">🔥 Más Pedida</span>}
+                  {modalFotoZoom.popular && <span className="pedir-badge-popular">Más Pedida</span>}
                 </div>
                 <div className="pedir-modal-zoom-prices">
                   <span className="pedir-price-usd">${Number(modalFotoZoom.precio_usd || 0).toFixed(2)}</span>
@@ -2303,7 +2359,7 @@ export default function MenuClienteView({
                     }}
                     className="pedir-btn-confirm-order"
                   >
-                    🍱 Personalizar Rellenos del Combo
+                    Personalizar Rellenos del Combo
                   </button>
                 ) : (
                   <button

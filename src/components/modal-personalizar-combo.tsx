@@ -417,9 +417,9 @@ export default function ModalPersonalizarCombo({
                   >
                     <span style={{ fontWeight: 800, color: numRecargos === 0 ? "#16a34a" : "#b45309" }}>
                       {numRecargos === 0 ? (
-                        `✨ Recargo $${precioUnitExtra.toFixed(2)} exonerado (0 cobrados)`
+                        `Recargo $${precioUnitExtra.toFixed(2)} exonerado (0 cobrados)`
                       ) : (
-                        `⚡ Recargo (+$${(numRecargos * precioUnitExtra).toFixed(2)}): ${numRecargos} de ${cant} arepa${cant > 1 ? "s" : ""}`
+                        `Recargo (+$${(numRecargos * precioUnitExtra).toFixed(2)}): ${numRecargos} de ${cant} arepa${cant > 1 ? "s" : ""}`
                       )}
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

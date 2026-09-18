@@ -55,7 +55,10 @@ export default function ModalSeleccionarZonaDelivery({
         {/* Header del Modal */}
         <div className="combo-modal-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 24 }}>📍</span>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
             <div>
               <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--text)" }}>
                 Selecciona tu Zona de Delivery
@@ -82,7 +85,7 @@ export default function ModalSeleccionarZonaDelivery({
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="🔍 Buscar sector (ej. Zarabón, Centro, Maraven...)"
+              placeholder="Buscar sector (ej. Zarabón, Centro, Maraven...)"
               className="pedir-search-input modal-zona-search-input"
               style={{ fontSize: "16px", padding: "11px 14px", width: "100%" }}
             />
@@ -112,7 +115,10 @@ export default function ModalSeleccionarZonaDelivery({
         <div className="combo-flavors-list" style={{ maxHeight: "55vh" }}>
           {zonasFiltradas.length === 0 ? (
             <div style={{ textAlign: "center", padding: "28px 16px", color: "var(--text-muted)" }}>
-              <span style={{ fontSize: 32, display: "block", marginBottom: 6 }}>🔍</span>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 8px auto", display: "block" }} aria-hidden="true">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               <strong style={{ fontSize: 14, color: "var(--text)" }}>Sector no encontrado</strong>
               <p style={{ fontSize: 12, marginTop: 4 }}>
                 Revisa la ortografía o consulta la tarifa con nuestro operador por WhatsApp.
@@ -197,7 +203,7 @@ export default function ModalSeleccionarZonaDelivery({
         {/* Footer con Ayuda */}
         <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 600 }}>
-            🛵 Entrega directa con empresa aliada
+            Entrega directa con repartidor aliado
           </span>
           <button
             type="button"
