@@ -631,55 +631,59 @@ export default function ModalPersonalizarCombo({
 
                   return (
                     <div key={rellenoId} className="combo-mixta-row">
-                      <div className="combo-mixta-label-col">
+                      <div className="combo-mixta-header">
                         <span className="combo-mixta-flavor-name">{nombreCorto}</span>
-                        <span className="combo-mixta-flavor-cant">({cant} arepa{cant > 1 ? "s" : ""})</span>
+                        <span className="combo-mixta-flavor-cant">{cant} arepa{cant > 1 ? "s" : ""}</span>
                       </div>
-                      <div className="combo-mixta-counters-col">
+                      <div className="combo-mixta-counters-grid">
                         <div className="combo-mixta-stepper">
                           <span className="combo-mixta-type-tag">Asadas:</span>
-                          <button
-                            type="button"
-                            disabled={desglose.asadas <= 0}
-                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "asadas", -1)}
-                            className="combo-mixta-step-btn"
-                            aria-label={`Restar una asada a ${nombreCorto}`}
-                          >
-                            −
-                          </button>
-                          <span className="combo-mixta-num">{desglose.asadas}</span>
-                          <button
-                            type="button"
-                            disabled={desglose.asadas >= cant}
-                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "asadas", 1)}
-                            className="combo-mixta-step-btn"
-                            aria-label={`Sumar una asada a ${nombreCorto}`}
-                          >
-                            +
-                          </button>
+                          <div className="combo-mixta-stepper-ctrls">
+                            <button
+                              type="button"
+                              disabled={desglose.asadas <= 0}
+                              onClick={() => handleCambiarCoccionRelleno(rellenoId, "asadas", -1)}
+                              className="combo-mixta-step-btn"
+                              aria-label={`Restar una asada a ${nombreCorto}`}
+                            >
+                              −
+                            </button>
+                            <span className="combo-mixta-num">{desglose.asadas}</span>
+                            <button
+                              type="button"
+                              disabled={desglose.asadas >= cant}
+                              onClick={() => handleCambiarCoccionRelleno(rellenoId, "asadas", 1)}
+                              className="combo-mixta-step-btn"
+                              aria-label={`Sumar una asada a ${nombreCorto}`}
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
 
                         <div className="combo-mixta-stepper">
                           <span className="combo-mixta-type-tag">Fritas:</span>
-                          <button
-                            type="button"
-                            disabled={desglose.fritas <= 0}
-                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "fritas", -1)}
-                            className="combo-mixta-step-btn"
-                            aria-label={`Restar una frita a ${nombreCorto}`}
-                          >
-                            −
-                          </button>
-                          <span className="combo-mixta-num">{desglose.fritas}</span>
-                          <button
-                            type="button"
-                            disabled={desglose.fritas >= cant}
-                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "fritas", 1)}
-                            className="combo-mixta-step-btn"
-                            aria-label={`Sumar una frita a ${nombreCorto}`}
-                          >
-                            +
-                          </button>
+                          <div className="combo-mixta-stepper-ctrls">
+                            <button
+                              type="button"
+                              disabled={desglose.fritas <= 0}
+                              onClick={() => handleCambiarCoccionRelleno(rellenoId, "fritas", -1)}
+                              className="combo-mixta-step-btn"
+                              aria-label={`Restar una frita a ${nombreCorto}`}
+                            >
+                              −
+                            </button>
+                            <span className="combo-mixta-num">{desglose.fritas}</span>
+                            <button
+                              type="button"
+                              disabled={desglose.fritas >= cant}
+                              onClick={() => handleCambiarCoccionRelleno(rellenoId, "fritas", 1)}
+                              className="combo-mixta-step-btn"
+                              aria-label={`Sumar una frita a ${nombreCorto}`}
+                            >
+                              +
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
