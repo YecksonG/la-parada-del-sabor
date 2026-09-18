@@ -83,3 +83,11 @@ estado: activo
 ```
 2. **Wikilink de conexión:** Toda nota vinculada a este proyecto debe incluir obligatoriamente la línea `**Proyecto:** [[La-Parada-del-Sabor]]` en el cuerpo del documento para integrarse al grafo.
 3. **Consulta de Reglas de Negocio (Bajo Consumo de Tokens):** Al iniciar cualquier tarea o consultar escandallos, métodos de pago o políticas de caja, los agentes deben leer directamente `~/ObsidianVault/02-Proyectos/La-Parada-del-Sabor-Contexto-Esencial.md` en lugar de indexar notas dispersas.
+
+### 5. Prohibición Estricta del Abuso de Emojis en Interfaces & UI (Prioridad 9/10)
+**Está terminantemente prohibido saturar componentes, modales, botones, pestañas, títulos y flujos de usuario con emojis.**
+- **Criterio de Profesionalismo:** El uso desmedido de emojis sobrecarga la interfaz, genera contaminación visual y proyecta informalidad o falta de rigor técnico en el diseño de software.
+- **Estándar de Implementación:**
+  1. Los botones de acción, tabs de selección, subtítulos y opciones deben usar **texto limpio, tipografía jerárquica clara o iconos SVG minimalistas**, nunca emojis como viñetas repetitivas (ej: usar `Todas Fritas`, `Todas Asadas`, `Mixtas` en lugar de `🍳 Todas Fritas`, `🔥 Todas Asadas`, `⚙️ Mixtas`).
+  2. Los emojis quedan restringidos **únicamente** a glifos representativos de categoría o producto cuando no exista fotografía (`producto.icono || "🫓"`), o en casos indispensables de branding gastronómico. Fuera de esto, cero emojis en botones, modales y etiquetas.
+

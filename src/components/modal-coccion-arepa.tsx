@@ -165,13 +165,15 @@ export default function ModalCoccionArepa({
               className="coccion-option-card coccion-card-frita"
             >
               <div className="coccion-card-icon-wrap">
-                <span className="coccion-card-icon">🍳</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
               </div>
               <div className="coccion-card-content">
                 <span className="coccion-card-title">Frita en Caldero</span>
                 <span className="coccion-card-desc">Doradita, crujiente y caliente</span>
               </div>
-              <span className="coccion-card-badge">Toque para agregar</span>
+              <span className="coccion-card-badge">Seleccionar</span>
             </button>
 
             <button
@@ -180,13 +182,15 @@ export default function ModalCoccionArepa({
               className="coccion-option-card coccion-card-asada"
             >
               <div className="coccion-card-icon-wrap">
-                <span className="coccion-card-icon">🔥</span>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e65c00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+                </svg>
               </div>
               <div className="coccion-card-content">
                 <span className="coccion-card-title">Asada al Budare</span>
                 <span className="coccion-card-desc">Tostadita por fuera, suave por dentro</span>
               </div>
-              <span className="coccion-card-badge">Toque para agregar</span>
+              <span className="coccion-card-badge">Seleccionar</span>
             </button>
           </div>
         </div>

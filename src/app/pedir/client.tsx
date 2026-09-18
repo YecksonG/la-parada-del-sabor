@@ -1051,7 +1051,7 @@ export default function MenuClienteView({
                 fontSize: 13,
               }}
             >
-              🫓 Elegir Cocción {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
+              Elegir Cocción {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
             </button>
           ) : cantidadEnCarrito > 0 ? (
             <div className="pedir-card-qty-controls">

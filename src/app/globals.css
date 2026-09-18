@@ -6984,7 +6984,7 @@ a {
   border-radius: 26px;
   width: 100%;
   max-width: 520px;
-  max-height: 88vh;
+  max-height: 94vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -7036,23 +7036,32 @@ a {
   border-color: var(--primary);
 }
 
+.combo-modal-scrollable-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 2px 8px 2px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .combo-progress-box {
   background: var(--bg-subtle);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 12px 14px;
-  margin: 14px 0 10px 0;
+  margin: 8px 0 4px 0;
 }
 
 .combo-flavors-list {
-  overflow-y: auto;
-  flex: 1;
-  padding: 6px 2px 10px 2px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  gap: 8px;
+  padding: 2px 0;
+  flex-shrink: 0;
 }
 
 .combo-flavor-row {
@@ -7259,9 +7268,10 @@ a {
     border-bottom-right-radius: 0 !important;
     border-top-left-radius: 28px !important;
     border-top-right-radius: 28px !important;
-    max-height: 85dvh !important;
-    padding: 16px 18px !important;
-    padding-bottom: calc(18px + env(safe-area-inset-bottom, 16px)) !important;
+    max-height: 95dvh !important;
+    padding: 16px 16px !important;
+    padding-top: calc(14px + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 16px)) !important;
   }
 
   .modal-zona-delivery-card .combo-flavors-list {

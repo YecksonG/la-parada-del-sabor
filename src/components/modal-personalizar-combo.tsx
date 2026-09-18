@@ -273,14 +273,16 @@ export default function ModalPersonalizarCombo({
           </button>
         </div>
 
-        {/* Barra de Progreso de Arepas Seleccionadas */}
-        <div className="combo-progress-box">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 900, color: esCompleto ? "#15803d" : "var(--text)" }}>
-              {esCompleto
-                ? `✅ ¡Listo! (${totalSeleccionadas} de ${totalArepas} seleccionadas)`
-                : `Selecciona tus arepas: (${totalSeleccionadas} de ${totalArepas})`}
-            </span>
+        {/* Contenedor Unificado con Scroll Cómodo */}
+        <div className="combo-modal-scrollable-body">
+          {/* Barra de Progreso de Arepas Seleccionadas */}
+          <div className="combo-progress-box">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 900, color: esCompleto ? "#15803d" : "var(--text)" }}>
+                {esCompleto
+                  ? `¡Listo! (${totalSeleccionadas} de ${totalArepas} seleccionadas)`
+                  : `Selecciona tus arepas: (${totalSeleccionadas} de ${totalArepas})`}
+              </span>
             <span
               style={{
                 fontSize: 11,
@@ -518,7 +520,7 @@ export default function ModalPersonalizarCombo({
         {/* Selector de Cocción de las Arepas */}
         <div className="combo-coccion-section">
           <div className="combo-coccion-head">
-            <span className="combo-coccion-title">🔥 Cocción de las Arepas:</span>
+            <span className="combo-coccion-title">Cocción de las Arepas:</span>
             <span className="combo-coccion-badge">Mismo costo</span>
           </div>
           <div className="combo-coccion-tabs">
@@ -530,7 +532,7 @@ export default function ModalPersonalizarCombo({
               }}
               className={`combo-coccion-tab ${coccionModo === "todas_fritas" ? "active" : ""}`}
             >
-              🍳 Todas Fritas
+              Todas Fritas
             </button>
             <button
               type="button"
@@ -540,7 +542,7 @@ export default function ModalPersonalizarCombo({
               }}
               className={`combo-coccion-tab ${coccionModo === "todas_asadas" ? "active" : ""}`}
             >
-              🔥 Todas Asadas
+              Todas Asadas
             </button>
             <button
               type="button"
@@ -550,7 +552,7 @@ export default function ModalPersonalizarCombo({
               }}
               className={`combo-coccion-tab ${coccionModo === "mixtas" ? "active" : ""}`}
             >
-              ⚙️ Mixtas
+              Mixtas
             </button>
           </div>
 
@@ -575,7 +577,7 @@ export default function ModalPersonalizarCombo({
                       </div>
                       <div className="combo-mixta-counters-col">
                         <div className="combo-mixta-stepper">
-                          <span className="combo-mixta-type-tag">🔥 Asadas:</span>
+                          <span className="combo-mixta-type-tag">Asadas:</span>
                           <button
                             type="button"
                             disabled={desglose.asadas <= 0}
@@ -598,7 +600,7 @@ export default function ModalPersonalizarCombo({
                         </div>
 
                         <div className="combo-mixta-stepper">
-                          <span className="combo-mixta-type-tag">🍳 Fritas:</span>
+                          <span className="combo-mixta-type-tag">Fritas:</span>
                           <button
                             type="button"
                             disabled={desglose.fritas <= 0}
@@ -639,6 +641,7 @@ export default function ModalPersonalizarCombo({
             onChange={(e) => setNotaOpcional(e.target.value)}
             className="combo-obs-input"
           />
+        </div>
         </div>
 
         {/* Botones de Acción */}
