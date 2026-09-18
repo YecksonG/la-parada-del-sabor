@@ -135,13 +135,33 @@ export function getProductImage(prod?: { nombre?: string | null; imagen_url?: st
   return null;
 }
 
+export type CoccionModo = "todas_fritas" | "todas_asadas" | "mixtas";
+
+export interface CoccionDesglose {
+  asadas: number;
+  fritas: number;
+}
+
 /**
- * Serializa la selección de rellenos en un formato legible para comandas y cocina.
+ * Determina si un producto es una arepa individual (no combo).
+ */
+export function esArepaIndividual(prod?: { nombre?: string | null; categoria?: { nombre?: string | null } | null } | null): boolean {
+  if (!prod || !prod.nombre || typeof prod.nombre !== "string") return false;
+  if (getComboArepasCount(prod) !== null) return false;
+  const nom = prod.nombre.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const catNom = (prod.categoria?.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return nom.includes("arepa") || catNom.includes("arepa");
+}
+
+/**
+ * Serializa la selección de rellenos y cocción en un formato legible para comandas y cocina.
  * Trunca a 145 caracteres máximo para proteger los campos VARCHAR(150) de base de datos.
  */
 export function serializarRellenosCombo(
   rellenosSeleccionados: Record<string, number>,
-  notaAdicional?: string
+  notaAdicional?: string,
+  coccionModo: CoccionModo = "todas_fritas",
+  coccionDesglose?: Record<string, CoccionDesglose>
 ): string {
   const lineas: string[] = [];
   
@@ -153,13 +173,32 @@ export function serializarRellenosCombo(
         .replace(/^Arepa\s+/i, "")
         .replace(/\s+Gourmet/i, "")
         .trim();
-      lineas.push(`${cant}x ${nombreCorto}`);
+
+      if (coccionModo === "mixtas" && coccionDesglose && coccionDesglose[relleno.id]) {
+        const { asadas = 0, fritas = 0 } = coccionDesglose[relleno.id];
+        if (asadas > 0 && fritas > 0) {
+          lineas.push(`${nombreCorto} (${asadas}A/${fritas}F)`);
+        } else if (asadas > 0) {
+          lineas.push(`${asadas}x ${nombreCorto} Asada${asadas > 1 ? "s" : ""}`);
+        } else {
+          lineas.push(`${fritas}x ${nombreCorto} Frita${fritas > 1 ? "s" : ""}`);
+        }
+      } else {
+        lineas.push(`${cant}x ${nombreCorto}`);
+      }
     }
   }
 
-  let res = `Rellenos: ${lineas.join(", ")}`;
+  let sufijoCoccion = "";
+  if (coccionModo === "todas_fritas") {
+    sufijoCoccion = " [Todas Fritas]";
+  } else if (coccionModo === "todas_asadas") {
+    sufijoCoccion = " [Todas Asadas]";
+  }
+
+  let res = `Rellenos: ${lineas.join(", ")}${sufijoCoccion}`;
   if (notaAdicional?.trim()) {
-    const obsLimpia = notaAdicional.trim().slice(0, 50);
+    const obsLimpia = notaAdicional.trim().slice(0, 40);
     res += ` — Obs: ${obsLimpia}`;
   }
 

@@ -3,7 +3,14 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { Producto, ExtraModificador } from "@/types/database";
-import { RELLENOS_AREPAS_COMBO, serializarRellenosCombo, getProductImage, RELLENO_A_EXTRA_NOMBRE } from "@/lib/combo-helper";
+import {
+  RELLENOS_AREPAS_COMBO,
+  serializarRellenosCombo,
+  getProductImage,
+  RELLENO_A_EXTRA_NOMBRE,
+  CoccionModo,
+  CoccionDesglose,
+} from "@/lib/combo-helper";
 import { sounds } from "@/lib/sound-effects";
 
 export interface ComboConfirmResult {
@@ -30,6 +37,8 @@ export default function ModalPersonalizarCombo({
   // Recargos gourmet aplicados por relleno (por defecto igual a la cantidad seleccionada)
   const [recargosAplicados, setRecargosAplicados] = useState<Record<string, number>>({});
   const [notaOpcional, setNotaOpcional] = useState("");
+  const [coccionModo, setCoccionModo] = useState<CoccionModo>("todas_fritas");
+  const [coccionDesglose, setCoccionDesglose] = useState<Record<string, CoccionDesglose>>({});
   const modalCardRef = useRef<HTMLDivElement>(null);
 
   // Índice de extras por nombre normalizado para lookup rápido
@@ -138,6 +147,48 @@ export default function ModalPersonalizarCombo({
       }
       return nextRecargos;
     });
+
+    setCoccionDesglose((prev) => {
+      const next = { ...prev };
+      if (nuevo === 0) {
+        delete next[rellenoId];
+      } else {
+        const prevEntry = prev[rellenoId];
+        if (!prevEntry) {
+          next[rellenoId] = { asadas: 0, fritas: nuevo };
+        } else {
+          const asadas = Math.min(nuevo, prevEntry.asadas);
+          const fritas = nuevo - asadas;
+          next[rellenoId] = { asadas, fritas };
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleCambiarCoccionRelleno = (rellenoId: string, tipo: "asadas" | "fritas", delta: number) => {
+    const cant = rellenos[rellenoId] || 0;
+    if (cant <= 0) return;
+
+    sounds.playPop();
+    setCoccionDesglose((prev) => {
+      const actual = prev[rellenoId] || { asadas: 0, fritas: cant };
+      let nuevasAsadas = actual.asadas;
+      let nuevasFritas = actual.fritas;
+
+      if (tipo === "asadas") {
+        nuevasAsadas = Math.max(0, Math.min(cant, actual.asadas + delta));
+        nuevasFritas = cant - nuevasAsadas;
+      } else {
+        nuevasFritas = Math.max(0, Math.min(cant, actual.fritas + delta));
+        nuevasAsadas = cant - nuevasFritas;
+      }
+
+      return {
+        ...prev,
+        [rellenoId]: { asadas: nuevasAsadas, fritas: nuevasFritas },
+      };
+    });
   };
 
   const handleModificarRecargo = (rellenoId: string, delta: number) => {
@@ -156,7 +207,7 @@ export default function ModalPersonalizarCombo({
   const handleConfirmar = () => {
     if (!esCompleto) return;
     sounds.playKitchenBell();
-    const textoNotas = serializarRellenosCombo(rellenos, notaOpcional);
+    const textoNotas = serializarRellenosCombo(rellenos, notaOpcional, coccionModo, coccionDesglose);
 
     // Construir extrasIds: por cada arepa elegida, buscar el extra de la BD N veces (según recargos cobrados)
     const extrasIds: string[] = [];
@@ -462,6 +513,119 @@ export default function ModalPersonalizarCombo({
               </div>
             );
           })}
+        </div>
+
+        {/* Selector de Cocción de las Arepas */}
+        <div className="combo-coccion-section">
+          <div className="combo-coccion-head">
+            <span className="combo-coccion-title">🔥 Cocción de las Arepas:</span>
+            <span className="combo-coccion-badge">Mismo costo</span>
+          </div>
+          <div className="combo-coccion-tabs">
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setCoccionModo("todas_fritas");
+              }}
+              className={`combo-coccion-tab ${coccionModo === "todas_fritas" ? "active" : ""}`}
+            >
+              🍳 Todas Fritas
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setCoccionModo("todas_asadas");
+              }}
+              className={`combo-coccion-tab ${coccionModo === "todas_asadas" ? "active" : ""}`}
+            >
+              🔥 Todas Asadas
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                sounds.playPop();
+                setCoccionModo("mixtas");
+              }}
+              className={`combo-coccion-tab ${coccionModo === "mixtas" ? "active" : ""}`}
+            >
+              ⚙️ Mixtas
+            </button>
+          </div>
+
+          {/* Desglose para modo Mixtas */}
+          {coccionModo === "mixtas" && (
+            <div className="combo-mixtas-list">
+              {totalSeleccionadas === 0 ? (
+                <p className="combo-mixtas-empty">Primero suma las arepas del combo arriba para desglosarlas.</p>
+              ) : (
+                Object.entries(rellenos).map(([rellenoId, cant]) => {
+                  if (!cant || cant <= 0) return null;
+                  const rellenoObj = RELLENOS_AREPAS_COMBO.find((r) => r.id === rellenoId);
+                  if (!rellenoObj) return null;
+                  const nombreCorto = rellenoObj.nombre.replace(/^Arepa\s+/i, "").replace(/\s+Gourmet/i, "").trim();
+                  const desglose = coccionDesglose[rellenoId] || { asadas: 0, fritas: cant };
+
+                  return (
+                    <div key={rellenoId} className="combo-mixta-row">
+                      <div className="combo-mixta-label-col">
+                        <span className="combo-mixta-flavor-name">{nombreCorto}</span>
+                        <span className="combo-mixta-flavor-cant">({cant} arepa{cant > 1 ? "s" : ""})</span>
+                      </div>
+                      <div className="combo-mixta-counters-col">
+                        <div className="combo-mixta-stepper">
+                          <span className="combo-mixta-type-tag">🔥 Asadas:</span>
+                          <button
+                            type="button"
+                            disabled={desglose.asadas <= 0}
+                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "asadas", -1)}
+                            className="combo-mixta-step-btn"
+                            aria-label={`Restar una asada a ${nombreCorto}`}
+                          >
+                            −
+                          </button>
+                          <span className="combo-mixta-num">{desglose.asadas}</span>
+                          <button
+                            type="button"
+                            disabled={desglose.asadas >= cant}
+                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "asadas", 1)}
+                            className="combo-mixta-step-btn"
+                            aria-label={`Sumar una asada a ${nombreCorto}`}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div className="combo-mixta-stepper">
+                          <span className="combo-mixta-type-tag">🍳 Fritas:</span>
+                          <button
+                            type="button"
+                            disabled={desglose.fritas <= 0}
+                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "fritas", -1)}
+                            className="combo-mixta-step-btn"
+                            aria-label={`Restar una frita a ${nombreCorto}`}
+                          >
+                            −
+                          </button>
+                          <span className="combo-mixta-num">{desglose.fritas}</span>
+                          <button
+                            type="button"
+                            disabled={desglose.fritas >= cant}
+                            onClick={() => handleCambiarCoccionRelleno(rellenoId, "fritas", 1)}
+                            className="combo-mixta-step-btn"
+                            aria-label={`Sumar una frita a ${nombreCorto}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
 
         {/* Observación Opcional con maxLength */}

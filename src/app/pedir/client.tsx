@@ -7,8 +7,9 @@ import { useRouter } from "next/navigation";
 import ThemeToggle from "@/components/theme-toggle";
 import { Categoria, Producto, ExtraModificador, ZonaDelivery } from "@/types/database";
 import { crearPedidoWebPublico, ItemPedidoWeb } from "./actions";
-import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
+import { getComboArepasCount, getProductImage, esArepaIndividual } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
+import ModalCoccionArepa from "@/components/modal-coccion-arepa";
 import SplashScreen from "@/components/splash-screen";
 import ModalSeleccionarZonaDelivery from "@/components/modal-seleccionar-zona-delivery";
 
@@ -197,10 +198,11 @@ export default function MenuClienteView({
   const [comboModalData, setComboModalData] = useState<{ producto: Producto; totalArepas: number } | null>(null);
   const [modalFotoZoom, setModalFotoZoom] = useState<Producto | null>(null);
   const [modalZonaDelivery, setModalZonaDelivery] = useState(false);
+  const [modalCoccionArepa, setModalCoccionArepa] = useState<Producto | null>(null);
 
   // Bloquear scroll de la página de fondo cuando algún modal o drawer está abierto
   useEffect(() => {
-    if (drawerCheckout || modalFotoZoom || modalZonaDelivery) {
+    if (drawerCheckout || modalFotoZoom || modalZonaDelivery || modalCoccionArepa) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -208,7 +210,7 @@ export default function MenuClienteView({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [drawerCheckout, modalFotoZoom, modalZonaDelivery]);
+  }, [drawerCheckout, modalFotoZoom, modalZonaDelivery, modalCoccionArepa]);
 
   // Cerrar lightbox con tecla Escape
   useEffect(() => {
@@ -647,8 +649,14 @@ export default function MenuClienteView({
       return;
     }
 
+    // Si es una arepa individual, abrir el selector de cocción (Frita o Asada)
+    if (esArepaIndividual(prod)) {
+      setModalCoccionArepa(prod);
+      return;
+    }
+
     setCarrito((prev) => {
-      const existingIdx = prev.findIndex((item) => item.producto.id === prod.id);
+      const existingIdx = prev.findIndex((item) => item.producto.id === prod.id && !item.notas_item);
       if (existingIdx >= 0) {
         if (prev[existingIdx].cantidad >= 25) {
           setErrorMsg("Límite alcanzado: máximo 25 unidades de este producto por pedido.");
@@ -671,6 +679,43 @@ export default function MenuClienteView({
         },
       ];
     });
+  };
+
+  const handleConfirmarCoccionArepa = (coccion: "Frita" | "Asada", cantidad: number) => {
+    if (!modalCoccionArepa) return;
+    const prod = modalCoccionArepa;
+    const notasItem = `Cocción: ${coccion}`;
+
+    setCarrito((prev) => {
+      const existingIdx = prev.findIndex(
+        (item) => item.producto.id === prod.id && item.notas_item === notasItem
+      );
+      if (existingIdx >= 0) {
+        const cantActual = prev[existingIdx].cantidad;
+        if (cantActual >= 25) {
+          setErrorMsg("Límite alcanzado: máximo 25 unidades de este producto por pedido.");
+          return prev;
+        }
+        const next = [...prev];
+        next[existingIdx] = {
+          ...next[existingIdx],
+          cantidad: Math.min(25, cantActual + cantidad),
+        };
+        return next;
+      }
+      return [
+        ...prev,
+        {
+          tempId: `${prod.id}-${Date.now()}-${Math.random()}`,
+          producto: prod,
+          cantidad: Math.min(25, cantidad),
+          notas_item: notasItem,
+          extras: [],
+        },
+      ];
+    });
+
+    setModalCoccionArepa(null);
   };
 
   const handleConfirmarCombo = ({ notasItem, extrasIds }: import("@/components/modal-personalizar-combo").ComboConfirmResult) => {
@@ -926,6 +971,7 @@ export default function MenuClienteView({
       .filter((item) => item.producto.id === prod.id)
       .reduce((acc, item) => acc + item.cantidad, 0);
     const isCombo = getComboArepasCount(prod) !== null;
+    const isArepa = esArepaIndividual(prod);
     const imgUrl = getProductImage(prod);
 
     return (
@@ -992,6 +1038,20 @@ export default function MenuClienteView({
               }}
             >
               🍱 Armar Rellenos {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
+            </button>
+          ) : isArepa ? (
+            <button
+              type="button"
+              onClick={() => handleAgregarProductoDirecto(prod)}
+              className="pedir-btn-add"
+              style={{
+                background: "var(--primary)",
+                color: "#ffffff",
+                fontWeight: 800,
+                fontSize: 13,
+              }}
+            >
+              🫓 Elegir Cocción {cantidadEnCarrito > 0 && `(${cantidadEnCarrito})`}
             </button>
           ) : cantidadEnCarrito > 0 ? (
             <div className="pedir-card-qty-controls">
@@ -2163,6 +2223,16 @@ export default function MenuClienteView({
           extras={extras}
           onConfirmar={handleConfirmarCombo}
           onCerrar={() => setComboModalData(null)}
+        />
+      )}
+
+      {/* Modal Interactivo de Elección de Cocción para Arepas Individuales */}
+      {modalCoccionArepa && (
+        <ModalCoccionArepa
+          producto={modalCoccionArepa}
+          tasaBcv={tasaBcv}
+          onConfirmar={handleConfirmarCoccionArepa}
+          onCerrar={() => setModalCoccionArepa(null)}
         />
       )}
 
