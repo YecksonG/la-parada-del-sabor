@@ -340,3 +340,84 @@ export async function eliminarComanda(venta_id: string) {
 
   return { ok: true };
 }
+
+export async function actualizarCoccionItemComanda(
+  venta_item_id: string,
+  nuevaCoccion: "Frita" | "Asada" | "Todas Fritas" | "Todas Asadas"
+) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!venta_item_id || !UUID_REGEX.test(venta_item_id)) {
+    return { ok: false, error: "ID de item no válido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { data: item, error: fetchErr } = await supabase
+    .from("ventas_items")
+    .select("id, venta_id, notas_item")
+    .eq("id", venta_item_id)
+    .single();
+
+  if (fetchErr || !item) {
+    return { ok: false, error: "No se encontró el ítem de la comanda." };
+  }
+
+  let nuevoTexto = item.notas_item || "";
+
+  if (nuevaCoccion === "Todas Fritas" || nuevaCoccion === "Todas Asadas") {
+    if (nuevoTexto.includes("[Todas Asadas]")) {
+      nuevoTexto = nuevoTexto.replace("[Todas Asadas]", `[${nuevaCoccion}]`);
+    } else if (nuevoTexto.includes("[Todas Fritas]")) {
+      nuevoTexto = nuevoTexto.replace("[Todas Fritas]", `[${nuevaCoccion}]`);
+    } else {
+      nuevoTexto = `${nuevoTexto} [${nuevaCoccion}]`;
+    }
+  } else {
+    if (nuevoTexto.includes("Cocción:")) {
+      nuevoTexto = nuevoTexto.replace(/Cocción:\s*(?:Frita|Asada)/i, `Cocción: ${nuevaCoccion}`);
+    } else {
+      nuevoTexto = nuevoTexto ? `${nuevoTexto} • Cocción: ${nuevaCoccion}` : `Cocción: ${nuevaCoccion}`;
+    }
+  }
+
+  const { error: updErr } = await supabase
+    .from("ventas_items")
+    .update({ notas_item: nuevoTexto.trim().slice(0, 150) })
+    .eq("id", venta_item_id);
+
+  if (updErr) return { ok: false, error: updErr.message };
+
+  revalidatePath("/ventas");
+  revalidatePath("/dashboard");
+  revalidatePath(`/recibo/${item.venta_id}`);
+
+  return { ok: true, notas_item: nuevoTexto.trim().slice(0, 150) };
+}
+
+export async function actualizarNotasItemComanda(
+  venta_item_id: string,
+  nuevasNotasItem: string
+) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!venta_item_id || !UUID_REGEX.test(venta_item_id)) {
+    return { ok: false, error: "ID de item no válido." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error: updErr } = await supabase
+    .from("ventas_items")
+    .update({ notas_item: nuevasNotasItem.trim().slice(0, 150) })
+    .eq("id", venta_item_id);
+
+  if (updErr) return { ok: false, error: updErr.message };
+
+  revalidatePath("/ventas");
+  revalidatePath("/dashboard");
+
+  return { ok: true };
+}

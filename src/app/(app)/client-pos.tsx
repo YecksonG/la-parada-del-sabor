@@ -12,8 +12,9 @@ import {
   CartItemExtra,
 } from "./pos-actions";
 import { sounds } from "@/lib/sound-effects";
-import { getComboArepasCount, getProductImage } from "@/lib/combo-helper";
+import { getComboArepasCount, getProductImage, esArepaIndividual } from "@/lib/combo-helper";
 import ModalPersonalizarCombo from "@/components/modal-personalizar-combo";
+import ModalCoccionArepa from "@/components/modal-coccion-arepa";
 import ModalSeleccionarZonaDelivery from "@/components/modal-seleccionar-zona-delivery";
 import {
   generarTagPagoMixto,
@@ -71,6 +72,7 @@ export default function PosClient({
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
   const [comboModalData, setComboModalData] = useState<{ producto: Producto; totalArepas: number } | null>(null);
+  const [modalCoccionArepa, setModalCoccionArepa] = useState<Producto | null>(null);
 
   // Gestión de Clientes en POS
   const [listaClientes, setListaClientes] = useState<Cliente[]>(clientesIniciales);
@@ -224,6 +226,12 @@ export default function PosClient({
       return;
     }
 
+    // Si es una arepa individual, solicitar selección de cocción (Frita o Asada)
+    if (esArepaIndividual(producto)) {
+      setModalCoccionArepa(producto);
+      return;
+    }
+
     sounds.playPop();
     setCarrito((prev) => {
       const index = prev.findIndex((item) => item.producto_id === producto.id && (!item.extras || item.extras.length === 0));
@@ -242,6 +250,59 @@ export default function PosClient({
           extras: [],
         },
       ];
+    });
+  };
+
+  const handleConfirmarCoccionArepaPos = (coccion: "Frita" | "Asada", cantidad: number) => {
+    if (!modalCoccionArepa) return;
+    const producto = modalCoccionArepa;
+    const notasItem = `Cocción: ${coccion}`;
+    sounds.playPop();
+
+    setCarrito((prev) => {
+      const index = prev.findIndex(
+        (item) =>
+          item.producto_id === producto.id &&
+          item.notas_item === notasItem &&
+          (!item.extras || item.extras.length === 0)
+      );
+      if (index >= 0) {
+        const nuevo = [...prev];
+        nuevo[index] = {
+          ...nuevo[index],
+          cantidad: Math.min(50, nuevo[index].cantidad + cantidad),
+        };
+        return nuevo;
+      }
+      return [
+        ...prev,
+        {
+          producto_id: producto.id,
+          nombre: producto.nombre,
+          precio_unitario_usd: Number(producto.precio_usd),
+          cantidad: Math.min(50, cantidad),
+          notas_item: notasItem,
+          extras: [],
+        },
+      ];
+    });
+    setModalCoccionArepa(null);
+  };
+
+  const cambiarCoccionItemCarrito = (index: number, nuevaCoccion: "Frita" | "Asada") => {
+    sounds.playPop();
+    setCarrito((prev) => {
+      const nuevo = [...prev];
+      const it = nuevo[index];
+      if (!it) return prev;
+      let notas = it.notas_item || "";
+      if (notas.includes("Cocción:")) {
+        notas = notas.replace(/Cocción:\s*(?:Frita|Asada)/i, `Cocción: ${nuevaCoccion}`);
+      } else {
+        notas = notas ? `${notas} • Cocción: ${nuevaCoccion}` : `Cocción: ${nuevaCoccion}`;
+      }
+      nuevo[index] = { ...it, notas_item: notas };
+      return nuevo;
     });
   };
 
@@ -1207,6 +1268,57 @@ ${estadoPago}`;
                           🍱 {item.notas_item}
                         </div>
                       )}
+
+                      {/* Modificador interactivo de cocción para arepas en el carrito del POS */}
+                      {(() => {
+                        const prodRef = productos.find((p) => p.id === item.producto_id);
+                        const esArepa = esArepaIndividual(prodRef) || /cocci[oó]n|frita|asada/i.test(item.notas_item || "");
+                        if (!esArepa) return null;
+                        const esFrita = /frita/i.test(item.notas_item || "");
+                        const esAsada = /asada/i.test(item.notas_item || "");
+                        return (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                            <span style={{ fontSize: 10.5, color: "var(--text-muted)", fontWeight: 700 }}>Cocción:</span>
+                            <div style={{ display: "inline-flex", borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden" }}>
+                              <button
+                                type="button"
+                                onClick={() => cambiarCoccionItemCarrito(index, "Frita")}
+                                style={{
+                                  padding: "2px 8px",
+                                  fontSize: 10.5,
+                                  fontWeight: 800,
+                                  border: "none",
+                                  cursor: "pointer",
+                                  background: esFrita ? "var(--accent)" : "var(--bg-card)",
+                                  color: esFrita ? "#ffffff" : "var(--text-muted)",
+                                  transition: "all 0.15s ease",
+                                }}
+                                title="Seleccionar Frita"
+                              >
+                                Frita
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => cambiarCoccionItemCarrito(index, "Asada")}
+                                style={{
+                                  padding: "2px 8px",
+                                  fontSize: 10.5,
+                                  fontWeight: 800,
+                                  border: "none",
+                                  cursor: "pointer",
+                                  background: esAsada ? "var(--primary-dark)" : "var(--bg-card)",
+                                  color: esAsada ? "#ffffff" : "var(--text-muted)",
+                                  transition: "all 0.15s ease",
+                                }}
+                                title="Seleccionar Asada"
+                              >
+                                Asada
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       <span className="cart-item-unit-price">
                         ${item.precio_unitario_usd.toFixed(2)} c/u
                       </span>
@@ -2833,6 +2945,16 @@ ${estadoPago}`;
           productos={productos}
           onConfirmar={handleConfirmarComboPos}
           onCerrar={() => setComboModalData(null)}
+        />
+      )}
+
+      {/* Modal Interactivo de Selección de Cocción para Arepas en POS */}
+      {modalCoccionArepa && (
+        <ModalCoccionArepa
+          producto={modalCoccionArepa}
+          tasaBcv={tasaBcv}
+          onConfirmar={handleConfirmarCoccionArepaPos}
+          onCerrar={() => setModalCoccionArepa(null)}
         />
       )}
 

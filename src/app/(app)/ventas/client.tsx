@@ -4,7 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import { Cliente, Venta } from "@/types/database";
 import type { MetodoPago } from "@/types/database";
-import { cambiarEstadoVenta, actualizarMetodoPagoVenta, actualizarDetallesComanda, eliminarComanda } from "./actions";
+import {
+  cambiarEstadoVenta,
+  actualizarMetodoPagoVenta,
+  actualizarDetallesComanda,
+  eliminarComanda,
+  actualizarCoccionItemComanda,
+} from "./actions";
 import {
   registrarPagoComandaCredito,
   eliminarAbonoComandaCredito,
@@ -12,6 +18,7 @@ import {
 } from "../clientes/actions";
 import { sounds } from "@/lib/sound-effects";
 import { toFechaCaracasString, fechaHoyEnCaracas } from "@/lib/date-vzla";
+import { esArepaIndividual, getComboArepasCount } from "@/lib/combo-helper";
 import {
   parsearPagoMixtoDeNotas,
   generarTagPagoMixto,
@@ -42,6 +49,7 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
   const [filtroFecha, setFiltroFecha] = useState<"hoy" | "ayer" | "todas" | "fecha">("hoy");
   const [fechaEspecifica, setFechaEspecifica] = useState<string>("");
   const [procesandoId, setProcesandoId] = useState<string | null>(null);
+  const [actualizandoCoccionItemId, setActualizandoCoccionItemId] = useState<string | null>(null);
   const [comandaParaEditar, setComandaParaEditar] = useState<Venta | null>(null);
 
   // Fechas de referencia en Caracas
@@ -368,6 +376,47 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
       setVentas((prev) =>
         prev.map((v) => (v.id === ventaId ? { ...v, estado: nuevoEstado } : v))
       );
+    }
+  };
+
+  const handleCambiarCoccionComanda = async (
+    ventaId: string,
+    itemId: string,
+    nuevaCoccion: "Frita" | "Asada" | "Todas Fritas" | "Todas Asadas"
+  ) => {
+    sounds.playPop();
+    setActualizandoCoccionItemId(itemId);
+
+    // Actualización optimista local
+    setVentas((prev) =>
+      prev.map((v) => {
+        if (v.id !== ventaId) return v;
+        return {
+          ...v,
+          items: (v.items || []).map((it) => {
+            if (it.id !== itemId) return it;
+            let nuevoTexto = it.notas_item || "";
+            if (nuevaCoccion === "Todas Fritas" || nuevaCoccion === "Todas Asadas") {
+              if (nuevoTexto.includes("[Todas Asadas]")) nuevoTexto = nuevoTexto.replace("[Todas Asadas]", `[${nuevaCoccion}]`);
+              else if (nuevoTexto.includes("[Todas Fritas]")) nuevoTexto = nuevoTexto.replace("[Todas Fritas]", `[${nuevaCoccion}]`);
+              else nuevoTexto = `${nuevoTexto} [${nuevaCoccion}]`;
+            } else {
+              if (nuevoTexto.includes("Cocción:")) {
+                nuevoTexto = nuevoTexto.replace(/Cocción:\s*(?:Frita|Asada)/i, `Cocción: ${nuevaCoccion}`);
+              } else {
+                nuevoTexto = nuevoTexto ? `${nuevoTexto} • Cocción: ${nuevaCoccion}` : `Cocción: ${nuevaCoccion}`;
+              }
+            }
+            return { ...it, notas_item: nuevoTexto };
+          }),
+        };
+      })
+    );
+
+    const res = await actualizarCoccionItemComanda(itemId, nuevaCoccion);
+    setActualizandoCoccionItemId(null);
+    if (!res.ok) {
+      alert(res.error || "No se pudo actualizar el tipo de cocción.");
     }
   };
 
@@ -709,30 +758,131 @@ ${estadoPago}`;
 
                   {/* Items de la Comanda */}
                   <div className="comanda-items-list">
-                    {(v.items || []).map((item, iIdx) => (
-                      <div key={iIdx} className="comanda-item-entry">
-                        <div className="comanda-item-top">
-                          <span>
-                            <strong>{item.cantidad}x</strong> {item.producto?.nombre || "Producto"}
-                          </span>
-                          <span>${Number(item.subtotal_usd).toFixed(2)}</span>
-                        </div>
-                        {item.extras && item.extras.length > 0 && (
-                          <div className="comanda-extras-line">
-                            {item.extras.map((ext, eIdx) => (
-                              <span key={eIdx} className="comanda-extra-tag">
-                                +{ext.extra?.nombre || "Extra"}{Number(ext.precio_unitario_usd) > 0 ? ` ($${Number(ext.precio_unitario_usd).toFixed(2)})` : ""}
+                    {(v.items || []).map((item, iIdx) => {
+                      const notasActuales = item.notas_item || item.notas || "";
+                      const esArepa = esArepaIndividual(item.producto) || /cocci[oó]n|frita|asada/i.test(notasActuales);
+                      const esCombo = getComboArepasCount(item.producto) !== null || /rellenos:/i.test(notasActuales);
+                      const comandaActiva = v.estado !== "completada" && v.estado !== "cancelada";
+
+                      return (
+                        <div key={iIdx} className="comanda-item-entry">
+                          <div className="comanda-item-top">
+                            <span>
+                              <strong>{item.cantidad}x</strong> {item.producto?.nombre || "Producto"}
+                            </span>
+                            <span>${Number(item.subtotal_usd).toFixed(2)}</span>
+                          </div>
+                          {item.extras && item.extras.length > 0 && (
+                            <div className="comanda-extras-line">
+                              {item.extras.map((ext, eIdx) => (
+                                <span key={eIdx} className="comanda-extra-tag">
+                                  +{ext.extra?.nombre || "Extra"}{Number(ext.precio_unitario_usd) > 0 ? ` ($${Number(ext.precio_unitario_usd).toFixed(2)})` : ""}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {notasActuales && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-dark)", background: "var(--primary-light)", padding: "3px 7px", borderRadius: 6, marginTop: 4 }}>
+                              🍱 {notasActuales}
+                            </div>
+                          )}
+
+                          {/* Modificador rápido de cocción para Arepas en comanda activa */}
+                          {comandaActiva && esArepa && (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 4 }}>
+                              <span style={{ fontSize: 10.5, color: "var(--text-muted)", fontWeight: 700 }}>
+                                Cocción:
                               </span>
-                            ))}
-                          </div>
-                        )}
-                        {(item.notas_item || item.notas) && (
-                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--primary-dark)", background: "var(--primary-light)", padding: "3px 7px", borderRadius: 6, marginTop: 4 }}>
-                            🍱 {item.notas_item || item.notas}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                              <div style={{ display: "inline-flex", borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCambiarCoccionComanda(v.id, item.id, "Frita")}
+                                  disabled={actualizandoCoccionItemId === item.id}
+                                  style={{
+                                    padding: "2px 8px",
+                                    fontSize: 10.5,
+                                    fontWeight: 800,
+                                    border: "none",
+                                    cursor: "pointer",
+                                    background: /frita/i.test(notasActuales) ? "var(--accent)" : "var(--bg-card)",
+                                    color: /frita/i.test(notasActuales) ? "#ffffff" : "var(--text-muted)",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                  title="Cambiar cocción a Frita"
+                                >
+                                  {actualizandoCoccionItemId === item.id ? "..." : "Frita"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCambiarCoccionComanda(v.id, item.id, "Asada")}
+                                  disabled={actualizandoCoccionItemId === item.id}
+                                  style={{
+                                    padding: "2px 8px",
+                                    fontSize: 10.5,
+                                    fontWeight: 800,
+                                    border: "none",
+                                    cursor: "pointer",
+                                    background: /asada/i.test(notasActuales) ? "var(--primary-dark)" : "var(--bg-card)",
+                                    color: /asada/i.test(notasActuales) ? "#ffffff" : "var(--text-muted)",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                  title="Cambiar cocción a Asada"
+                                >
+                                  {actualizandoCoccionItemId === item.id ? "..." : "Asada"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Modificador rápido de cocción para combos (Todas Fritas / Todas Asadas) */}
+                          {comandaActiva && esCombo && (notasActuales.includes("Todas Fritas") || notasActuales.includes("Todas Asadas")) && (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 4 }}>
+                              <span style={{ fontSize: 10.5, color: "var(--text-muted)", fontWeight: 700 }}>
+                                Cocción combo:
+                              </span>
+                              <div style={{ display: "inline-flex", borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCambiarCoccionComanda(v.id, item.id, "Todas Fritas")}
+                                  disabled={actualizandoCoccionItemId === item.id}
+                                  style={{
+                                    padding: "2px 8px",
+                                    fontSize: 10.5,
+                                    fontWeight: 800,
+                                    border: "none",
+                                    cursor: "pointer",
+                                    background: notasActuales.includes("Todas Fritas") ? "var(--accent)" : "var(--bg-card)",
+                                    color: notasActuales.includes("Todas Fritas") ? "#ffffff" : "var(--text-muted)",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                  title="Cambiar combo a Todas Fritas"
+                                >
+                                  {actualizandoCoccionItemId === item.id ? "..." : "Todas Fritas"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCambiarCoccionComanda(v.id, item.id, "Todas Asadas")}
+                                  disabled={actualizandoCoccionItemId === item.id}
+                                  style={{
+                                    padding: "2px 8px",
+                                    fontSize: 10.5,
+                                    fontWeight: 800,
+                                    border: "none",
+                                    cursor: "pointer",
+                                    background: notasActuales.includes("Todas Asadas") ? "var(--primary-dark)" : "var(--bg-card)",
+                                    color: notasActuales.includes("Todas Asadas") ? "#ffffff" : "var(--text-muted)",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                  title="Cambiar combo a Todas Asadas"
+                                >
+                                  {actualizandoCoccionItemId === item.id ? "..." : "Todas Asadas"}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Detalle de Delivery y Dirección */}
@@ -1613,6 +1763,34 @@ function ModalEditarComanda({
     venta.direccion_delivery || ""
   );
   const [metodoPago, setMetodoPago] = useState<MetodoPago>(venta.metodo_pago || "efectivo_usd");
+  const [itemsLocales, setItemsLocales] = useState(venta.items || []);
+
+  const handleCambiarCoccionEnModal = async (
+    itemId: string,
+    nuevaCoccion: "Frita" | "Asada" | "Todas Fritas" | "Todas Asadas"
+  ) => {
+    sounds.playPop();
+    setItemsLocales((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        let nuevoTexto = it.notas_item || "";
+        if (nuevaCoccion === "Todas Fritas" || nuevaCoccion === "Todas Asadas") {
+          if (nuevoTexto.includes("[Todas Asadas]")) nuevoTexto = nuevoTexto.replace("[Todas Asadas]", `[${nuevaCoccion}]`);
+          else if (nuevoTexto.includes("[Todas Fritas]")) nuevoTexto = nuevoTexto.replace("[Todas Fritas]", `[${nuevaCoccion}]`);
+          else nuevoTexto = `${nuevoTexto} [${nuevaCoccion}]`;
+        } else {
+          if (nuevoTexto.includes("Cocción:")) {
+            nuevoTexto = nuevoTexto.replace(/Cocción:\s*(?:Frita|Asada)/i, `Cocción: ${nuevaCoccion}`);
+          } else {
+            nuevoTexto = nuevoTexto ? `${nuevoTexto} • Cocción: ${nuevaCoccion}` : `Cocción: ${nuevaCoccion}`;
+          }
+        }
+        return { ...it, notas_item: nuevoTexto };
+      })
+    );
+
+    await actualizarCoccionItemComanda(itemId, nuevaCoccion);
+  };
 
   // Extraer tags de abonos existentes en notas_comanda
   const [abonosEnComanda, setAbonosEnComanda] = useState<string[]>(() => {
@@ -1904,6 +2082,7 @@ function ModalEditarComanda({
       notas_comanda: res.notas_comanda !== undefined ? res.notas_comanda : (notasFinales || null),
       cliente_id: clienteId || null,
       cliente: cliObj || venta.cliente,
+      items: itemsLocales,
     });
   };
 
@@ -2019,6 +2198,107 @@ function ModalEditarComanda({
                   className="cart-notes-input"
                   style={{ fontSize: 11.5, resize: "vertical" }}
                 />
+              </div>
+            </div>
+          )}
+
+          {/* Cocción de Arepas y Productos */}
+          {itemsLocales.length > 0 && (
+            <div style={{ background: "var(--bg-subtle)", borderRadius: 10, padding: 10 }}>
+              <label style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                PRODUCTOS & COCCIÓN DE LA COMANDA:
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {itemsLocales.map((it) => {
+                  const notas = it.notas_item || it.notas || "";
+                  const esArepa = esArepaIndividual(it.producto) || /cocci[oó]n|frita|asada/i.test(notas);
+                  const esCombo = getComboArepasCount(it.producto) !== null || /rellenos:/i.test(notas);
+
+                  return (
+                    <div key={it.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-card)", padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)", gap: 8 }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <strong style={{ fontSize: 12, color: "var(--text)", display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {it.cantidad}x {it.producto?.nombre || "Producto"}
+                        </strong>
+                        {notas && (
+                          <span style={{ fontSize: 10.5, color: "var(--primary-dark)", fontWeight: 700 }}>
+                            {notas}
+                          </span>
+                        )}
+                      </div>
+
+                      {esArepa && (
+                        <div style={{ display: "inline-flex", borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden", flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleCambiarCoccionEnModal(it.id, "Frita")}
+                            style={{
+                              padding: "3px 8px",
+                              fontSize: 10.5,
+                              fontWeight: 800,
+                              border: "none",
+                              cursor: "pointer",
+                              background: /frita/i.test(notas) ? "var(--accent)" : "transparent",
+                              color: /frita/i.test(notas) ? "#ffffff" : "var(--text-muted)",
+                            }}
+                          >
+                            Frita
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCambiarCoccionEnModal(it.id, "Asada")}
+                            style={{
+                              padding: "3px 8px",
+                              fontSize: 10.5,
+                              fontWeight: 800,
+                              border: "none",
+                              cursor: "pointer",
+                              background: /asada/i.test(notas) ? "var(--primary-dark)" : "transparent",
+                              color: /asada/i.test(notas) ? "#ffffff" : "var(--text-muted)",
+                            }}
+                          >
+                            Asada
+                          </button>
+                        </div>
+                      )}
+
+                      {esCombo && (notas.includes("Todas Fritas") || notas.includes("Todas Asadas")) && (
+                        <div style={{ display: "inline-flex", borderRadius: 6, border: "1px solid var(--border)", overflow: "hidden", flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleCambiarCoccionEnModal(it.id, "Todas Fritas")}
+                            style={{
+                              padding: "3px 8px",
+                              fontSize: 10.5,
+                              fontWeight: 800,
+                              border: "none",
+                              cursor: "pointer",
+                              background: notas.includes("Todas Fritas") ? "var(--accent)" : "transparent",
+                              color: notas.includes("Todas Fritas") ? "#ffffff" : "var(--text-muted)",
+                            }}
+                          >
+                            Todas Fritas
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCambiarCoccionEnModal(it.id, "Todas Asadas")}
+                            style={{
+                              padding: "3px 8px",
+                              fontSize: 10.5,
+                              fontWeight: 800,
+                              border: "none",
+                              cursor: "pointer",
+                              background: notas.includes("Todas Asadas") ? "var(--primary-dark)" : "transparent",
+                              color: notas.includes("Todas Asadas") ? "#ffffff" : "var(--text-muted)",
+                            }}
+                          >
+                            Todas Asadas
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
