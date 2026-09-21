@@ -2014,6 +2014,11 @@ a {
   box-shadow: var(--shadow-md);
 }
 
+.receta-card.receta-card-agotado {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.02);
+}
+
 .receta-card-header {
   display: flex;
   align-items: flex-start;

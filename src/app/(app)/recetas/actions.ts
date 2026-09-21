@@ -12,6 +12,7 @@ export type GuardarRecetaPayload = {
   precio_usd: number;
   icono: string;
   popular: boolean;
+  activo?: boolean;
   ingredientes: {
     insumo_id: string;
     cantidad: number; // en gramos, ml o unidades
@@ -36,6 +37,7 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
   if (!auth.ok) return { ok: false, error: auth.error };
 
   let prodId = payload.producto_id;
+  const esActivo = payload.activo !== undefined ? Boolean(payload.activo) : true;
 
   // 1. Crear o Actualizar Producto
   if (prodId) {
@@ -48,6 +50,7 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
         precio_usd: payload.precio_usd,
         icono: payload.icono,
         popular: payload.popular,
+        activo: esActivo,
       })
       .eq("id", prodId);
 
@@ -62,6 +65,7 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
         precio_usd: payload.precio_usd,
         icono: payload.icono,
         popular: payload.popular,
+        activo: esActivo,
       })
       .select("id")
       .single();
@@ -93,8 +97,27 @@ export async function guardarPlatoYReceta(payload: GuardarRecetaPayload) {
 
   revalidatePath("/recetas");
   revalidatePath("/");
+  revalidatePath("/pedir");
 
   return { ok: true, producto_id: prodId };
+}
+
+export async function toggleProductoActivo(producto_id: string, activo: boolean) {
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  const { error } = await supabase
+    .from("productos")
+    .update({ activo })
+    .eq("id", producto_id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/recetas");
+  revalidatePath("/");
+  revalidatePath("/pedir");
+  return { ok: true };
 }
 
 export async function eliminarPlato(producto_id: string) {
@@ -107,5 +130,7 @@ export async function eliminarPlato(producto_id: string) {
 
   revalidatePath("/recetas");
   revalidatePath("/");
+  revalidatePath("/pedir");
   return { ok: true };
 }
+

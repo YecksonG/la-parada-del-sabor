@@ -821,86 +821,153 @@ ${estadoPago}`;
 
         {/* Catálogo en Modo Grid o Filas */}
         {(() => {
-          const renderCardGrid = (prod: Producto) => (
-            <button
-              key={prod.id}
-              type="button"
-              onClick={() => agregarAlCarrito(prod)}
-              className="pos-product-card"
-            >
-              <div className="product-card-top">
-                {(() => {
-                  const imgUrl = getProductImage(prod);
-                  return imgUrl ? (
-                    <div style={{ position: "relative", width: "48px", height: "48px", borderRadius: "10px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
-                      <Image src={imgUrl} alt={prod.nombre} fill sizes="48px" style={{ objectFit: "cover" }} />
-                    </div>
-                  ) : (
-                    <span className="product-emoji">{prod.icono || "🫓"}</span>
-                  );
-                })()}
-                {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
-              </div>
-
-              <div className="product-card-info">
-                <h3 className="product-title">{prod.nombre}</h3>
-                {prod.descripcion && (
-                  <p className="product-desc">{prod.descripcion}</p>
-                )}
-              </div>
-
-              <div className="product-card-footer">
-                <div className="price-tag">
-                  <span className="price-usd">${Number(prod.precio_usd).toFixed(2)}</span>
-                  <span className="price-bs">
-                    {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
-                  </span>
-                </div>
-                <span className="btn-add-circle">+</span>
-              </div>
-            </button>
-          );
-
-          const renderCardFila = (prod: Producto) => (
-            <button
-              key={prod.id}
-              type="button"
-              onClick={() => agregarAlCarrito(prod)}
-              className="pos-product-row-card"
-            >
-              <div className="pos-row-left">
-                {(() => {
-                  const imgUrl = getProductImage(prod);
-                  return imgUrl ? (
-                    <div style={{ position: "relative", width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
-                      <Image src={imgUrl} alt={prod.nombre} fill sizes="36px" style={{ objectFit: "cover" }} />
-                    </div>
-                  ) : (
-                    <span className="product-emoji" style={{ fontSize: 28 }}>{prod.icono || "🫓"}</span>
-                  );
-                })()}
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <strong className="product-title" style={{ fontSize: 15 }}>{prod.nombre}</strong>
-                    {prod.popular && <span className="badge-popular">🔥 Estrella</span>}
+          const renderCardGrid = (prod: Producto) => {
+            const estaAgotado = prod.activo === false;
+            return (
+              <button
+                key={prod.id}
+                type="button"
+                disabled={estaAgotado}
+                onClick={() => !estaAgotado && agregarAlCarrito(prod)}
+                className={`pos-product-card ${estaAgotado ? "pos-product-agotado" : ""}`}
+                style={estaAgotado ? { opacity: 0.55, cursor: "not-allowed", filter: "grayscale(0.6)" } : undefined}
+                title={estaAgotado ? `${prod.nombre} (AGOTADO)` : `Agregar ${prod.nombre}`}
+              >
+                <div className="product-card-top">
+                  {(() => {
+                    const imgUrl = getProductImage(prod);
+                    return imgUrl ? (
+                      <div style={{ position: "relative", width: "48px", height: "48px", borderRadius: "10px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 6px rgba(0,0,0,0.1)" }}>
+                        <Image src={imgUrl} alt={prod.nombre} fill sizes="48px" style={{ objectFit: "cover" }} />
+                      </div>
+                    ) : (
+                      <span className="product-emoji">{prod.icono || "🫓"}</span>
+                    );
+                  })()}
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    {estaAgotado ? (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 900,
+                          background: "#ef4444",
+                          color: "#ffffff",
+                          padding: "2px 6px",
+                          borderRadius: 6,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.5px",
+                        }}
+                      >
+                        Agotado
+                      </span>
+                    ) : (
+                      prod.popular && <span className="badge-popular">🔥 Estrella</span>
+                    )}
                   </div>
+                </div>
+
+                <div className="product-card-info">
+                  <h3 className="product-title" style={estaAgotado ? { textDecoration: "line-through", color: "var(--text-muted)" } : undefined}>
+                    {prod.nombre}
+                  </h3>
                   {prod.descripcion && (
-                    <p className="product-desc" style={{ fontSize: 12, margin: 0 }}>{prod.descripcion}</p>
+                    <p className="product-desc">{prod.descripcion}</p>
                   )}
                 </div>
-              </div>
 
-              <div className="pos-row-right">
-                <div className="price-tag" style={{ textAlign: "right" }}>
-                  <span className="price-usd" style={{ fontSize: 16 }}>${Number(prod.precio_usd).toFixed(2)}</span>
-                  <span className="price-bs" style={{ fontSize: 12 }}>
-                    {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
+                <div className="product-card-footer">
+                  <div className="price-tag">
+                    <span className="price-usd">${Number(prod.precio_usd).toFixed(2)}</span>
+                    <span className="price-bs">
+                      {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
+                    </span>
+                  </div>
+                  <span
+                    className="btn-add-circle"
+                    style={estaAgotado ? { background: "var(--border)", color: "var(--text-muted)", cursor: "not-allowed" } : undefined}
+                  >
+                    {estaAgotado ? "✕" : "+"}
                   </span>
                 </div>
-                <span className="btn-add-circle" style={{ width: 34, height: 34, fontSize: 18 }}>+</span>
-              </div>
-            </button>
-          );
+              </button>
+            );
+          };
+
+          const renderCardFila = (prod: Producto) => {
+            const estaAgotado = prod.activo === false;
+            return (
+              <button
+                key={prod.id}
+                type="button"
+                disabled={estaAgotado}
+                onClick={() => !estaAgotado && agregarAlCarrito(prod)}
+                className={`pos-product-row-card ${estaAgotado ? "pos-product-row-agotado" : ""}`}
+                style={estaAgotado ? { opacity: 0.55, cursor: "not-allowed", filter: "grayscale(0.6)" } : undefined}
+                title={estaAgotado ? `${prod.nombre} (AGOTADO)` : `Agregar ${prod.nombre}`}
+              >
+                <div className="pos-row-left">
+                  {(() => {
+                    const imgUrl = getProductImage(prod);
+                    return imgUrl ? (
+                      <div style={{ position: "relative", width: "36px", height: "36px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                        <Image src={imgUrl} alt={prod.nombre} fill sizes="36px" style={{ objectFit: "cover" }} />
+                      </div>
+                    ) : (
+                      <span className="product-emoji" style={{ fontSize: 28 }}>{prod.icono || "🫓"}</span>
+                    );
+                  })()}
+                  <div style={{ textAlign: "left" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <strong className="product-title" style={{ fontSize: 15, textDecoration: estaAgotado ? "line-through" : "none", color: estaAgotado ? "var(--text-muted)" : undefined }}>
+                        {prod.nombre}
+                      </strong>
+                      {estaAgotado ? (
+                        <span
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 900,
+                            background: "#ef4444",
+                            color: "#ffffff",
+                            padding: "2px 6px",
+                            borderRadius: 6,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Agotado
+                        </span>
+                      ) : (
+                        prod.popular && <span className="badge-popular">🔥 Estrella</span>
+                      )}
+                    </div>
+                    {prod.descripcion && (
+                      <p className="product-desc" style={{ fontSize: 12, margin: 0 }}>{prod.descripcion}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pos-row-right">
+                  <div className="price-tag" style={{ textAlign: "right" }}>
+                    <span className="price-usd" style={{ fontSize: 16 }}>${Number(prod.precio_usd).toFixed(2)}</span>
+                    <span className="price-bs" style={{ fontSize: 12 }}>
+                      {(Number(prod.precio_usd) * tasaBcv).toFixed(2)} Bs
+                    </span>
+                  </div>
+                  <span
+                    className="btn-add-circle"
+                    style={{
+                      width: 34,
+                      height: 34,
+                      fontSize: 18,
+                      ...(estaAgotado ? { background: "var(--border)", color: "var(--text-muted)", cursor: "not-allowed" } : {}),
+                    }}
+                  >
+                    {estaAgotado ? "✕" : "+"}
+                  </span>
+                </div>
+              </button>
+            );
+          };
 
           if (productosPorCategoria) {
             return (
@@ -2763,6 +2830,7 @@ ${estadoPago}`;
           producto={comboModalData.producto}
           totalArepas={comboModalData.totalArepas}
           extras={extras}
+          productos={productos}
           onConfirmar={handleConfirmarComboPos}
           onCerrar={() => setComboModalData(null)}
         />

@@ -974,8 +974,14 @@ export default function MenuClienteView({
     const isArepa = esArepaIndividual(prod);
     const imgUrl = getProductImage(prod);
 
+    const estaAgotado = prod.activo === false;
+
     return (
-      <div key={prod.id} className="pedir-product-card">
+      <div
+        key={prod.id}
+        className={`pedir-product-card ${estaAgotado ? "pedir-product-agotado" : ""}`}
+        style={estaAgotado ? { opacity: 0.62, filter: "grayscale(0.55)" } : undefined}
+      >
         <div className="pedir-product-card-body">
           <div
             className={`pedir-product-icon-wrap ${imgUrl ? "has-image" : ""}`}
@@ -1001,6 +1007,7 @@ export default function MenuClienteView({
                   width={76}
                   height={76}
                   className="pedir-product-thumbnail-img"
+                  style={estaAgotado ? { filter: "grayscale(0.8)" } : undefined}
                 />
                 <span className="pedir-zoom-badge" aria-hidden="true">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1015,8 +1022,28 @@ export default function MenuClienteView({
           </div>
           <div className="pedir-product-details">
             <div className="pedir-product-head">
-              <h3 className="pedir-product-title">{prod.nombre}</h3>
-              {prod.popular && <span className="pedir-badge-popular">Top</span>}
+              <h3 className="pedir-product-title" style={estaAgotado ? { textDecoration: "line-through", color: "var(--text-muted)" } : undefined}>
+                {prod.nombre}
+              </h3>
+              {estaAgotado ? (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 900,
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    padding: "2px 7px",
+                    borderRadius: 6,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    flexShrink: 0,
+                  }}
+                >
+                  Agotado
+                </span>
+              ) : (
+                prod.popular && <span className="pedir-badge-popular">Top</span>
+              )}
             </div>
             {prod.descripcion && (
               <p className="pedir-product-desc">{prod.descripcion}</p>
@@ -1030,7 +1057,23 @@ export default function MenuClienteView({
             <span className="pedir-price-bs">Bs. {precioBs.toFixed(2)}</span>
           </div>
 
-          {isCombo ? (
+          {estaAgotado ? (
+            <button
+              type="button"
+              disabled
+              className="pedir-btn-add"
+              style={{
+                background: "var(--border)",
+                color: "var(--text-muted)",
+                cursor: "not-allowed",
+                fontWeight: 700,
+                fontSize: 12,
+                boxShadow: "none",
+              }}
+            >
+              Agotado por hoy
+            </button>
+          ) : isCombo ? (
             <button
               type="button"
               onClick={() => handleAgregarProductoDirecto(prod)}
@@ -2277,6 +2320,7 @@ export default function MenuClienteView({
           producto={comboModalData.producto}
           totalArepas={comboModalData.totalArepas}
           extras={extras}
+          productos={productos}
           onConfirmar={handleConfirmarCombo}
           onCerrar={() => setComboModalData(null)}
         />

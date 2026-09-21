@@ -25,6 +25,20 @@ export const RELLENO_A_EXTRA_NOMBRE: Record<string, string> = {
   choriarepa:          "Choriarepa (Chorizo Ahumado + Pico de Gallo)",
 };
 
+/**
+ * Mapeo: rellenoId interno → nombre del producto en la tabla 'productos'
+ * Usado para detectar si el sabor está agotado/inactivo.
+ */
+export const RELLENO_A_PRODUCTO_NOMBRE: Record<string, string> = {
+  catira:              "Arepa Catira",
+  pelua:               "Arepa Pelúa",
+  jamon_queso_amarillo:"Arepa Jamón y Queso Amarillo",
+  reina_pepiada:       "Arepa Reina Pepiada",
+  especial_carne:      "Arepa Especial de Carne Esmechada",
+  especial_pollo:      "Arepa Especial de Pollo Esmechado",
+  choriarepa:          "Arepa de Chorizo",
+};
+
 export const RELLENOS_AREPAS_COMBO: RellenoArepa[] = [
   {
     id: "pelua",

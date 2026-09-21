@@ -18,7 +18,6 @@ export default async function PedirPage() {
     supabase
       .from("productos")
       .select("*")
-      .eq("activo", true)
       .order("nombre", { ascending: true }),
     supabase
       .from("extras_modificadores")

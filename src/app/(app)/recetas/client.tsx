@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Producto, Insumo, Categoria } from "@/types/database";
-import { guardarPlatoYReceta, eliminarPlato } from "./actions";
+import { guardarPlatoYReceta, eliminarPlato, toggleProductoActivo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import Image from "next/image";
 import { getProductImage } from "@/lib/combo-helper";
@@ -167,13 +168,41 @@ export default function RecetasClient({
   categorias,
   tasaBcv = 0,
 }: RecetasClientProps) {
+  const router = useRouter();
   const [modoVista, setModoVista] = useState<"grid" | "filas">("grid");
   const [modalAbierto, setModalAbierto] = useState(false);
   const [detalleProducto, setDetalleProducto] = useState<Producto | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [overrideActivo, setOverrideActivo] = useState<Record<string, boolean>>({});
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [catFiltro, setCatFiltro] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState<string>("");
+
+  const getIsActivo = (prod: Producto) => {
+    return overrideActivo[prod.id] !== undefined
+      ? overrideActivo[prod.id]
+      : prod.activo !== false;
+  };
+
+  const handleToggleActivo = async (prod: Producto, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const actual = getIsActivo(prod);
+    const nuevo = !actual;
+    setTogglingId(prod.id);
+    sounds.playPop();
+    setOverrideActivo((prev) => ({ ...prev, [prod.id]: nuevo }));
+
+    const res = await toggleProductoActivo(prod.id, nuevo);
+    setTogglingId(null);
+
+    if (!res.ok) {
+      setOverrideActivo((prev) => ({ ...prev, [prod.id]: actual }));
+      alert(res.error || "No se pudo cambiar el estado del producto.");
+    } else {
+      router.refresh();
+    }
+  };
 
   const productosFiltrados = useMemo(() => {
     return productos.filter((prod) => {
@@ -209,6 +238,7 @@ export default function RecetasClient({
   const [precioUsd, setPrecioUsd] = useState<number>(3.5);
   const [icono, setIcono] = useState("🫓");
   const [popular, setPopular] = useState(false);
+  const [activo, setActivo] = useState(true);
   const [ingredientes, setIngredientes] = useState<IngredienteForm[]>([
     { insumo_id: insumos[0]?.id || "", cantidad: 150, notas: "" },
   ]);
@@ -222,6 +252,7 @@ export default function RecetasClient({
     setPrecioUsd(3.5);
     setIcono("🫓");
     setPopular(false);
+    setActivo(true);
     setIngredientes(
       insumos.length > 0
         ? [{ insumo_id: insumos[0].id, cantidad: 150, notas: "" }]
@@ -239,6 +270,7 @@ export default function RecetasClient({
     setPrecioUsd(Number(prod.precio_usd));
     setIcono(prod.icono || "🫓");
     setPopular(prod.popular);
+    setActivo(getIsActivo(prod));
     setIngredientes(
       (prod.ingredientes || []).map((ing) => ({
         insumo_id: ing.insumo_id,
@@ -306,14 +338,19 @@ export default function RecetasClient({
       precio_usd: Number(precioUsd),
       icono,
       popular,
+      activo,
       ingredientes: ingredientes.filter((i) => i.insumo_id && i.cantidad > 0),
     });
 
     setGuardando(false);
 
     if (res.ok) {
+      if (editandoId) {
+        setOverrideActivo((prev) => ({ ...prev, [editandoId]: activo }));
+      }
       sounds.playKitchenBell();
       setModalAbierto(false);
+      router.refresh();
     } else {
       alert(res.error || "Hubo un error al guardar la receta.");
     }
@@ -327,6 +364,8 @@ export default function RecetasClient({
     const res = await eliminarPlato(id);
     if (!res.ok) {
       alert(res.error || "No se pudo eliminar el plato.");
+    } else {
+      router.refresh();
     }
   };
 
@@ -477,8 +516,10 @@ export default function RecetasClient({
                 ? ((ganancia / Number(prod.precio_usd)) * 100).toFixed(1)
                 : "0.0";
 
+            const isProdActivo = getIsActivo(prod);
+
             return (
-              <div key={prod.id} className="receta-card">
+              <div key={prod.id} className={`receta-card ${!isProdActivo ? "receta-card-agotado" : ""}`}>
                 <div
                   className="receta-card-header"
                   role="button"
@@ -497,17 +538,26 @@ export default function RecetasClient({
                     {(() => {
                       const imgUrl = getProductImage(prod);
                       return imgUrl ? (
-                        <div style={{ position: "relative", width: "40px", height: "40px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+                        <div style={{ position: "relative", width: "40px", height: "40px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, boxShadow: "0 2px 4px rgba(0,0,0,0.1)", filter: !isProdActivo ? "grayscale(80%)" : "none" }}>
                           <Image src={imgUrl} alt={prod.nombre} fill sizes="40px" style={{ objectFit: "cover" }} />
                         </div>
                       ) : (
-                        <span className="receta-icon">{prod.icono || "🫓"}</span>
+                        <span className="receta-icon" style={{ filter: !isProdActivo ? "grayscale(80%)" : "none" }}>{prod.icono || "🫓"}</span>
                       );
                     })()}
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        <h3 className="receta-name" style={{ margin: 0 }}>{prod.nombre}</h3>
+                        <h3 className="receta-name" style={{ margin: 0, textDecoration: !isProdActivo ? "line-through" : "none", color: !isProdActivo ? "var(--text-muted)" : "var(--text)" }}>{prod.nombre}</h3>
                         {prod.popular && <span className="badge-popular">🔥 Popular</span>}
+                        {!isProdActivo ? (
+                          <span style={{ fontSize: 10, fontWeight: 800, background: "#fee2e2", color: "#dc2626", border: "1px solid #fca5a5", padding: "2px 6px", borderRadius: 9999 }}>
+                            Agotado
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 10, fontWeight: 800, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", padding: "2px 6px", borderRadius: 9999 }}>
+                            Activo
+                          </span>
+                        )}
                       </div>
                       <div style={{ marginTop: 3 }}>
                         <span className="receta-cat-badge">
@@ -588,6 +638,27 @@ export default function RecetasClient({
                 <div className="receta-card-footer">
                   <button
                     type="button"
+                    onClick={(e) => handleToggleActivo(prod, e)}
+                    disabled={togglingId === prod.id}
+                    className="btn-toggle-receta-status"
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: `1px solid ${!isProdActivo ? "#10b981" : "#fca5a5"}`,
+                      background: !isProdActivo ? "#ecfdf5" : "#fef2f2",
+                      color: !isProdActivo ? "#059669" : "#dc2626",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "all 0.15s ease",
+                    }}
+                    title={!isProdActivo ? "Habilitar para venta en POS y Web" : "Marcar como Agotado (deshabilita en POS, Web y Combos)"}
+                  >
+                    {togglingId === prod.id ? "..." : !isProdActivo ? "Habilitar" : "Agotar"}
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => abrirEditar(prod)}
                     className="btn-edit-receta"
                   >
@@ -636,8 +707,10 @@ export default function RecetasClient({
                     ? ((ganancia / Number(prod.precio_usd)) * 100).toFixed(1)
                     : "0.0";
 
+                const isProdActivo = getIsActivo(prod);
+
                 return (
-                  <tr key={prod.id} className="detailed-table-row">
+                  <tr key={prod.id} className="detailed-table-row" style={{ opacity: !isProdActivo ? 0.75 : 1 }}>
                     <td
                       role="button"
                       tabIndex={0}
@@ -655,17 +728,26 @@ export default function RecetasClient({
                         {(() => {
                           const imgUrl = getProductImage(prod);
                           return imgUrl ? (
-                            <div style={{ position: "relative", width: "32px", height: "32px", borderRadius: "6px", overflow: "hidden", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>
+                            <div style={{ position: "relative", width: "32px", height: "32px", borderRadius: "6px", overflow: "hidden", flexShrink: 0, boxShadow: "0 1px 3px rgba(0,0,0,0.1)", filter: !isProdActivo ? "grayscale(80%)" : "none" }}>
                               <Image src={imgUrl} alt={prod.nombre} fill sizes="32px" style={{ objectFit: "cover" }} />
                             </div>
                           ) : (
-                            <span style={{ fontSize: 24, flexShrink: 0 }}>{prod.icono || "🫓"}</span>
+                            <span style={{ fontSize: 24, flexShrink: 0, filter: !isProdActivo ? "grayscale(80%)" : "none" }}>{prod.icono || "🫓"}</span>
                           );
                         })()}
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <strong style={{ fontSize: 14, color: "var(--text)" }}>{prod.nombre}</strong>
+                            <strong style={{ fontSize: 14, color: isProdActivo ? "var(--text)" : "var(--text-muted)", textDecoration: !isProdActivo ? "line-through" : "none" }}>{prod.nombre}</strong>
                             {prod.popular && <span className="badge-popular">🔥 Popular</span>}
+                            {!isProdActivo ? (
+                              <span style={{ fontSize: 10, fontWeight: 800, background: "#fee2e2", color: "#dc2626", border: "1px solid #fca5a5", padding: "1px 6px", borderRadius: 4 }}>
+                                AGOTADO
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 10, fontWeight: 800, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", padding: "1px 6px", borderRadius: 4 }}>
+                                DISPONIBLE
+                              </span>
+                            )}
                           </div>
                           <div style={{ marginTop: 3 }}>
                             <span className="receta-cat-badge">{prod.categoria?.nombre || "General"}</span>
@@ -756,6 +838,25 @@ export default function RecetasClient({
                       <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
                         <button
                           type="button"
+                          onClick={(e) => handleToggleActivo(prod, e)}
+                          disabled={togglingId === prod.id}
+                          style={{
+                            padding: "5px 10px",
+                            fontSize: 12,
+                            borderRadius: 8,
+                            border: `1px solid ${!isProdActivo ? "#10b981" : "#fca5a5"}`,
+                            background: !isProdActivo ? "#ecfdf5" : "#fef2f2",
+                            color: !isProdActivo ? "#059669" : "#dc2626",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                          }}
+                          title={!isProdActivo ? "Habilitar para venta en POS y Web" : "Marcar como Agotado"}
+                        >
+                          {togglingId === prod.id ? "..." : !isProdActivo ? "Habilitar" : "Agotar"}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => abrirEditar(prod)}
                           className="btn-insumo-adjust"
                           style={{ padding: "5px 10px", fontSize: 12, width: "auto" }}
@@ -809,6 +910,15 @@ export default function RecetasClient({
                     </span>
                     {detalleProducto.popular && (
                       <span className="badge-popular">🔥 Plato Estrella / Popular</span>
+                    )}
+                    {!getIsActivo(detalleProducto) ? (
+                      <span style={{ fontSize: 11, fontWeight: 800, background: "#fee2e2", color: "#dc2626", border: "1px solid #fca5a5", padding: "2px 8px", borderRadius: 9999 }}>
+                        Agotado
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, fontWeight: 800, background: "#ecfdf5", color: "#059669", border: "1px solid #a7f3d0", padding: "2px 8px", borderRadius: 9999 }}>
+                        Disponible
+                      </span>
                     )}
                   </div>
                 </div>
@@ -963,6 +1073,28 @@ export default function RecetasClient({
               </button>
               <button
                 type="button"
+                onClick={async () => {
+                  const prod = detalleProducto;
+                  await handleToggleActivo(prod);
+                  setDetalleProducto(null);
+                }}
+                disabled={togglingId === detalleProducto.id}
+                className="btn-cancel"
+                style={{
+                  borderColor: !getIsActivo(detalleProducto) ? "#10b981" : "#fca5a5",
+                  color: !getIsActivo(detalleProducto) ? "#059669" : "#dc2626",
+                  background: !getIsActivo(detalleProducto) ? "#ecfdf5" : "#fef2f2",
+                  fontWeight: 700,
+                }}
+              >
+                {togglingId === detalleProducto.id
+                  ? "Actualizando..."
+                  : !getIsActivo(detalleProducto)
+                  ? "Habilitar para Venta"
+                  : "Marcar como Agotado"}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   const prod = detalleProducto;
                   setDetalleProducto(null);
@@ -1043,14 +1175,24 @@ export default function RecetasClient({
                   <EmojiPicker value={icono} onChange={setIcono} />
                 </div>
 
-                <div className="form-field form-checkbox-center">
-                  <label className="checkbox-label">
+                <div className="form-field form-checkbox-center" style={{ display: "flex", flexDirection: "column", gap: 8, justifyContent: "center" }}>
+                  <label className="checkbox-label" style={{ cursor: "pointer" }}>
                     <input
                       type="checkbox"
                       checked={popular}
                       onChange={(e) => setPopular(e.target.checked)}
                     />
                     <span>🔥 Plato Popular</span>
+                  </label>
+                  <label className="checkbox-label" style={{ cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={activo}
+                      onChange={(e) => setActivo(e.target.checked)}
+                    />
+                    <span style={{ fontWeight: 700, color: activo ? "var(--green)" : "var(--accent)" }}>
+                      {activo ? "Disponible para la venta" : "Agotado (deshabilitado)"}
+                    </span>
                   </label>
                 </div>
               </div>

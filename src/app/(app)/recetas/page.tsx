@@ -48,7 +48,6 @@ export default async function RecetasPage() {
   const productosFiltrados = (productos || []).filter((p) => {
     const nom = p.nombre.toLowerCase();
     return (
-      p.activo !== false &&
       !categoriasExcluidas.has(p.categoria_id) &&
       !nom.includes("empanada") &&
       !nom.includes("coctel")

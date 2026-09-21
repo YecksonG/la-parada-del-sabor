@@ -30,7 +30,6 @@ export default async function PosPage() {
     supabase
       .from("productos")
       .select("*, ingredientes:recetas_ingredientes(*, insumo:insumos(*))")
-      .eq("activo", true)
       .order("nombre", { ascending: true }),
     supabase
       .from("extras_modificadores")

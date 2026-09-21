@@ -8,6 +8,7 @@ import {
   serializarRellenosCombo,
   getProductImage,
   RELLENO_A_EXTRA_NOMBRE,
+  RELLENO_A_PRODUCTO_NOMBRE,
   CoccionModo,
   CoccionDesglose,
 } from "@/lib/combo-helper";
@@ -22,6 +23,7 @@ interface ModalPersonalizarComboProps {
   producto: Producto;
   totalArepas: number;
   extras: ExtraModificador[];
+  productos?: Producto[];
   onConfirmar: (result: ComboConfirmResult) => void;
   onCerrar: () => void;
 }
@@ -30,6 +32,7 @@ export default function ModalPersonalizarCombo({
   producto,
   totalArepas,
   extras,
+  productos = [],
   onConfirmar,
   onCerrar,
 }: ModalPersonalizarComboProps) {
@@ -40,6 +43,15 @@ export default function ModalPersonalizarCombo({
   const [coccionModo, setCoccionModo] = useState<CoccionModo | null>(null);
   const [coccionDesglose, setCoccionDesglose] = useState<Record<string, CoccionDesglose>>({});
   const modalCardRef = useRef<HTMLDivElement>(null);
+
+  // Mapa de productos por nombre normalizado para saber si están activos
+  const productosPorNombre = useMemo(() => {
+    const map = new Map<string, Producto>();
+    for (const p of productos) {
+      map.set(p.nombre.toLowerCase().trim(), p);
+    }
+    return map;
+  }, [productos]);
 
   // Índice de extras por nombre normalizado para lookup rápido
   const extrasPorNombre = useMemo(() => {
@@ -338,6 +350,10 @@ export default function ModalPersonalizarCombo({
             const cant = rellenos[relleno.id] || 0;
             const puedeSumar = totalSeleccionadas < totalArepas;
 
+            const prodNombre = RELLENO_A_PRODUCTO_NOMBRE[relleno.id];
+            const prodCorrespondiente = prodNombre ? productosPorNombre.get(prodNombre.toLowerCase().trim()) : null;
+            const estaAgotado = prodCorrespondiente ? prodCorrespondiente.activo === false : false;
+
             const extraNombre = RELLENO_A_EXTRA_NOMBRE[relleno.id];
             const extraEnBd = extraNombre ? extrasPorNombre.get(extraNombre.toLowerCase().trim()) : null;
             const precioUnitExtra = Number(extraEnBd?.precio_extra_usd ?? relleno.recargo ?? 0);
@@ -346,12 +362,13 @@ export default function ModalPersonalizarCombo({
             return (
               <div
                 key={relleno.id}
-                className={`combo-flavor-row ${cant > 0 ? "flavor-selected" : ""}`}
-                style={
-                  precioUnitExtra > 0 && cant > 0
+                className={`combo-flavor-row ${cant > 0 ? "flavor-selected" : ""} ${estaAgotado ? "flavor-agotado" : ""}`}
+                style={{
+                  ...(precioUnitExtra > 0 && cant > 0
                     ? { flexDirection: "column", alignItems: "stretch", gap: 10 }
-                    : undefined
-                }
+                    : {}),
+                  ...(estaAgotado ? { opacity: 0.6, background: "rgba(0,0,0,0.03)" } : {}),
+                }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                   <div className="combo-flavor-info">
@@ -362,6 +379,7 @@ export default function ModalPersonalizarCombo({
                         width={48}
                         height={48}
                         className="combo-flavor-img"
+                        style={estaAgotado ? { filter: "grayscale(1)" } : undefined}
                       />
                     ) : (
                       <span className="combo-flavor-icon" aria-hidden="true">
@@ -370,8 +388,27 @@ export default function ModalPersonalizarCombo({
                     )}
                     <div>
                       <div className="combo-flavor-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>{relleno.nombre}</span>
-                        {precioUnitExtra > 0 && (
+                        <span style={estaAgotado ? { textDecoration: "line-through", color: "var(--text-muted)" } : undefined}>
+                          {relleno.nombre}
+                        </span>
+                        {estaAgotado && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 900,
+                              color: "#ef4444",
+                              background: "rgba(239, 68, 68, 0.12)",
+                              border: "1px solid rgba(239, 68, 68, 0.3)",
+                              padding: "1px 6px",
+                              borderRadius: 6,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                            }}
+                          >
+                            Agotado
+                          </span>
+                        )}
+                        {!estaAgotado && precioUnitExtra > 0 && (
                           <span
                             style={{
                               fontSize: 10,
@@ -388,7 +425,7 @@ export default function ModalPersonalizarCombo({
                         )}
                       </div>
                       <div className="combo-flavor-desc">
-                        {relleno.desc}
+                        {estaAgotado ? "No disponible por hoy" : relleno.desc}
                       </div>
                     </div>
                   </div>
@@ -397,7 +434,7 @@ export default function ModalPersonalizarCombo({
                   <div className="combo-stepper-wrap">
                     <button
                       type="button"
-                      disabled={cant <= 0}
+                      disabled={estaAgotado || cant <= 0}
                       onClick={() => handleModificarRelleno(relleno.id, -1)}
                       className="combo-stepper-btn"
                       aria-label={`Restar una ${relleno.nombre}`}
@@ -411,9 +448,9 @@ export default function ModalPersonalizarCombo({
 
                     <button
                       type="button"
-                      disabled={!puedeSumar}
+                      disabled={estaAgotado || !puedeSumar}
                       onClick={() => handleModificarRelleno(relleno.id, 1)}
-                      className={`combo-stepper-btn ${puedeSumar ? "plus-active" : ""}`}
+                      className={`combo-stepper-btn ${!estaAgotado && puedeSumar ? "plus-active" : ""}`}
                       aria-label={`Sumar una ${relleno.nombre}`}
                     >
                       +
