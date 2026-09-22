@@ -132,7 +132,7 @@ export default function PosClient({
     }
   };
   const [tipoEntrega, setTipoEntrega] = useState<string>("puerta_cerrada");
-  const [metodoPago, setMetodoPago] = useState<string>("efectivo_usd");
+  const [metodoPago, setMetodoPago] = useState<string>("pago_movil");
   const [darVuelto, setDarVuelto] = useState<boolean>(false);
   const [modoVuelto, setModoVuelto] = useState<"simple" | "mixto">("simple");
   const [billeteRecibidoUsd, setBilleteRecibidoUsd] = useState<number | "">("");
@@ -747,6 +747,7 @@ ${estadoPago}`;
           pagoMixtoInfo: pagoMixtoResumen,
         });
         setCarrito([]);
+        setMetodoPago("pago_movil");
         setNotasComanda("");
         setDarVuelto(false);
         setModoVuelto("simple");
