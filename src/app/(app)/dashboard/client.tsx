@@ -2072,7 +2072,7 @@ export default function DashboardClient({
                   </div>
 
                   {/* Tabla de Detalle Cronológico */}
-                  <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
+                  <div style={{ maxHeight: 200, overflowY: "auto", overflowX: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                       <thead>
                         <tr style={{ background: "var(--bg-subtle)", borderBottom: "1px solid var(--border)", textAlign: "left" }}>
