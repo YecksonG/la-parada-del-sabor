@@ -951,6 +951,26 @@ export default function RecetasClient({
               const pvpBs = tasaBcv > 0 ? pvp * tasaBcv : 0;
               const costoBs = tasaBcv > 0 ? costoTotal * tasaBcv : 0;
 
+              const esEmpaque = (cat?: string, nom?: string) => {
+                const c = (cat || "").toLowerCase();
+                const n = (nom || "").toLowerCase();
+                return c.includes("empaque") || c.includes("desechable") || n.includes("papel") || n.includes("servilleta") || n.includes("bolsa") || n.includes("caja") || n.includes("vaso");
+              };
+
+              const ingredientesOrdenados = [...(detalleProducto.ingredientes || [])].sort((a, b) => {
+                const aEmp = esEmpaque(a.insumo?.categoria_insumo, a.insumo?.nombre);
+                const bEmp = esEmpaque(b.insumo?.categoria_insumo, b.insumo?.nombre);
+                if (aEmp && !bEmp) return 1;
+                if (!aEmp && bEmp) return -1;
+                const aHarina = (a.insumo?.nombre || "").toLowerCase().includes("harina");
+                const bHarina = (b.insumo?.nombre || "").toLowerCase().includes("harina");
+                if (aHarina && !bHarina) return -1;
+                if (!aHarina && bHarina) return 1;
+                const costA = Number(a.insumo?.costo_unitario_usd || 0) * Number(a.cantidad || 0);
+                const costB = Number(b.insumo?.costo_unitario_usd || 0) * Number(b.cantidad || 0);
+                return costB - costA;
+              });
+
               return (
                 <>
                   <div className="product-detail-kpis-grid">
@@ -990,7 +1010,7 @@ export default function RecetasClient({
                     <div className="product-detail-bom-header">
                       <span>🌾 Fórmula & Escandallo de Ingredientes</span>
                       <span style={{ color: "var(--text-muted)" }}>
-                        {(detalleProducto.ingredientes || []).length} insumos asignados
+                        {ingredientesOrdenados.length} insumos asignados
                       </span>
                     </div>
                     <table className="product-bom-table">
@@ -1004,14 +1024,14 @@ export default function RecetasClient({
                         </tr>
                       </thead>
                       <tbody>
-                        {(detalleProducto.ingredientes || []).length === 0 ? (
+                        {ingredientesOrdenados.length === 0 ? (
                           <tr>
                             <td colSpan={5} style={{ textAlign: "center", color: "var(--text-muted)", padding: 20 }}>
                               Este plato no tiene ingredientes configurados en su receta.
                             </td>
                           </tr>
                         ) : (
-                          (detalleProducto.ingredientes || []).map((ing, idx) => {
+                          ingredientesOrdenados.map((ing, idx) => {
                             const cUnit = Number(ing.insumo?.costo_unitario_usd || 0);
                             const cTotal = cUnit * Number(ing.cantidad);
                             const pct = costoTotal > 0 ? ((cTotal / costoTotal) * 100).toFixed(1) : "0.0";
