@@ -352,11 +352,11 @@ export default function InsumosClient({
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           {/* Valor Total del Inventario */}
-          <div className="inventory-total-pill">
-            <span>Valor Total:</span>
-            <strong>${valorTotalInventario.toFixed(2)} USD</strong>
+          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.2, marginRight: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-muted)", textTransform: "uppercase" }}>Valor Total</span>
+            <strong style={{ fontSize: 17, color: "var(--text)", fontWeight: 900 }}>${valorTotalInventario.toFixed(2)} USD</strong>
           </div>
 
           {/* Toggle de Vista: Cuadros vs Filas */}
