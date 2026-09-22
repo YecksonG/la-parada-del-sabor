@@ -1219,10 +1219,21 @@ export default function GastosClient({
                             else und = "kilo";
                           }
                           
+                          let cantCalculada = parseFloat(it.cantidad) || 1;
+                          if (insumoObj?.unidad_medida === "g" && und === "kilo") {
+                            if (uStr.includes("g") || uStr.includes("gram") || cantCalculada >= 10) {
+                              cantCalculada = Number((cantCalculada / 1000).toFixed(4));
+                            }
+                          } else if (insumoObj?.unidad_medida === "ml" && und === "litro") {
+                            if (uStr.includes("ml") || uStr.includes("mili") || cantCalculada >= 10) {
+                              cantCalculada = Number((cantCalculada / 1000).toFixed(4));
+                            }
+                          }
+                          
                           return {
                             id: crypto.randomUUID(),
                             insumo_id: it.insumo_id || "",
-                            cantidad: it.cantidad?.toString() || "1",
+                            cantidad: cantCalculada.toString(),
                             unidadId: und,
                             totalUsd: it.monto_usd?.toString() || ""
                           };
