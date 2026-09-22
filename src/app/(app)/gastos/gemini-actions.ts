@@ -130,6 +130,11 @@ Reglas:
     
     const parsed = JSON.parse(text);
     
+    if (parsed.total_factura_detectado !== undefined && typeof parsed.total_factura_detectado === "string") {
+      const cleanVal = parseFloat(parsed.total_factura_detectado.replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.'));
+      parsed.total_factura_detectado = isNaN(cleanVal) ? null : cleanVal;
+    }
+    
     // Convertir a USD si la factura vino en Bolívares
     if (parsed.items && Array.isArray(parsed.items)) {
       parsed.items = parsed.items.map((it: any) => ({
