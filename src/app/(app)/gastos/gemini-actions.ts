@@ -29,7 +29,7 @@ export async function extraerInsumosFactura(base64Image: string, mimeType: strin
   ]);
   
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const modelos = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash"];
+  const modelos = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.5-pro", "gemini-1.5-pro"];
 
   const prompt = `
 Eres un asistente experto para un restaurante (La Parada del Sabor).
