@@ -55,14 +55,18 @@ Reglas:
    - "contacto": Persona de contacto o vendedor si figura en el ticket. Si no, "".
    - "id": Si coincide claramente con alguno de la lista de proveedores conocidos, pon su ID. Si no está en la lista o es nuevo, déjalo vacío "".
 2. Extrae el número de factura o número de control en "numero_factura" (ej: "0277311", "FACT-00912"). Si no tiene, pon "".
-3. Extrae cada ítem de la factura: nombre, cantidad, unidad (dedúcela: kilo, gramo, litro, mililitro, unidad, paquete, bulto, etc.) y precio total pagado por el ítem.
-4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada. Si no hay ninguno parecido, deja el "insumo_id" en blanco "" y sugiere "categoria_sugerida" ('Bebidas', 'Carnes & Proteínas', 'Lácteos & Huevos', 'Verduras & Vegetales', 'Abarrotes & Secos', 'Panadería', 'Desechables & Limpieza', 'Otros') y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
+3. Extrae cada ítem de la factura: nombre, cantidad real comprada, unidad y precio total pagado por el ítem. ¡ATENCIÓN A LOS EMPAQUES!:
+   - Si el ítem dice "(250G)", la unidad base es "g" y la cantidad es 250 (o multiplicada por la cantidad de potes). NO pongas cantidad 1 y unidad "Kilo".
+   - Si el ítem dice "(8 UND)" o es una caja de cubitos, y en el sistema está como "Caldo (8 und)", eso es 1 paquete completo. Entonces la cantidad es 1 y la unidad es "unidad". Observa el precio para deducir si cobran 1 caja o varios cubitos sueltos.
+4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada prestando atención a la unidad en la que está el insumo en el sistema. Si no hay ninguno parecido, deja el "insumo_id" en blanco "" y sugiere "categoria_sugerida" ('Bebidas', 'Carnes & Proteínas', 'Lácteos & Huevos', 'Verduras & Vegetales', 'Abarrotes & Secos', 'Panadería', 'Desechables & Limpieza', 'Otros') y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
 5. Para refrescos o bebidas (como Pepsi 1.5L, Pepsi 1L, Coca-Cola, maltas, etc.): si la factura indica bulto (por ejemplo "1 x 6 und", "Bulto", "Pack x 6"), indica unidad: "bulto_refresco_6u" o si viene en unidades pon la cantidad en botellas con unidad: "unidad". NUNCA asignes kilos ni bultos de peso a bebidas.
 6. Determina si la factura está cobrada en Dólares (USD) o Bolívares (BS) y ponlo en "moneda_detectada".
-7. Responde ÚNICAMENTE en formato JSON válido, sin markdown, siguiendo esta estructura estricta:
+7. Extrae el monto total general del ticket o factura tal cual está impreso y ponlo en "total_factura_detectado".
+8. Responde ÚNICAMENTE en formato JSON válido, sin markdown, siguiendo esta estructura estricta:
 {
   "moneda_detectada": "USD" | "BS",
   "numero_factura": "00160244",
+  "total_factura_detectado": 31589.99,
   "proveedor": {
     "id": "UUID o vacío",
     "nombre": "Nombre del Comercio / Distribuidor",
@@ -75,11 +79,11 @@ Reglas:
     {
       "insumo_id": "UUID o vacío",
       "nombre_extraido": "Nombre en factura",
-      "cantidad": 1.5,
-      "unidad": "kilo",
+      "cantidad": 250,
+      "unidad": "gramo",
       "monto_extraido": 12.50,
       "categoria_sugerida": "Abarrotes & Secos",
-      "unidad_base": "kg"
+      "unidad_base": "g"
     }
   ]
 }
@@ -134,6 +138,19 @@ Reglas:
           ? Number((it.monto_extraido / tasaBcv).toFixed(2))
           : Number(it.monto_extraido)
       }));
+
+      // Ajuste automático de centavos por errores de redondeo individual
+      if (parsed.total_factura_detectado && parsed.moneda_detectada === "BS" && tasaBcv > 0) {
+        const totalUsdReal = Number((parsed.total_factura_detectado / tasaBcv).toFixed(2));
+        const sumaItemsUsd = Number(parsed.items.reduce((acc: number, it: any) => acc + it.monto_usd, 0).toFixed(2));
+        const diferencia = Number((totalUsdReal - sumaItemsUsd).toFixed(2));
+        
+        if (Math.abs(diferencia) > 0 && Math.abs(diferencia) <= 0.05 && parsed.items.length > 0) {
+          // Ajustar la diferencia en el item de mayor valor
+          const maxItem = parsed.items.reduce((prev: any, current: any) => (prev.monto_usd > current.monto_usd) ? prev : current);
+          maxItem.monto_usd = Number((maxItem.monto_usd + diferencia).toFixed(2));
+        }
+      }
     }
 
     // Resolver proveedor: si existe o crear uno nuevo si no existe

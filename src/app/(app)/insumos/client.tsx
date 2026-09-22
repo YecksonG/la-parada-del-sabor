@@ -901,8 +901,8 @@ export default function InsumosClient({
                 </label>
                 <input
                   type="number"
-                  step="0.0001"
-                  min="0.0001"
+                  step="any"
+                  min="0"
                   required
                   value={costoUnitario}
                   onChange={(e) => setCostoUnitario(parseFloat(e.target.value) || 0)}

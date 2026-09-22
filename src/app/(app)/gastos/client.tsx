@@ -1252,9 +1252,12 @@ export default function GastosClient({
                           setCompraProveedorId(pf.id);
                         }
 
-                        // Asignar número de factura / control detectado
+                        // Asignar número de factura / control y total detectado
                         if (res.data?.numero_factura) {
                           setCompraFactura(res.data.numero_factura);
+                        }
+                        if (res.data?.total_factura_detectado && res.data.moneda_detectada === "BS") {
+                          setCompraTotalBs(res.data.total_factura_detectado.toString());
                         }
                       } else {
                         setErrorMsg(res.error || "No se pudieron extraer los ítems.");
