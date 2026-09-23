@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guard";
 import type { MetodoPago } from "@/types/database";
+import { generarTagPagoMixto, type PagoFraccionItem } from "@/lib/pago-mixto";
 
 export type EstadoVenta = "pendiente" | "preparando" | "lista" | "completada" | "cancelada" | "credito";
 
@@ -140,6 +141,78 @@ export async function actualizarMetodoPagoVenta(
   revalidatePath("/");
 
   return { ok: true };
+}
+
+export async function actualizarPagoFraccionadoVenta(payload: {
+  venta_id: string;
+  desglose: PagoFraccionItem[];
+}) {
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!payload.venta_id || !UUID_REGEX.test(payload.venta_id)) {
+    return { ok: false, error: "Identificador de venta no válido." };
+  }
+
+  if (!payload.desglose || payload.desglose.length === 0) {
+    return { ok: false, error: "Debes ingresar al menos un método en el pago fraccionado." };
+  }
+
+  const supabase = await createClient();
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+
+  // 1. Obtener la venta actual
+  const { data: venta, error: errorFetch } = await supabase
+    .from("ventas")
+    .select("id, total_usd, total_bs, tasa_bcv, notas_comanda, estado")
+    .eq("id", payload.venta_id)
+    .single();
+
+  if (errorFetch || !venta) {
+    return { ok: false, error: "Comanda no encontrada." };
+  }
+
+  const tasaBcv = Number(venta.tasa_bcv) || 1;
+  const totalUsd = Number(venta.total_usd) || 0;
+  const sumaDesgloseUsd = Number(
+    payload.desglose.reduce((acc, it) => acc + (Number(it.monto_usd) || 0), 0).toFixed(2)
+  );
+
+  if (Math.abs(totalUsd - sumaDesgloseUsd) > 0.01) {
+    return {
+      ok: false,
+      error: `El pago fraccionado ($${sumaDesgloseUsd.toFixed(2)}) no coincide con el total de la comanda ($${totalUsd.toFixed(2)}).`,
+    };
+  }
+
+  // 2. Generar tag legible de pago mixto y limpiar tags antiguos
+  const tagMixto = generarTagPagoMixto(payload.desglose, tasaBcv);
+  const notasLimpias = (venta.notas_comanda || "")
+    .replace(/•?\s*\[Pago Mixto:\s*[^\]]+\]/gi, "")
+    .trim();
+
+  const notasFinales = notasLimpias ? `${tagMixto} • ${notasLimpias}` : tagMixto;
+  const estadoFinal = venta.estado === "credito" ? "completada" : venta.estado;
+
+  const { error: errorUpdate } = await supabase
+    .from("ventas")
+    .update({
+      metodo_pago: "pago_mixto",
+      notas_comanda: notasFinales,
+      estado: estadoFinal,
+    })
+    .eq("id", payload.venta_id);
+
+  if (errorUpdate) {
+    return { ok: false, error: errorUpdate.message };
+  }
+
+  revalidatePath("/ventas");
+  revalidatePath("/caja");
+  revalidatePath("/clientes");
+  revalidatePath("/dashboard");
+  revalidatePath("/");
+
+  return { ok: true, metodo_pago: "pago_mixto", notas_comanda: notasFinales, estado: estadoFinal };
 }
 
 export type ActualizarComandaPayload = {

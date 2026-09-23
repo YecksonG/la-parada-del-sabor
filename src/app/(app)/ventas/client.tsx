@@ -8,6 +8,7 @@ import {
   cambiarEstadoVenta,
   actualizarMetodoPagoVenta,
   actualizarDetallesComanda,
+  actualizarPagoFraccionadoVenta,
   eliminarComanda,
   actualizarCoccionItemComanda,
 } from "./actions";
@@ -51,6 +52,7 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
   const [procesandoId, setProcesandoId] = useState<string | null>(null);
   const [actualizandoCoccionItemId, setActualizandoCoccionItemId] = useState<string | null>(null);
   const [comandaParaEditar, setComandaParaEditar] = useState<Venta | null>(null);
+  const [comandaParaFraccionar, setComandaParaFraccionar] = useState<Venta | null>(null);
 
   // Fechas de referencia en Caracas
   const hoyStr = useMemo(() => {
@@ -297,6 +299,11 @@ export default function VentasClient({ ventas: initialVentas, clientes = [], tas
   };
 
   const handleCambiarMetodoPago = async (venta: Venta, nuevoMetodo: MetodoPago) => {
+    if (nuevoMetodo === "pago_mixto") {
+      setComandaParaFraccionar(venta);
+      return;
+    }
+
     if (nuevoMetodo === "credito" && !venta.cliente_id) {
       // Necesita seleccionar cliente para asignarle la deuda
       setComandaAsignarCliente(venta);
@@ -723,10 +730,8 @@ ${estadoPago}`;
                       <option value="transferencia">🏦 Transferencia</option>
                       <option value="binance">🟡 Binance Pay</option>
                       <option value="zelle">🟣 Zelle</option>
+                      <option value="pago_mixto">🔀 Pago Mixto / Fraccionado...</option>
                       <option value="credito">⏳ Crédito / Debe</option>
-                      {v.metodo_pago === "pago_mixto" && (
-                        <option value="pago_mixto" disabled>🔀 Pago Mixto (Editar)</option>
-                      )}
                     </select>
 
                     {v.origen_pedido === "instagram" ? (
@@ -958,9 +963,28 @@ ${estadoPago}`;
                     if (!fraccion || fraccion.length === 0) return null;
                     return (
                       <div style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.35)", borderRadius: 8, padding: "6px 8px", marginTop: 4 }}>
-                        <span style={{ fontSize: 10.5, fontWeight: 900, color: "#d97706", display: "block", marginBottom: 2 }}>
-                          🔀 Pago Fraccionado:
-                        </span>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
+                          <span style={{ fontSize: 10.5, fontWeight: 900, color: "#d97706" }}>
+                            🔀 Pago Fraccionado:
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setComandaParaFraccionar(v)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#d97706",
+                              fontSize: 10.5,
+                              fontWeight: 800,
+                              cursor: "pointer",
+                              textDecoration: "underline",
+                              padding: 0,
+                            }}
+                            title="Modificar montos fraccionados de esta comanda"
+                          >
+                            ✏️ Modificar
+                          </button>
+                        </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                           {fraccion.map((f, fIdx) => {
                             const info = METODOS_FRACCION_INFO[f.metodo] || { label: f.metodo, icon: "💳", moneda: "USD" };
@@ -1195,6 +1219,20 @@ ${estadoPago}`;
           onEliminada={(id) => {
             setVentas((prev) => prev.filter((v) => v.id !== id));
             setComandaParaEditar(null);
+          }}
+        />
+      )}
+
+      {/* Modal para Fraccionar Pago de la Comanda */}
+      {comandaParaFraccionar && (
+        <ModalFraccionarPago
+          venta={comandaParaFraccionar}
+          onCerrar={() => setComandaParaFraccionar(null)}
+          onGuardado={(updatedVenta) => {
+            setVentas((prev) =>
+              prev.map((v) => (v.id === updatedVenta.id ? { ...v, ...updatedVenta } : v))
+            );
+            setComandaParaFraccionar(null);
           }}
         />
       )}
@@ -3102,6 +3140,432 @@ function ModalEditarComanda({
                 : "Guardar Cambios"}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalFraccionarPago({
+  venta,
+  onCerrar,
+  onGuardado,
+}: {
+  venta: Venta;
+  onCerrar: () => void;
+  onGuardado: (updated: Partial<Venta> & { id: string }) => void;
+}) {
+  const tasaBcv = Number(venta.tasa_bcv) || 1;
+  const totalUsd = Number(venta.total_usd) || 0;
+  const totalBs = Number(venta.total_bs) || Number((totalUsd * tasaBcv).toFixed(2));
+
+  // Inicializar con montos previos si la comanda ya era pago mixto
+  const [efUsd, setEfUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "efectivo_usd");
+    return item ? item.monto_usd : "";
+  });
+  const [pmUsd, setPmUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "pago_movil");
+    return item ? item.monto_usd : "";
+  });
+  const [efBsUsd, setEfBsUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "efectivo_bs");
+    return item ? item.monto_usd : "";
+  });
+  const [puntoUsd, setPuntoUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "punto");
+    return item ? item.monto_usd : "";
+  });
+  const [transfUsd, setTransfUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "transferencia");
+    return item ? item.monto_usd : "";
+  });
+  const [zelleUsd, setZelleUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "zelle");
+    return item ? item.monto_usd : "";
+  });
+  const [binanceUsd, setBinanceUsd] = useState<number | "">(() => {
+    const items = parsearPagoMixtoDeNotas(venta.notas_comanda, tasaBcv);
+    const item = items?.find((i) => i.metodo === "binance");
+    return item ? item.monto_usd : "";
+  });
+
+  const [guardando, setGuardando] = useState(false);
+
+  // Cálculos dinámicos
+  const asignadoUsd = useMemo(() => {
+    const ef = Number(efUsd) || 0;
+    const pm = Number(pmUsd) || 0;
+    const efBs = Number(efBsUsd) || 0;
+    const pto = Number(puntoUsd) || 0;
+    const tr = Number(transfUsd) || 0;
+    const zl = Number(zelleUsd) || 0;
+    const bn = Number(binanceUsd) || 0;
+    return Number((ef + pm + efBs + pto + tr + zl + bn).toFixed(2));
+  }, [efUsd, pmUsd, efBsUsd, puntoUsd, transfUsd, zelleUsd, binanceUsd]);
+
+  const pendienteUsd = useMemo(() => {
+    return Number((totalUsd - asignadoUsd).toFixed(2));
+  }, [totalUsd, asignadoUsd]);
+
+  const estaCuadrado = Math.abs(pendienteUsd) <= 0.005;
+
+  const handleAplicarMitad = () => {
+    sounds.playPop();
+    const mitad = Number((totalUsd / 2).toFixed(2));
+    const resto = Number((totalUsd - mitad).toFixed(2));
+    setEfUsd(mitad);
+    setPmUsd(resto);
+    setEfBsUsd("");
+    setPuntoUsd("");
+    setTransfUsd("");
+    setZelleUsd("");
+    setBinanceUsd("");
+  };
+
+  const handleGuardar = async () => {
+    if (guardando) return;
+    if (!estaCuadrado) {
+      alert(`El pago no está cuadrado. Falta o sobra $${Math.abs(pendienteUsd).toFixed(2)} USD.`);
+      return;
+    }
+
+    const items: PagoFraccionItem[] = [];
+    const agregar = (metodo: MetodoPagoFraccion, valUsd: number | "") => {
+      const u = Number(valUsd) || 0;
+      if (u > 0) {
+        const b = Number((u * tasaBcv).toFixed(2));
+        items.push({
+          metodo,
+          monto_usd: u,
+          monto_bs: METODOS_FRACCION_INFO[metodo]?.moneda === "Bs" ? b : 0,
+        });
+      }
+    };
+
+    agregar("efectivo_usd", efUsd);
+    agregar("pago_movil", pmUsd);
+    agregar("efectivo_bs", efBsUsd);
+    agregar("punto", puntoUsd);
+    agregar("transferencia", transfUsd);
+    agregar("zelle", zelleUsd);
+    agregar("binance", binanceUsd);
+
+    if (items.length === 0) {
+      alert("Debes ingresar al menos un método en el pago fraccionado.");
+      return;
+    }
+
+    setGuardando(true);
+
+    const res = await actualizarPagoFraccionadoVenta({
+      venta_id: venta.id,
+      desglose: items,
+    });
+
+    setGuardando(false);
+
+    if (!res.ok) {
+      alert(res.error || "No se pudo actualizar el pago fraccionado.");
+      return;
+    }
+
+    sounds.playSuccess();
+    onGuardado({
+      id: venta.id,
+      metodo_pago: "pago_mixto",
+      notas_comanda: res.notas_comanda,
+      estado: res.estado ?? (venta.estado === "credito" ? "completada" : venta.estado),
+    });
+  };
+
+  const metodosConfig = [
+    {
+      id: "efectivo_usd" as MetodoPagoFraccion,
+      label: "💵 Efectivo USD",
+      moneda: "USD",
+      val: efUsd,
+      set: setEfUsd,
+    },
+    {
+      id: "pago_movil" as MetodoPagoFraccion,
+      label: "📱 Pago Móvil (Bs)",
+      moneda: "Bs",
+      val: pmUsd,
+      set: setPmUsd,
+    },
+    {
+      id: "efectivo_bs" as MetodoPagoFraccion,
+      label: "🇻🇪 Efectivo Bs",
+      moneda: "Bs",
+      val: efBsUsd,
+      set: setEfBsUsd,
+    },
+    {
+      id: "punto" as MetodoPagoFraccion,
+      label: "💳 Punto de Venta (Bs)",
+      moneda: "Bs",
+      val: puntoUsd,
+      set: setPuntoUsd,
+    },
+    {
+      id: "transferencia" as MetodoPagoFraccion,
+      label: "🏦 Transferencia (Bs)",
+      moneda: "Bs",
+      val: transfUsd,
+      set: setTransfUsd,
+    },
+    {
+      id: "zelle" as MetodoPagoFraccion,
+      label: "🟣 Zelle (USD)",
+      moneda: "USD",
+      val: zelleUsd,
+      set: setZelleUsd,
+    },
+    {
+      id: "binance" as MetodoPagoFraccion,
+      label: "🟡 Binance Pay (USDT)",
+      moneda: "USD",
+      val: binanceUsd,
+      set: setBinanceUsd,
+    },
+  ];
+
+  return (
+    <div className="modal-overlay" style={{ zIndex: 1200 }} onClick={onCerrar}>
+      <div
+        className="modal-ticket-card"
+        style={{
+          maxWidth: 480,
+          width: "95%",
+          maxHeight: "90vh",
+          overflowY: "auto",
+          padding: 20,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "var(--text)" }}>
+              🔀 Fraccionar Pago
+            </h2>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
+              Comanda #{venta.numero_comanda} • {venta.cliente?.nombre || "Cliente General"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onCerrar}
+            className="btn-modal-close"
+            style={{ fontSize: 16 }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Tarjeta de Resumen de Total */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.04))",
+            border: "1.5px solid #f59e0b",
+            borderRadius: 12,
+            padding: "12px 14px",
+            marginBottom: 14,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", fontWeight: 700 }}>
+                Total a Cobrar:
+              </span>
+              <strong style={{ fontSize: 20, color: "#d97706", fontWeight: 900 }}>
+                ${totalUsd.toFixed(2)} USD
+              </strong>
+              <span style={{ fontSize: 11.5, color: "var(--text-muted)", marginLeft: 6, fontWeight: 700 }}>
+                (~Bs. {totalBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+              </span>
+            </div>
+
+            <div style={{ textAlign: "right" }}>
+              <span style={{ fontSize: 10.5, color: "var(--text-muted)", display: "block", fontWeight: 700 }}>
+                Estado:
+              </span>
+              {estaCuadrado ? (
+                <span style={{ fontSize: 11.5, fontWeight: 900, color: "#16a34a", background: "rgba(34, 197, 94, 0.15)", padding: "3px 8px", borderRadius: 6 }}>
+                  ✅ 100% Cuadrado
+                </span>
+              ) : pendienteUsd > 0 ? (
+                <span style={{ fontSize: 11.5, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "3px 8px", borderRadius: 6 }}>
+                  ⚠️ Faltan ${pendienteUsd.toFixed(2)}
+                </span>
+              ) : (
+                <span style={{ fontSize: 11.5, fontWeight: 900, color: "#dc2626", background: "rgba(239, 68, 68, 0.15)", padding: "3px 8px", borderRadius: 6 }}>
+                  ⚠️ Exceso ${Math.abs(pendienteUsd).toFixed(2)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Atajo rápido 50% Efectivo + 50% Pago Móvil */}
+          <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={handleAplicarMitad}
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: "#d97706",
+                background: "rgba(245, 158, 11, 0.15)",
+                border: "1px dashed #d97706",
+                borderRadius: 6,
+                padding: "4px 8px",
+                cursor: "pointer",
+                width: "100%",
+              }}
+            >
+              ⚡ Atajo: 50% Efectivo + 50% Pago Móvil
+            </button>
+          </div>
+        </div>
+
+        {/* Lista de Métodos para Desglosar */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+          {metodosConfig.map((m) => (
+            <div
+              key={m.id}
+              style={{
+                background: "var(--bg-card)",
+                border: Number(m.val) > 0 ? "1.5px solid var(--primary)" : "1px solid var(--border)",
+                borderRadius: 10,
+                padding: "8px 10px",
+                transition: "border-color 0.2s",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{m.label}</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {Number(m.val) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playPop();
+                        m.set("");
+                      }}
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        color: "#dc2626",
+                        background: "rgba(239, 68, 68, 0.1)",
+                        border: "none",
+                        borderRadius: 4,
+                        padding: "2px 6px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕ Quitar
+                    </button>
+                  )}
+                  {pendienteUsd > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sounds.playPop();
+                        const actual = Number(m.val) || 0;
+                        m.set(Number((actual + pendienteUsd).toFixed(2)));
+                      }}
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        color: "var(--primary-dark)",
+                        background: "var(--primary-light)",
+                        border: "none",
+                        borderRadius: 4,
+                        padding: "2px 8px",
+                        cursor: "pointer",
+                      }}
+                    >
+                      + Restante (${pendienteUsd.toFixed(2)})
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "var(--text-muted)" }}>$</span>
+                <input
+                  type="number"
+                  step="any"
+                  min="0"
+                  placeholder="0.00"
+                  value={m.val}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    m.set(isNaN(val) ? "" : Math.max(0, val));
+                  }}
+                  className="form-input"
+                  style={{ fontSize: 14, fontWeight: 800, padding: "6px 10px", width: "100%" }}
+                />
+              </div>
+
+              {m.moneda === "Bs" && Number(m.val) > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", display: "block", marginTop: 4 }}>
+                  📲 Cobrar en Bs: <strong>Bs. {(Number(m.val) * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Botones de Acción */}
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={onCerrar}
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--bg-subtle)",
+              color: "var(--text)",
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            disabled={guardando || !estaCuadrado}
+            onClick={handleGuardar}
+            style={{
+              flex: 2,
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "none",
+              background: estaCuadrado ? "var(--primary)" : "var(--border)",
+              color: "#ffffff",
+              fontSize: 12.5,
+              fontWeight: 800,
+              cursor: estaCuadrado && !guardando ? "pointer" : "not-allowed",
+              opacity: estaCuadrado && !guardando ? 1 : 0.6,
+            }}
+          >
+            {guardando
+              ? "Guardando..."
+              : pendienteUsd > 0
+              ? `⚠️ Falta asignar $${pendienteUsd.toFixed(2)} USD`
+              : pendienteUsd < 0
+              ? `⚠️ Exceso ($${Math.abs(pendienteUsd).toFixed(2)} USD)`
+              : "✅ Guardar Pago Fraccionado"}
+          </button>
         </div>
       </div>
     </div>
