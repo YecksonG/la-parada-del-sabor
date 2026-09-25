@@ -1239,10 +1239,11 @@ export default function GastosClient({
                           };
                         });
                         // Si la IA creó nuevos insumos en la base de datos, incorporarlos a la lista local
-                        if (res.data?.insumos_creados && Array.isArray(res.data.insumos_creados) && res.data.insumos_creados.length > 0) {
+                        const creados = res.data?.insumos_creados;
+                        if (creados && Array.isArray(creados) && creados.length > 0) {
                           setListaInsumos((prev) => {
                             const ids = new Set(prev.map((i) => i.id));
-                            const faltantes = res.data.insumos_creados.filter((i: any) => !ids.has(i.id));
+                            const faltantes = creados.filter((i) => !ids.has(i.id));
                             return [...prev, ...faltantes];
                           });
                         }
