@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth-guard";
-import { Gasto, CuentaNegocio, CategoriaGasto } from "@/types/database";
+import { CuentaNegocio, CategoriaGasto } from "@/types/database";
 import { toFechaCaracasString } from "@/lib/date-vzla";
 
 const CATEGORIAS_VALIDAS: CategoriaGasto[] = [
@@ -335,6 +335,11 @@ export type ItemCompraPayload = {
   total_usd: number; // Subtotal de este item
 };
 
+export type GastoNoInventariableItem = {
+  nombre: string;
+  total_usd: number;
+};
+
 export type RegistrarCompraMultiInsumoPayload = {
   proveedor_id?: string;
   tasa_bcv: number;
@@ -346,11 +351,15 @@ export type RegistrarCompraMultiInsumoPayload = {
   comprobante_url?: string;
   notas?: string;
   items: ItemCompraPayload[];
+  gastos_no_inventariables?: GastoNoInventariableItem[];
 };
 
 export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiInsumoPayload) {
-  if (!payload.items || payload.items.length === 0) {
-    return { ok: false, error: "La compra debe tener al menos un insumo." };
+  const tieneItems = payload.items && payload.items.length > 0;
+  const tieneNoInv = payload.gastos_no_inventariables && payload.gastos_no_inventariables.length > 0;
+
+  if (!tieneItems && !tieneNoInv) {
+    return { ok: false, error: "La compra debe tener al menos un insumo o ítem registrado." };
   }
 
   const supabase = await createClient();
@@ -358,9 +367,27 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const ctaOrigen = payload.cuenta_origen || "efectivo_usd";
+
+  // Cálculo e invariante server-side: nunca confiar ciegamente en payload.total_usd del cliente
+  const sumaItemsUsd = (payload.items || []).reduce((acc, it) => acc + (Number(it.total_usd) || 0), 0);
+  const sumaNoInvUsd = (payload.gastos_no_inventariables || []).reduce((acc, it) => acc + (Number(it.total_usd) || 0), 0);
+  const totalUsdCalculado = Number((sumaItemsUsd + sumaNoInvUsd).toFixed(2));
+  const totalUsdEfectivo = Math.abs(totalUsdCalculado - (payload.total_usd || 0)) <= 0.05
+    ? payload.total_usd
+    : totalUsdCalculado;
+
   const totalBs = payload.total_bs && payload.total_bs > 0
     ? payload.total_bs
-    : Number((payload.total_usd * payload.tasa_bcv).toFixed(2));
+    : Number((totalUsdEfectivo * payload.tasa_bcv).toFixed(2));
+
+  let notasCompra = payload.notas || "";
+  if (tieneNoInv) {
+    const detalleNoInv = payload.gastos_no_inventariables!
+      .map(g => `${g.nombre} ($${Number(g.total_usd).toFixed(2)})`)
+      .join(", ");
+    const tagNoInv = `[Gasto no inventariable]: ${detalleNoInv}`;
+    notasCompra = notasCompra ? `${notasCompra} | ${tagNoInv}` : tagNoInv;
+  }
 
   // 1. Insertar Cabecera de Compra
   const { data: compra, error: compraError } = await supabase
@@ -368,11 +395,11 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     .insert({
       proveedor_id: payload.proveedor_id || null,
       tasa_bcv: payload.tasa_bcv,
-      total_usd: payload.total_usd,
+      total_usd: totalUsdEfectivo,
       total_bs: totalBs,
       metodo_pago: ctaOrigen,
       comprobante: payload.numero_factura || null,
-      notas: payload.notas || null,
+      notas: notasCompra || null,
     })
     .select("id")
     .single();
@@ -381,40 +408,49 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     return { ok: false, error: compraError?.message || "Error al crear la compra." };
   }
 
-  // 2. Insertar Items de Compra
-  const itemsToInsert = payload.items.map(it => {
-    const cantidadBaseTotal = it.cantidad_comprada * it.factor_conversion;
-    const precioUnitarioBase = it.total_usd / cantidadBaseTotal;
-    return {
-      compra_id: compra.id,
-      insumo_id: it.insumo_id,
-      cantidad_comprada: it.cantidad_comprada,
-      unidad_compra: it.unidad_compra,
-      factor_conversion: it.factor_conversion,
-      cantidad_base_total: cantidadBaseTotal,
-      precio_unitario_usd: precioUnitarioBase,
-      subtotal_usd: it.total_usd,
-    };
-  });
+  // 2. Insertar Items de Compra en despensa (solo aquellos marcados para inventario)
+  if (tieneItems) {
+    const itemsToInsert = payload.items.map(it => {
+      const cantidadBaseTotal = it.cantidad_comprada * it.factor_conversion;
+      const precioUnitarioBase = it.total_usd / cantidadBaseTotal;
+      return {
+        compra_id: compra.id,
+        insumo_id: it.insumo_id,
+        cantidad_comprada: it.cantidad_comprada,
+        unidad_compra: it.unidad_compra,
+        factor_conversion: it.factor_conversion,
+        cantidad_base_total: cantidadBaseTotal,
+        precio_unitario_usd: precioUnitarioBase,
+        subtotal_usd: it.total_usd,
+      };
+    });
 
-  const { error: itemsError } = await supabase.from("compras_items").insert(itemsToInsert);
+    const { error: itemsError } = await supabase.from("compras_items").insert(itemsToInsert);
 
-  if (itemsError) {
-    return { ok: false, error: itemsError.message };
-  }
+    if (itemsError) {
+      // Rollback: limpiar la cabecera creada para no dejar compras huérfanas
+      const { error: rbErr } = await supabase.from("compras").delete().eq("id", compra.id);
+      if (rbErr) console.error("Error en rollback de compra:", rbErr);
+      return { ok: false, error: itemsError.message };
+    }
 
-  // 2.1 Sincronizar catálogo del proveedor en proveedor_insumos
-  if (payload.proveedor_id && payload.items.length > 0) {
-    for (const it of payload.items) {
-      if (it.insumo_id) {
-        const cant = it.cantidad_comprada || 1;
-        const precioRef = it.total_usd > 0 ? Number((it.total_usd / cant).toFixed(2)) : undefined;
-        await supabase.from("proveedor_insumos").upsert({
-          proveedor_id: payload.proveedor_id,
-          insumo_id: it.insumo_id,
-          ...(precioRef !== undefined ? { precio_referencial_usd: precioRef } : {}),
-        }, { onConflict: "proveedor_id,insumo_id" });
-      }
+    // Re-asegurar los totales exactos en compras para que compras y gastos coincidan
+    // al 100% y neutralizar cualquier sobreescritura de triggers automáticos en PostgreSQL.
+    const { error: updateTotalesError } = await supabase
+      .from("compras")
+      .update({
+        total_usd: totalUsdEfectivo,
+        total_bs: totalBs,
+      })
+      .eq("id", compra.id);
+
+    if (updateTotalesError) {
+      console.error("Error al sincronizar totales en compras:", updateTotalesError);
+      const { error: rbItemsErr } = await supabase.from("compras_items").delete().eq("compra_id", compra.id);
+      if (rbItemsErr) console.error("Error al revertir compras_items:", rbItemsErr);
+      const { error: rbCompraErr } = await supabase.from("compras").delete().eq("id", compra.id);
+      if (rbCompraErr) console.error("Error al revertir compra:", rbCompraErr);
+      return { ok: false, error: `Error al sincronizar totales de compra: ${updateTotalesError.message}` };
     }
   }
 
@@ -434,7 +470,14 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     }
   }
 
-  const descrip = `Ingreso de stock múltiple: ${payload.items.length} insumos`;
+  const cantInsumos = payload.items?.length || 0;
+  const cantNoInv = payload.gastos_no_inventariables?.length || 0;
+  let descrip = `Ingreso de stock múltiple: ${cantInsumos} insumos`;
+  if (cantInsumos > 0 && cantNoInv > 0) {
+    descrip = `Compra mixta: ${cantInsumos} insumos + ${cantNoInv} gasto(s) no inventariable(s)`;
+  } else if (cantInsumos === 0 && cantNoInv > 0) {
+    descrip = `Factura de compra: ${cantNoInv} gasto(s) no inventariable(s)`;
+  }
 
   const { error: gastoError } = await supabase.from("gastos").insert({
     fecha: toFechaCaracasString(new Date()),
@@ -443,7 +486,7 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     descripcion: descrip,
     beneficiario: null,
     proveedor_id: payload.proveedor_id || null,
-    monto_usd: payload.total_usd,
+    monto_usd: totalUsdEfectivo,
     monto_bs: totalBs,
     tasa_bcv: payload.tasa_bcv,
     cuenta_origen: ctaOrigen,
@@ -452,13 +495,37 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     comprobante_url: payload.comprobante_url || null,
     estado: "pagado",
     sesion_caja_id: sesion_caja_id,
-    notas: `compra_id:${compra.id}${payload.notas ? ` | ${payload.notas.trim()}` : ""}`,
+    notas: `compra_id:${compra.id}${notasCompra ? ` | ${notasCompra.trim()}` : ""}`,
     creado_por: auth.user.email || "admin",
   });
 
   if (gastoError) {
+    // Rollback de items y cabecera
     console.error("Error registrando gasto de compra:", gastoError);
+    if (tieneItems) {
+      const { error: delItemsErr } = await supabase.from("compras_items").delete().eq("compra_id", compra.id);
+      if (delItemsErr) console.error("Error al revertir compras_items:", delItemsErr);
+    }
+    const { error: delCompraErr } = await supabase.from("compras").delete().eq("id", compra.id);
+    if (delCompraErr) console.error("Error al revertir compras:", delCompraErr);
     return { ok: false, error: `Error al asentar el gasto financiero de la compra: ${gastoError.message}` };
+  }
+
+  // 4. Sincronizar catálogo del proveedor en proveedor_insumos solo tras asentarse la compra exitosamente
+  if (payload.proveedor_id && tieneItems) {
+    for (const it of payload.items) {
+      if (it.insumo_id && it.cantidad_comprada > 0 && it.total_usd > 0) {
+        const precioRef = Number((it.total_usd / it.cantidad_comprada).toFixed(2));
+        if (Number.isFinite(precioRef) && precioRef > 0) {
+          const { error: upsertProvErr } = await supabase.from("proveedor_insumos").upsert({
+            proveedor_id: payload.proveedor_id,
+            insumo_id: it.insumo_id,
+            precio_referencial_usd: precioRef,
+          }, { onConflict: "proveedor_id,insumo_id" });
+          if (upsertProvErr) console.warn("Aviso al sincronizar precio de proveedor:", upsertProvErr.message);
+        }
+      }
+    }
   }
 
   revalidatePath("/gastos");

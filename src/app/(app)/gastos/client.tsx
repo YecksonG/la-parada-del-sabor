@@ -11,7 +11,7 @@ import {
   crearGasto,
   actualizarGasto,
   eliminarGasto,
-  registrarIngresoInsumo,
+  type ItemCompraPayload,
 } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 
@@ -69,6 +69,16 @@ const UNIDADES_COMPRA = [
   { id: "unidad", label: "Unidad Simple (1 und)", factor: 1, unidadBase: "und" },
 ];
 
+function extraerGastoNoInventariable(notas: string | null | undefined): string | null {
+  if (!notas) return null;
+  const tag = "[Gasto no inventariable]:";
+  const idx = notas.indexOf(tag);
+  if (idx === -1) return null;
+  const rest = notas.substring(idx + tag.length).trim();
+  const pipeIdx = rest.indexOf(" | ");
+  return pipeIdx !== -1 ? rest.substring(0, pipeIdx).trim() : rest;
+}
+
 export default function GastosClient({
   gastosIniciales,
   comprasIniciales,
@@ -112,9 +122,20 @@ export default function GastosClient({
   const [comprobanteUrl, setComprobanteUrl] = useState("");
   const [notas, setNotas] = useState("");
 
+interface CompraItemRow {
+  id: string;
+  insumo_id: string;
+  cantidad: string;
+  unidadId: string;
+  totalUsd: string;
+  no_inventariable?: boolean;
+  nombre_extraido?: string;
+  insumo_creado_id?: string;
+}
+
   // Estado Formulario Entrada de Insumos (Compra con Stock)
-  const [compraItems, setCompraItems] = useState<Array<{ id: string; insumo_id: string; cantidad: string; unidadId: string; totalUsd: string }>>([
-    { id: "init-1", insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "" }
+  const [compraItems, setCompraItems] = useState<CompraItemRow[]>([
+    { id: "init-1", insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "", no_inventariable: false }
   ]);
   const [compraProveedorId, setCompraProveedorId] = useState("");
   const [compraTotalBs, setCompraTotalBs] = useState("");
@@ -163,7 +184,7 @@ export default function GastosClient({
   const abrirModalIngresoInsumo = () => {
     setErrorMsg("");
     setCompraItems([
-      { id: crypto.randomUUID(), insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "" }
+      { id: crypto.randomUUID(), insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "", no_inventariable: false }
     ]);
     setCompraProveedorId("");
     setCompraTotalBs("");
@@ -323,56 +344,96 @@ export default function GastosClient({
     setErrorMsg("");
 
     if (compraItems.length === 0) {
-      setErrorMsg("Debes incluir al menos un insumo en la compra.");
+      setErrorMsg("Debes incluir al menos un ítem o insumo en la compra.");
       return;
     }
 
-    const itemsProcesados = [];
+    const itemsProcesados: ItemCompraPayload[] = [];
+    const gastosNoInventariables: Array<{ nombre: string; total_usd: number }> = [];
+    const insumosCreadosAEliminar: string[] = [];
     let totalUsdCompra = 0;
 
     for (const it of compraItems) {
-      const ins = listaInsumos.find((i) => i.id === it.insumo_id);
-      const und = UNIDADES_COMPRA.find((u) => u.id === it.unidadId) || UNIDADES_COMPRA[3];
-      const c = parseFloat(it.cantidad);
       const u = parseFloat(it.totalUsd);
-      if (!ins || isNaN(c) || c <= 0 || isNaN(u) || u <= 0) {
-        setErrorMsg("Revisa que todos los insumos tengan cantidad y precio mayor a 0.");
+      if (isNaN(u) || u <= 0) {
+        setErrorMsg("Revisa que todos los ítems tengan un monto en USD mayor a 0.");
         return;
       }
       totalUsdCompra += u;
-      itemsProcesados.push({
-        insumo_id: ins.id,
-        insumo_nombre: ins.nombre,
-        cantidad_comprada: c,
-        unidad_compra: und.label,
-        factor_conversion: und.factor,
-        total_usd: u,
-      });
+
+      if (it.no_inventariable) {
+        // Ítem no inventariable (gasto personal / fuera de despensa)
+        const ins = listaInsumos.find((i) => i.id === it.insumo_id);
+        const nombreGasto = it.nombre_extraido?.trim() || ins?.nombre || "Gasto vario";
+        gastosNoInventariables.push({
+          nombre: nombreGasto,
+          total_usd: u,
+        });
+        if (it.insumo_creado_id) {
+          insumosCreadosAEliminar.push(it.insumo_creado_id);
+        }
+      } else {
+        // Ítem inventariable normal que suma a despensa
+        const ins = listaInsumos.find((i) => i.id === it.insumo_id);
+        const und = UNIDADES_COMPRA.find((u) => u.id === it.unidadId) || UNIDADES_COMPRA[3];
+        const c = parseFloat(it.cantidad);
+        if (!ins || isNaN(c) || c <= 0) {
+          setErrorMsg("Revisa que todos los insumos de despensa tengan cantidad y precio mayor a 0.");
+          return;
+        }
+        itemsProcesados.push({
+          insumo_id: ins.id,
+          insumo_nombre: ins.nombre,
+          cantidad_comprada: c,
+          unidad_compra: und.label,
+          factor_conversion: und.factor,
+          total_usd: u,
+        });
+      }
+    }
+
+    if (itemsProcesados.length === 0 && gastosNoInventariables.length === 0) {
+      setErrorMsg("Debes incluir al menos un ítem válido.");
+      return;
     }
 
     setGuardando(true);
+    try {
+      const { registrarCompraMultiInsumo } = await import("./actions");
+      const res = await registrarCompraMultiInsumo({
+        proveedor_id: compraProveedorId || undefined,
+        total_usd: Number(totalUsdCompra.toFixed(2)),
+        total_bs: parseFloat(compraTotalBs) || Number((totalUsdCompra * tasaBcv).toFixed(2)),
+        tasa_bcv: tasaBcv,
+        cuenta_origen: "efectivo_usd",
+        numero_factura: compraFactura,
+        comprobante_url: comprobanteUrl || undefined,
+        notas: compraNotas,
+        items: itemsProcesados,
+        gastos_no_inventariables: gastosNoInventariables.length > 0 ? gastosNoInventariables : undefined,
+      });
 
-    const { registrarCompraMultiInsumo } = await import("./actions");
-    const res = await registrarCompraMultiInsumo({
-      proveedor_id: compraProveedorId || undefined,
-      total_usd: totalUsdCompra,
-      total_bs: parseFloat(compraTotalBs) || Number((totalUsdCompra * tasaBcv).toFixed(2)),
-      tasa_bcv: tasaBcv,
-      cuenta_origen: "efectivo_usd",
-      numero_factura: compraFactura,
-      comprobante_url: comprobanteUrl || undefined,
-      notas: compraNotas,
-      items: itemsProcesados,
-    });
-
-    setGuardando(false);
-
-    if (res.ok) {
-      setModalCompra(false);
-      // Recargar página o actualizar estados
-      window.location.reload();
-    } else {
-      setErrorMsg(res.error || "Error al registrar el ingreso de insumos.");
+      if (res.ok) {
+        // Limpiar de forma segura cualquier insumo temporal creado por la IA que se marcó como no inventariable
+        if (insumosCreadosAEliminar.length > 0) {
+          try {
+            const { eliminarInsumoSiVacio } = await import("./gemini-actions");
+            await Promise.allSettled(insumosCreadosAEliminar.map((id) => eliminarInsumoSiVacio(id)));
+          } catch (cleanupErr) {
+            console.warn("Aviso limpiando insumos temporales:", cleanupErr);
+          }
+        }
+        setModalCompra(false);
+        window.location.reload();
+      } else {
+        setErrorMsg(res.error || "Error al registrar el ingreso de insumos.");
+      }
+    } catch (err: unknown) {
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+      console.error("Error al registrar compra:", errorObj);
+      setErrorMsg("Ocurrió un error inesperado al procesar la compra: " + errorObj.message);
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -475,7 +536,7 @@ export default function GastosClient({
       <div className="recetas-header" style={{ marginBottom: 20 }}>
         <div>
           <h1 className="recetas-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span>💼 Compras & Gastos</span>
+            <span>Compras & Gastos</span>
           </h1>
           <p className="recetas-subtitle">
             Centro administrativo: entrada de mercancía a la despensa, pago de servicios, nómina y control de gastos.
@@ -488,14 +549,14 @@ export default function GastosClient({
               onClick={() => setTabActiva("gastos")}
               className={`view-mode-btn ${tabActiva === "gastos" ? "active" : ""}`}
             >
-              📋 Todos los Gastos ({gastos.length})
+              Todos los Gastos ({gastos.length})
             </button>
             <button
               type="button"
               onClick={() => setTabActiva("compras")}
               className={`view-mode-btn ${tabActiva === "compras" ? "active" : ""}`}
             >
-              📦 Entrada de Insumos ({compras.length})
+              Entrada de Insumos ({compras.length})
             </button>
           </div>
         </div>
@@ -510,7 +571,7 @@ export default function GastosClient({
                 className="btn-refresh-action"
                 title="Descargar reporte en formato CSV"
               >
-                <span>📥</span> Exportar Reporte
+                Exportar Reporte
               </button>
 
               <button
@@ -529,7 +590,7 @@ export default function GastosClient({
               onClick={abrirModalIngresoInsumo}
               className="btn-primary-action"
             >
-              <span>🚚</span> Registrar Ingreso de Insumos
+              <span>+</span> Registrar Ingreso de Insumos
             </button>
           )}
 
@@ -544,7 +605,6 @@ export default function GastosClient({
             <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <span className="product-kpi-label">Total Gastos</span>
-                <span style={{ fontSize: 22 }}>💸</span>
               </div>
               <div style={{ fontSize: 24, fontWeight: 900, color: "var(--primary)" }}>
                 ${totalGastosUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
@@ -556,8 +616,7 @@ export default function GastosClient({
 
             <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span className="product-kpi-label" style={{ color: "#3b82f6" }}>⚡ Servicios</span>
-                <span style={{ fontSize: 22 }}>💡</span>
+                <span className="product-kpi-label" style={{ color: "#3b82f6" }}>Servicios</span>
               </div>
               <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>
                 ${totalServiciosUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
@@ -569,8 +628,7 @@ export default function GastosClient({
 
             <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span className="product-kpi-label" style={{ color: "#8b5cf6" }}>👥 Nómina & Personal</span>
-                <span style={{ fontSize: 22 }}>👨‍🍳</span>
+                <span className="product-kpi-label" style={{ color: "#8b5cf6" }}>Nómina & Personal</span>
               </div>
               <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>
                 ${totalNominaUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
@@ -582,8 +640,7 @@ export default function GastosClient({
 
             <div className="product-kpi-card" style={{ padding: "16px 18px", borderRadius: 18, border: "1px solid var(--border)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                <span className="product-kpi-label" style={{ color: "#10b981" }}>🚚 Proveedores & Insumos</span>
-                <span style={{ fontSize: 22 }}>📦</span>
+                <span className="product-kpi-label" style={{ color: "#10b981" }}>Proveedores & Insumos</span>
               </div>
               <div style={{ fontSize: 22, fontWeight: 900, color: "var(--text)" }}>
                 ${totalProveedoresUsd.toFixed(2)} <span style={{ fontSize: 13, fontWeight: 600 }}>USD</span>
@@ -612,7 +669,7 @@ export default function GastosClient({
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: "1 1 320px", justifyContent: "flex-end" }}>
               <input
                 type="text"
-                placeholder="🔍 Buscar gasto, factura, beneficiario..."
+                placeholder="Buscar gasto, factura, beneficiario..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="form-input"
@@ -628,7 +685,7 @@ export default function GastosClient({
                 <option value="todas">Todas las Categorías</option>
                 {Object.entries(CATEGORIAS_CONFIG).map(([k, v]) => (
                   <option key={k} value={k}>
-                    {v.icon} {v.label}
+                    {v.label}
                   </option>
                 ))}
               </select>
@@ -639,7 +696,6 @@ export default function GastosClient({
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
             {gastosFiltrados.length === 0 ? (
               <div className="recetas-empty-box" style={{ border: "none" }}>
-                <span style={{ fontSize: 48 }}>🧾</span>
                 <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay gastos registrados en este período</strong>
                 <p className="recetas-subtitle">Usa el botón "+ Registrar Gasto General" para asentar pagos.</p>
               </div>
@@ -690,12 +746,12 @@ export default function GastosClient({
                             <div style={{ fontWeight: 800, color: "var(--text)" }}>{g.descripcion}</div>
                             {g.beneficiario && (
                               <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 2 }}>
-                                👤 Beneficiario: <strong>{g.beneficiario}</strong>
+                                Beneficiario: <strong>{g.beneficiario}</strong>
                               </div>
                             )}
                             {g.proveedor && (
                               <div style={{ fontSize: 11.5, color: "var(--green)", marginTop: 2, fontWeight: 700 }}>
-                                🏢 Proveedor: {g.proveedor.nombre}
+                                Proveedor: {g.proveedor.nombre}
                               </div>
                             )}
                           </td>
@@ -728,7 +784,7 @@ export default function GastosClient({
                                   cursor: "pointer",
                                 }}
                               >
-                                <span>📎 Ver Factura</span>
+                                Ver Factura
                               </button>
                             ) : g.numero_factura ? (
                               <span style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>
@@ -756,7 +812,7 @@ export default function GastosClient({
                                   cursor: "pointer",
                                 }}
                               >
-                                ✏️ Editar
+                                Editar
                               </button>
 
                               <button
@@ -773,7 +829,7 @@ export default function GastosClient({
                                   cursor: "pointer",
                                 }}
                               >
-                                🗑️
+                                Eliminar
                               </button>
                             </div>
                           </td>
@@ -793,7 +849,7 @@ export default function GastosClient({
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14, boxShadow: "var(--shadow-sm)" }}>
             <div>
-              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--text)" }}>🚚 Historial de Entradas a la Despensa</h2>
+              <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--text)" }}>Historial de Entradas a la Despensa</h2>
               <p className="recetas-subtitle">Cada compra ingresada aquí suma stock automáticamente y recalcula el costo ponderado por gramo/ml.</p>
             </div>
             <button
@@ -808,7 +864,6 @@ export default function GastosClient({
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
             {compras.length === 0 ? (
               <div className="recetas-empty-box" style={{ border: "none" }}>
-                <span style={{ fontSize: 48 }}>📦</span>
                 <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay registros de compras directas</strong>
                 <p className="recetas-subtitle">Usa el botón "+ Registrar Nuevo Ingreso" para recibir bultos o kilos de insumos.</p>
               </div>
@@ -838,7 +893,7 @@ export default function GastosClient({
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               {c.items.slice(0, comprasExpandidas.has(c.id) ? c.items.length : 3).map((it: any) => (
                                 <div key={it.id} style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>
-                                  📦 {it.insumo?.nombre}: <strong>{it.cantidad_comprada} {it.unidad_compra}</strong> ({it.cantidad_base_total} {it.insumo?.unidad_medida})
+                                  {it.insumo?.nombre}: <strong>{it.cantidad_comprada} {it.unidad_compra}</strong> ({it.cantidad_base_total} {it.insumo?.unidad_medida})
                                 </div>
                               ))}
                               {c.items.length > 3 && (
@@ -864,9 +919,28 @@ export default function GastosClient({
                                   {comprasExpandidas.has(c.id) ? "▲ Ver menos" : `▼ + ${c.items.length - 3} más`}
                                 </button>
                               )}
+                              {(() => {
+                                const detalleNoInv = extraerGastoNoInventariable(c.notas);
+                                return detalleNoInv ? (
+                                  <div style={{ fontSize: 11, color: "#b45309", background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.25)", padding: "3px 8px", borderRadius: 6, marginTop: 4 }}>
+                                    <span style={{ fontWeight: 700 }}>No inventariable:</span> {detalleNoInv}
+                                  </div>
+                                ) : null;
+                              })()}
                             </div>
                           ) : (
-                            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{c.notas || "Sin detalle"}</span>
+                            <div>
+                              {(() => {
+                                const detalleNoInv = extraerGastoNoInventariable(c.notas);
+                                return detalleNoInv ? (
+                                  <div style={{ fontSize: 11, color: "#b45309", background: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.25)", padding: "4px 8px", borderRadius: 6 }}>
+                                    <span style={{ fontWeight: 700 }}>No inventariable:</span> {detalleNoInv}
+                                  </div>
+                                ) : (
+                                  <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{c.notas || "Sin detalle"}</span>
+                                );
+                              })()}
+                            </div>
                           )}
                         </td>
                         <td style={{ padding: "14px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
@@ -898,7 +972,7 @@ export default function GastosClient({
           <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
             <div className="modal-recipe-header">
               <h2>
-                <span>{gastoEditando ? "✏️ Modificar Gasto" : "➕ Registrar Gasto General"}</span>
+                <span>{gastoEditando ? "Modificar Gasto" : "Registrar Gasto General"}</span>
               </h2>
               <button
                 type="button"
@@ -911,7 +985,7 @@ export default function GastosClient({
 
             {errorMsg && (
               <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid #ef4444", color: "#f87171", padding: "10px 14px", borderRadius: 10, fontSize: 13 }}>
-                ⚠️ {errorMsg}
+                {errorMsg}
               </div>
             )}
 
@@ -937,7 +1011,7 @@ export default function GastosClient({
                   >
                     {Object.entries(CATEGORIAS_CONFIG).map(([k, v]) => (
                       <option key={k} value={k}>
-                        {v.icon} {v.label}
+                        {v.label}
                       </option>
                     ))}
                   </select>
@@ -1019,14 +1093,14 @@ export default function GastosClient({
                   onChange={(e) => setMetodoPagoGasto(e.target.value)}
                   className="form-input"
                 >
-                  <option value="efectivo_usd">💵 Efectivo USD</option>
-                  <option value="efectivo_bs">🇻🇪 Efectivo Bs</option>
-                  <option value="pago_movil">📱 Pago Móvil</option>
-                  <option value="transferencia">🏛️ Transferencia Bancaria</option>
-                  <option value="debito">💳 Tarjeta Débito / POS</option>
-                  <option value="biopago">🟢 BioPago</option>
-                  <option value="zelle">🟣 Zelle</option>
-                  <option value="binance">🟡 Binance Pay</option>
+                  <option value="efectivo_usd">Efectivo USD</option>
+                  <option value="efectivo_bs">Efectivo Bs</option>
+                  <option value="pago_movil">Pago Móvil</option>
+                  <option value="transferencia">Transferencia Bancaria</option>
+                  <option value="debito">Tarjeta Débito / POS</option>
+                  <option value="biopago">BioPago</option>
+                  <option value="zelle">Zelle</option>
+                  <option value="binance">Binance Pay</option>
                 </select>
               </div>
 
@@ -1111,7 +1185,7 @@ export default function GastosClient({
                   disabled={guardando}
                   className="btn-primary-action"
                 >
-                  {guardando ? "Guardando..." : gastoEditando ? "💾 Actualizar Gasto" : "💾 Guardar Gasto"}
+                  {guardando ? "Guardando..." : gastoEditando ? "Actualizar Gasto" : "Guardar Gasto"}
                 </button>
               </div>
             </form>
@@ -1125,7 +1199,7 @@ export default function GastosClient({
           <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 660 }}>
             <div className="modal-recipe-header">
               <h2>
-                <span>🚚 Registrar Ingreso de Insumos (Stock 2 en 1)</span>
+                <span>Registrar Ingreso de Insumos (Stock 2 en 1)</span>
               </h2>
               <button
                 type="button"
@@ -1138,14 +1212,14 @@ export default function GastosClient({
 
             {errorMsg && (
               <div style={{ background: "rgba(239, 68, 68, 0.15)", border: "1px solid #ef4444", color: "#f87171", padding: "10px 14px", borderRadius: 10, fontSize: 13 }}>
-                ⚠️ {errorMsg}
+                {errorMsg}
               </div>
             )}
 
             {/* BOTÓN IA PARA CARGAR FACTURAS */}
             <div style={{ padding: "14px", background: "var(--bg-subtle)", borderRadius: 12, marginBottom: 16, display: "flex", gap: 12, alignItems: "center", border: "1px dashed var(--primary)" }}>
               <div style={{ flex: 1 }}>
-                <h4 style={{ margin: 0, fontSize: 14, color: "var(--primary)", fontWeight: 800 }}>✨ Lector de Facturas Inteligente</h4>
+                <h4 style={{ margin: 0, fontSize: 14, color: "var(--primary)", fontWeight: 800 }}>Lector de Facturas Inteligente</h4>
                 <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>Sube una foto del ticket y la IA extraerá los insumos automáticamente.</p>
               </div>
               <input
@@ -1235,7 +1309,10 @@ export default function GastosClient({
                             insumo_id: it.insumo_id || "",
                             cantidad: cantCalculada.toString(),
                             unidadId: und,
-                            totalUsd: it.monto_usd?.toString() || ""
+                            totalUsd: it.monto_usd?.toString() || "",
+                            no_inventariable: false,
+                            nombre_extraido: it.nombre_extraido || (insumoObj ? insumoObj.nombre : ""),
+                            insumo_creado_id: it.insumo_nuevo_creado ? it.insumo_id : undefined,
                           };
                         });
                         // Si la IA creó nuevos insumos en la base de datos, incorporarlos a la lista local
@@ -1284,7 +1361,7 @@ export default function GastosClient({
                 }}
               />
               <label htmlFor="ai-invoice-upload" className="btn-primary-action" style={{ cursor: "pointer", fontSize: 12, padding: "8px 12px", margin: 0, opacity: guardando ? 0.5 : 1, pointerEvents: guardando ? "none" : "auto" }}>
-                {guardando ? "⏳ Leyendo..." : "📸 Subir Factura"}
+                {guardando ? "Leyendo..." : "Subir Factura"}
               </label>
             </div>
 
@@ -1307,83 +1384,153 @@ export default function GastosClient({
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "var(--bg-subtle)", padding: 10, borderRadius: 12, marginBottom: 16 }}>
                 {compraItems.map((it, idx) => (
-                  <div key={it.id} style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1.5fr 1fr auto", gap: 8, alignItems: "end" }}>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Insumo</label>}
-                      <select
-                        value={it.insumo_id}
-                        onChange={(e) => {
-                          const arr = [...compraItems];
-                          arr[idx].insumo_id = e.target.value;
-                          const nuevoIns = listaInsumos.find(i => i.id === e.target.value);
-                          if (nuevoIns) {
-                            if (nuevoIns.unidad_medida === "und") arr[idx].unidadId = "unidad";
-                            else if (nuevoIns.unidad_medida === "ml") arr[idx].unidadId = "litro";
-                            else arr[idx].unidadId = "kilo";
-                          }
-                          setCompraItems(arr);
-                        }}
-                        className="form-input"
-                        style={{ padding: "8px 6px" }}
-                      >
-                        {listaInsumos.map((ins) => (
-                          <option key={ins.id} value={ins.id}>
-                            {ins.nombre} ({ins.unidad_medida})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Cant.</label>}
-                      <input type="number" step="any" min="0.1" required value={it.cantidad} onChange={(e) => {
-                        const arr = [...compraItems];
-                        arr[idx].cantidad = e.target.value;
-                        setCompraItems(arr);
-                      }} className="form-input" style={{ padding: "8px 6px" }} />
-                    </div>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Und.</label>}
-                      {(() => {
-                        const insRow = listaInsumos.find(i => i.id === it.insumo_id);
-                        const unidadesValidas = insRow 
-                          ? UNIDADES_COMPRA.filter(u => u.unidadBase === insRow.unidad_medida)
-                          : UNIDADES_COMPRA;
-                        return (
-                          <select value={it.unidadId} onChange={(e) => {
+                  <div
+                    key={it.id}
+                    style={{
+                      background: it.no_inventariable ? "rgba(245, 158, 11, 0.05)" : "var(--bg-card)",
+                      border: it.no_inventariable ? "1px solid rgba(245, 158, 11, 0.4)" : "1px solid var(--border)",
+                      borderRadius: 10,
+                      padding: 10,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 11.5, fontWeight: 600, color: it.no_inventariable ? "#b45309" : "var(--text-muted)", userSelect: "none" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!it.no_inventariable}
+                          onChange={(e) => {
                             const arr = [...compraItems];
-                            arr[idx].unidadId = e.target.value;
+                            arr[idx].no_inventariable = e.target.checked;
                             setCompraItems(arr);
-                          }} className="form-input" style={{ padding: "8px 6px" }}>
-                            {unidadesValidas.map((u) => (
-                              <option key={u.id} value={u.id}>{u.label}</option>
-                            ))}
-                          </select>
-                        );
-                      })()}
+                          }}
+                          style={{ accentColor: "#d97706", width: 14, height: 14, cursor: "pointer" }}
+                        />
+                        <span>Excluir de despensa (Solo Gasto)</span>
+                      </label>
+                      {it.no_inventariable ? (
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#b45309", background: "rgba(245, 158, 11, 0.15)", padding: "2px 8px", borderRadius: 4, letterSpacing: "0.03em" }}>
+                          NO INVENTARIABLE
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-muted)" }}>
+                          Suma a despensa
+                        </span>
+                      )}
                     </div>
-                    <div className="form-field" style={{ margin: 0 }}>
-                      {idx === 0 && <label style={{ fontSize: 11 }}>Subtotal $</label>}
-                      <input type="number" step="any" min="0.01" required value={it.totalUsd} onChange={(e) => {
-                        const arr = [...compraItems];
-                        arr[idx].totalUsd = e.target.value;
-                        setCompraItems(arr);
-                      }} className="form-input" style={{ padding: "8px 6px", borderColor: "var(--primary)" }} placeholder="0.00" />
+
+                    <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr 1.5fr 1fr auto", gap: 8, alignItems: "end" }}>
+                      <div className="form-field" style={{ margin: 0 }}>
+                        {idx === 0 && <label style={{ fontSize: 11 }}>Insumo / Concepto</label>}
+                        <select
+                          value={it.insumo_id}
+                          onChange={(e) => {
+                            const arr = [...compraItems];
+                            arr[idx].insumo_id = e.target.value;
+                            const nuevoIns = listaInsumos.find(i => i.id === e.target.value);
+                            if (nuevoIns) {
+                              arr[idx].nombre_extraido = nuevoIns.nombre;
+                              if (nuevoIns.unidad_medida === "und") arr[idx].unidadId = "unidad";
+                              else if (nuevoIns.unidad_medida === "ml") arr[idx].unidadId = "litro";
+                              else arr[idx].unidadId = "kilo";
+                            }
+                            setCompraItems(arr);
+                          }}
+                          className="form-input"
+                          style={{ padding: "8px 6px" }}
+                        >
+                          {listaInsumos.map((ins) => (
+                            <option key={ins.id} value={ins.id}>
+                              {ins.nombre} ({ins.unidad_medida})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="form-field" style={{ margin: 0, opacity: it.no_inventariable ? 0.45 : 1 }}>
+                        {idx === 0 && <label style={{ fontSize: 11 }}>Cant.</label>}
+                        <input
+                          type="number"
+                          step="any"
+                          min={it.no_inventariable ? "0" : "0.01"}
+                          required={!it.no_inventariable}
+                          value={it.cantidad}
+                          onChange={(e) => {
+                            const arr = [...compraItems];
+                            arr[idx].cantidad = e.target.value;
+                            setCompraItems(arr);
+                          }}
+                          className="form-input"
+                          style={{ padding: "8px 6px" }}
+                          disabled={it.no_inventariable}
+                        />
+                      </div>
+                      <div className="form-field" style={{ margin: 0, opacity: it.no_inventariable ? 0.45 : 1 }}>
+                        {idx === 0 && <label style={{ fontSize: 11 }}>Und.</label>}
+                        {(() => {
+                          const insRow = listaInsumos.find(i => i.id === it.insumo_id);
+                          const unidadesValidas = insRow 
+                            ? UNIDADES_COMPRA.filter(u => u.unidadBase === insRow.unidad_medida)
+                            : UNIDADES_COMPRA;
+                          return (
+                            <select
+                              value={it.unidadId}
+                              onChange={(e) => {
+                                const arr = [...compraItems];
+                                arr[idx].unidadId = e.target.value;
+                                setCompraItems(arr);
+                              }}
+                              className="form-input"
+                              style={{ padding: "8px 6px" }}
+                              disabled={it.no_inventariable}
+                            >
+                              {unidadesValidas.map((u) => (
+                                <option key={u.id} value={u.id}>{u.label}</option>
+                              ))}
+                            </select>
+                          );
+                        })()}
+                      </div>
+                      <div className="form-field" style={{ margin: 0 }}>
+                        {idx === 0 && <label style={{ fontSize: 11 }}>Subtotal $</label>}
+                        <input
+                          type="number"
+                          step="any"
+                          min="0.01"
+                          required
+                          value={it.totalUsd}
+                          onChange={(e) => {
+                            const arr = [...compraItems];
+                            arr[idx].totalUsd = e.target.value;
+                            setCompraItems(arr);
+                          }}
+                          className="form-input"
+                          style={{ padding: "8px 6px", borderColor: it.no_inventariable ? "#d97706" : "var(--primary)" }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      {compraItems.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCompraItems(compraItems.filter(i => i.id !== it.id));
+                          }}
+                          style={{ background: "none", border: "none", color: "var(--danger, #ef4444)", cursor: "pointer", padding: "8px 4px", fontSize: 16 }}
+                        >
+                          ✕
+                        </button>
+                      ) : (
+                        <div style={{ width: 20 }}></div>
+                      )}
                     </div>
-                    {compraItems.length > 1 ? (
-                      <button type="button" onClick={() => {
-                        setCompraItems(compraItems.filter(i => i.id !== it.id));
-                      }} style={{ background: "none", border: "none", color: "red", cursor: "pointer", padding: "8px 4px", fontSize: 16 }}>
-                        ✕
-                      </button>
-                    ) : (
-                      <div style={{ width: 20 }}></div>
-                    )}
                   </div>
                 ))}
                 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
                   <button type="button" onClick={() => {
-                    setCompraItems([...compraItems, { id: crypto.randomUUID(), insumo_id: listaInsumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "" }]);
+                    setCompraItems([...compraItems, { id: crypto.randomUUID(), insumo_id: listaInsumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "", no_inventariable: false }]);
                   }} style={{ background: "var(--primary-light)", color: "var(--primary-dark)", padding: "6px 12px", borderRadius: 8, border: "none", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
                     + Agregar Otro Insumo
                   </button>
@@ -1424,7 +1571,7 @@ export default function GastosClient({
                   disabled={guardando}
                   className="btn-primary-action"
                 >
-                  {guardando ? "Procesando..." : "🚚 Ingresar Stock & Asentar Gasto"}
+                  {guardando ? "Procesando..." : "Ingresar Stock & Asentar Gasto"}
                 </button>
               </div>
             </form>
@@ -1443,7 +1590,7 @@ export default function GastosClient({
           >
             <div className="modal-recipe-header" style={{ padding: "16px 20px" }}>
               <h2>
-                <span>📎 Factura / Comprobante de Gasto</span>
+                <span>Factura / Comprobante de Gasto</span>
               </h2>
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <a
@@ -1453,7 +1600,7 @@ export default function GastosClient({
                   className="btn-refresh-action"
                   style={{ fontSize: 12, padding: "5px 12px" }}
                 >
-                  ↗️ Abrir Completa
+                  Abrir Completa
                 </a>
                 <button
                   type="button"

@@ -80,12 +80,7 @@ function esBolivares(moneda: string | null | undefined): boolean {
 function deducirUnidadMedida(unidadStr: string | null | undefined): { unidad: "und" | "g" | "ml"; esKiloOLitro: boolean } {
   const u = (unidadStr || "").toLowerCase().trim();
 
-  // Si indica empaque discreto -> siempre 'und' (evita que 'bulto' matchee 'l')
-  if (/\b(bulto|paquete|pack|caja|docena|unidad|botella|pieza|lata|sobre|frasco|pote|saco)\b/i.test(u)) {
-    return { unidad: "und", esKiloOLitro: false };
-  }
-
-  // Gramos / Kilos (ej: "2kg", "1 kilo", "0.5 kg", "500g", "250 gr", "100 gramos")
+  // 1. Gramos / Kilos (ej: "Saco 50kg", "caja de 25kg", "2kg", "1 kilo", "0.5 kg", "500g", "250 gr", "100 gramos")
   if (/(^|\d|\s)(kg|kgs|kilo|kilos)($|\s)/i.test(u)) {
     return { unidad: "g", esKiloOLitro: true };
   }
@@ -93,12 +88,17 @@ function deducirUnidadMedida(unidadStr: string | null | undefined): { unidad: "u
     return { unidad: "g", esKiloOLitro: false };
   }
 
-  // Litros / Mililitros (ej: "1.5L", "2 litros", "1 lt", "750ml", "330 cc", "500 ml")
+  // 2. Litros / Mililitros (ej: "1.5L", "2 litros", "1 lt", "botella 750ml", "330 cc", "500 ml")
   if (/(^|\d|\s)(l|lt|lts|litro|litros)($|\s)/i.test(u)) {
     return { unidad: "ml", esKiloOLitro: true };
   }
   if (/(^|\d|\s)(ml|mililitro|mililitros|cc)($|\s)/i.test(u)) {
     return { unidad: "ml", esKiloOLitro: false };
+  }
+
+  // 3. Empaques discretos (solo si no se especificó peso ni volumen) -> 'und'
+  if (/\b(bulto|paquete|pack|caja|docena|unidad|botella|pieza|lata|sobre|frasco|pote|saco)\b/i.test(u)) {
+    return { unidad: "und", esKiloOLitro: false };
   }
 
   return { unidad: "und", esKiloOLitro: false };
@@ -123,17 +123,14 @@ export async function extraerInsumosFactura(base64Image: string, mimeType: strin
 
   const supabase = await createClient();
 
-  // Si tasaBcv viene inválida o manipulada, obtener la última tasa activa oficial de la BD
-  let tasaEfectiva = tasaBcv;
-  if (!tasaEfectiva || tasaEfectiva <= 0) {
-    const { data: tasaRow } = await supabase
-      .from("tasas_cambio")
-      .select("tasa_usd_bs, bcv_usd_bs")
-      .order("fecha", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    tasaEfectiva = Number(tasaRow?.tasa_usd_bs || tasaRow?.bcv_usd_bs) || 1;
-  }
+  // Obtener la tasa activa oficial de la BD como verdad única
+  const { data: tasaRow } = await supabase
+    .from("tasas_cambio")
+    .select("tasa_usd_bs, bcv_usd_bs")
+    .order("fecha", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const tasaEfectiva = Number(tasaRow?.tasa_usd_bs || tasaRow?.bcv_usd_bs) || (tasaBcv > 0 ? tasaBcv : 1);
 
   // Obtener lista de insumos y proveedores con datos completos
   const [{ data: insumosData }, { data: proveedoresData }] = await Promise.all([
@@ -407,4 +404,36 @@ Reglas:
     console.error("Error Gemini:", errorObj);
     return { ok: false, error: errorObj.message || "Error al procesar la factura con Inteligencia Artificial." };
   }
+}
+
+interface RpcEliminarInsumoResponse {
+  ok: boolean;
+  error?: string;
+}
+
+export async function eliminarInsumoSiVacio(insumoId: string) {
+  const auth = await requireAuth();
+  if (!auth.ok) return { ok: false, error: auth.error };
+  const supabase = await createClient();
+  const { data: ins } = await supabase
+    .from("insumos")
+    .select("stock_actual")
+    .eq("id", insumoId)
+    .maybeSingle();
+
+  if (ins && Number(ins.stock_actual) === 0) {
+    const { data, error } = await supabase.rpc("fn_eliminar_insumo_seguro", {
+      p_insumo_id: insumoId,
+    });
+    if (error) {
+      console.warn("Aviso eliminando insumo temporal:", error.message);
+      return { ok: false, error: error.message };
+    }
+    const rpcRes = data as unknown as RpcEliminarInsumoResponse | null;
+    if (rpcRes && rpcRes.ok === false) {
+      console.warn("Aviso fn_eliminar_insumo_seguro:", rpcRes.error);
+      return { ok: false, error: rpcRes.error };
+    }
+  }
+  return { ok: true };
 }
