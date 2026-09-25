@@ -888,7 +888,7 @@ export default function DashboardClient({
             style={{ fontSize: 12, padding: "8px 14px" }}
             title="Ver evolución de costos semana a semana y mes a mes"
           >
-            📈 Gráficas Continuas
+            Gráficas Continuas
           </button>
         </div>
       </div>
@@ -947,7 +947,7 @@ export default function DashboardClient({
       {/* Radiografía Financiera Ejecutiva: Facturación vs Gastos & Materia Prima */}
       <div
         style={{
-          background: "var(--surface)",
+          background: "var(--bg-card)",
           border: "1px solid var(--border)",
           borderRadius: 18,
           padding: "18px 22px",
@@ -1871,8 +1871,8 @@ export default function DashboardClient({
           >
             <div className="modal-recipe-header">
               <div>
-                <h2>📈 Análisis Continuo de Costos & Facturación</h2>
-                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>
+                <h2>Análisis Continuo de Costos & Facturación</h2>
+                <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted-strong)" }}>
                   Evolución cronológica de ventas facturadas vs costos de insumos consumidos.
                 </p>
               </div>
@@ -1887,10 +1887,26 @@ export default function DashboardClient({
 
             {/* Selector de Agrupación Temporal */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "16px 0", flexWrap: "wrap", gap: 10 }}>
-              <div style={{ display: "flex", background: "var(--bg-subtle)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}>
+              <div
+                role="tablist"
+                aria-label="Agrupación temporal"
+                style={{ display: "flex", background: "var(--bg-subtle)", borderRadius: 10, padding: 3, border: "1px solid var(--border)" }}
+              >
                 <button
                   type="button"
+                  id="tab-grafica-semana"
+                  role="tab"
+                  aria-selected={agrupacionGrafica === "semana"}
+                  aria-controls="tabpanel-grafica"
+                  tabIndex={agrupacionGrafica === "semana" ? 0 : -1}
                   onClick={() => setAgrupacionGrafica("semana")}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      setAgrupacionGrafica("mes");
+                      document.getElementById("tab-grafica-mes")?.focus();
+                    }
+                  }}
                   style={{
                     padding: "6px 14px",
                     borderRadius: 8,
@@ -1899,14 +1915,26 @@ export default function DashboardClient({
                     fontWeight: 700,
                     cursor: "pointer",
                     background: agrupacionGrafica === "semana" ? "var(--primary)" : "transparent",
-                    color: agrupacionGrafica === "semana" ? "#fff" : "var(--text-muted)",
+                    color: agrupacionGrafica === "semana" ? "#1c1917" : "var(--text-muted-strong)",
                   }}
                 >
-                  📅 Semana a Semana
+                  Semana a Semana
                 </button>
                 <button
                   type="button"
+                  id="tab-grafica-mes"
+                  role="tab"
+                  aria-selected={agrupacionGrafica === "mes"}
+                  aria-controls="tabpanel-grafica"
+                  tabIndex={agrupacionGrafica === "mes" ? 0 : -1}
                   onClick={() => setAgrupacionGrafica("mes")}
+                  onKeyDown={(e) => {
+                    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                      e.preventDefault();
+                      setAgrupacionGrafica("semana");
+                      document.getElementById("tab-grafica-semana")?.focus();
+                    }
+                  }}
                   style={{
                     padding: "6px 14px",
                     borderRadius: 8,
@@ -1915,25 +1943,27 @@ export default function DashboardClient({
                     fontWeight: 700,
                     cursor: "pointer",
                     background: agrupacionGrafica === "mes" ? "var(--primary)" : "transparent",
-                    color: agrupacionGrafica === "mes" ? "#fff" : "var(--text-muted)",
+                    color: agrupacionGrafica === "mes" ? "#1c1917" : "var(--text-muted-strong)",
                   }}
                 >
-                  📆 Mes a Mes
+                  Mes a Mes
                 </button>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 12 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "var(--primary)" }}></span>
-                  <strong>Ventas ($)</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 12, flexWrap: "wrap" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "var(--chart-ventas)", display: "inline-block" }}></span>
+                  <span style={{ color: "var(--text)", fontWeight: 600 }}>Ventas Facturadas</span>
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "#ef4444" }}></span>
-                  <strong>Costos Insumos ($)</strong>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "var(--chart-costos)", display: "inline-block" }}></span>
+                  <span style={{ color: "var(--text)", fontWeight: 600 }}>Costo de Insumos</span>
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: 3, background: "#22c55e" }}></span>
-                  <strong>Ganancia Neta ($)</strong>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ padding: "1px 6px", borderRadius: 4, background: "rgba(34, 197, 94, 0.15)", border: "1px solid rgba(34, 197, 94, 0.4)", color: "var(--text)", fontSize: 10, fontWeight: 800 }}>
+                    +/−
+                  </span>
+                  <span style={{ color: "var(--text)", fontWeight: 600 }}>Ganancia Neta</span>
                 </span>
               </div>
             </div>
@@ -1943,44 +1973,70 @@ export default function DashboardClient({
               const dataPoints = seriesContinuas[agrupacionGrafica === "semana" ? "semanas" : "meses"];
               if (dataPoints.length === 0) {
                 return (
-                  <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
+                  <div
+                    id="tabpanel-grafica"
+                    role="tabpanel"
+                    aria-labelledby={agrupacionGrafica === "semana" ? "tab-grafica-semana" : "tab-grafica-mes"}
+                    style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted-strong)" }}
+                  >
                     No hay suficientes datos registrados para trazar la gráfica.
                   </div>
                 );
               }
+
+              const fmtUsd = (val: number, decimals: number = 2) =>
+                val.toLocaleString("en-US", {
+                  minimumFractionDigits: decimals,
+                  maximumFractionDigits: decimals,
+                });
+
+              const fmtSignedUsd = (val: number, decimals: number = 2) => {
+                if (Math.abs(val) < 0.005) return `$${fmtUsd(0, decimals)}`;
+                const sign = val > 0 ? "+" : "−";
+                return `${sign}$${fmtUsd(Math.abs(val), decimals)}`;
+              };
 
               const totalVentasPeriodo = dataPoints.reduce((a, b) => a + b.ventasUsd, 0);
               const totalCostosPeriodo = dataPoints.reduce((a, b) => a + b.costosUsd, 0);
               const totalGastosPeriodo = dataPoints.reduce((a, b) => a + (b.gastosUsd || 0), 0);
               const totalGananciaPeriodo = totalVentasPeriodo - totalGastosPeriodo;
               const margenPeriodo = totalVentasPeriodo > 0 ? (totalGananciaPeriodo / totalVentasPeriodo) * 100 : 0;
-              const maxVenta = dataPoints.reduce((max, d) => Math.max(max, d.ventasUsd), 10);
+              // Escalar exclusivamente en base a los valores dibujables (ventas o costos) para aprovechar al 100% el alto útil
+              const maxValor = Math.max(
+                ...dataPoints.flatMap((d) => [d.ventasUsd, d.costosUsd]),
+                10
+              );
 
               return (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div
+                  id="tabpanel-grafica"
+                  role="tabpanel"
+                  aria-labelledby={agrupacionGrafica === "semana" ? "tab-grafica-semana" : "tab-grafica-mes"}
+                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
+                >
                   {/* Resumen Superior Rápido del Período Seleccionado */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Total Facturado</span>
-                      <strong style={{ fontSize: 16, color: "var(--primary-dark)" }}>${totalVentasPeriodo.toFixed(2)} USD</strong>
+                      <span style={{ fontSize: 11, color: "var(--text-muted-strong)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Total Facturado</span>
+                      <strong style={{ fontSize: 16, color: "var(--chart-ventas-text)" }}>${fmtUsd(totalVentasPeriodo)} USD</strong>
                     </div>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Costo de Insumos</span>
-                      <strong style={{ fontSize: 16, color: "#d97706" }}>${totalCostosPeriodo.toFixed(2)} USD</strong>
+                      <span style={{ fontSize: 11, color: "var(--text-muted-strong)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Costo de Insumos</span>
+                      <strong style={{ fontSize: 16, color: "var(--chart-costos-text)" }}>${fmtUsd(totalCostosPeriodo)} USD</strong>
                     </div>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Gastos Egresos</span>
-                      <strong style={{ fontSize: 16, color: "#ef4444" }}>${totalGastosPeriodo.toFixed(2)} USD</strong>
+                      <span style={{ fontSize: 11, color: "var(--text-muted-strong)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Gastos Egresos</span>
+                      <strong style={{ fontSize: 16, color: "var(--primary-dark)" }}>${fmtUsd(totalGastosPeriodo)} USD</strong>
                     </div>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Ganancia Neta</span>
-                      <strong style={{ fontSize: 16, color: totalGananciaPeriodo >= 0 ? "#16a34a" : "#dc2626" }}>
-                        {totalGananciaPeriodo >= 0 ? "+" : ""}${totalGananciaPeriodo.toFixed(2)} USD
+                      <span style={{ fontSize: 11, color: "var(--text-muted-strong)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Ganancia Neta</span>
+                      <strong style={{ fontSize: 16, color: totalGananciaPeriodo >= 0 ? "var(--green-text)" : "var(--chart-costos-text)" }}>
+                        {fmtSignedUsd(totalGananciaPeriodo)} USD
                       </strong>
                     </div>
                     <div style={{ background: "var(--bg-subtle)", padding: "10px 14px", borderRadius: 12, border: "1px solid var(--border)" }}>
-                      <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Margen Neto</span>
-                      <strong style={{ fontSize: 16, color: totalGananciaPeriodo >= 0 ? "#16a34a" : "#dc2626" }}>{margenPeriodo.toFixed(1)}%</strong>
+                      <span style={{ fontSize: 11, color: "var(--text-muted-strong)", display: "block", textTransform: "uppercase", fontWeight: 700 }}>Margen Neto</span>
+                      <strong style={{ fontSize: 16, color: totalGananciaPeriodo >= 0 ? "var(--green-text)" : "var(--chart-costos-text)" }}>{margenPeriodo.toFixed(1)}%</strong>
                     </div>
                   </div>
 
@@ -1990,41 +2046,58 @@ export default function DashboardClient({
                       background: "var(--bg-subtle)",
                       border: "1px solid var(--border)",
                       borderRadius: 16,
-                      padding: "24px 16px 16px",
+                      padding: "20px 16px 16px",
                       display: "flex",
                       alignItems: "flex-end",
                       justifyContent: "space-around",
-                      minHeight: 250,
-                      gap: 14,
+                      minHeight: 270,
+                      gap: 12,
                       overflowX: "auto",
                     }}
                   >
-                    {dataPoints.map((dp, idx) => {
-                      const alturaVentasPct = Math.max(10, (dp.ventasUsd / maxVenta) * 100);
-                      const alturaCostosPct = Math.max(5, (dp.costosUsd / maxVenta) * 100);
+                    {dataPoints.map((dp) => {
+                      const alturaVentasPct = dp.ventasUsd > 0 ? Math.min(100, Math.max(6, (dp.ventasUsd / maxValor) * 100)) : 0;
+                      const alturaCostosPct = dp.costosUsd > 0 ? Math.min(100, Math.max(6, (dp.costosUsd / maxValor) * 100)) : 0;
                       const ganancia = dp.ventasUsd - (dp.gastosUsd || 0);
                       const margen = dp.ventasUsd > 0 ? (ganancia / dp.ventasUsd) * 100 : 0;
 
                       return (
                         <div
-                          key={idx}
+                          key={`${agrupacionGrafica}-${dp.fechaInicio}`}
                           style={{
                             display: "flex",
                             flexDirection: "column",
                             alignItems: "center",
                             gap: 6,
-                            minWidth: 72,
+                            minWidth: 84,
                             flex: 1,
-                            background: "var(--surface)",
-                            padding: "8px 4px",
+                            background: "var(--bg-card)",
+                            padding: "8px 6px",
                             borderRadius: 12,
                             border: "1px solid var(--border)",
                           }}
                         >
-                          <span style={{ fontSize: 11, fontWeight: 900, color: ganancia >= 0 ? "#16a34a" : "#dc2626" }}>
-                            +${ganancia.toFixed(0)}
+                          {/* Ganancia Neta Badge Superior */}
+                          <span
+                            title={`Ganancia Neta: ${fmtSignedUsd(ganancia)} USD (Facturado $${fmtUsd(dp.ventasUsd)} - Gastos $${fmtUsd(dp.gastosUsd || 0)})`}
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              padding: "2px 6px",
+                              borderRadius: 6,
+                              background: ganancia >= 0 ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                              color: "var(--text)",
+                              border: `1px solid ${ganancia >= 0 ? "rgba(34, 197, 94, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
+                              maxWidth: "100%",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {fmtSignedUsd(ganancia, 0)}
                           </span>
 
+                          {/* Contenedor de Barras fijado a 130px sin posibilidad de desbordamiento */}
                           <div
                             style={{
                               display: "flex",
@@ -2033,38 +2106,80 @@ export default function DashboardClient({
                               height: 130,
                               width: "100%",
                               justifyContent: "center",
+                              overflow: "hidden",
+                              paddingTop: 4,
                             }}
                           >
                             {/* Barra de Ventas */}
                             <div
-                              title={`Ventas: $${dp.ventasUsd.toFixed(2)} USD (${dp.comandas} comandas)`}
+                              title={`Ventas: $${fmtUsd(dp.ventasUsd)} USD (${dp.comandas} comandas)`}
                               style={{
                                 height: `${alturaVentasPct}%`,
                                 width: 22,
-                                background: "linear-gradient(180deg, var(--primary) 0%, var(--accent) 100%)",
-                                borderRadius: "6px 6px 0 0",
+                                background: "var(--chart-ventas)",
+                                border: alturaVentasPct > 0 ? "1px solid var(--chart-ventas-text)" : "none",
+                                borderRadius: "4px 4px 0 0",
                                 display: "flex",
                                 alignItems: "flex-start",
                                 justifyContent: "center",
                                 transition: "height 0.3s ease",
                               }}
                             />
-                            {/* Barra de Costos */}
+                            {/* Barra de Costos Insumos */}
                             <div
-                              title={`Costo Insumos: $${dp.costosUsd.toFixed(2)} USD`}
+                              title={`Costo Insumos: $${fmtUsd(dp.costosUsd)} USD`}
                               style={{
                                 height: `${alturaCostosPct}%`,
                                 width: 22,
-                                background: "linear-gradient(180deg, #f87171 0%, #ef4444 100%)",
-                                borderRadius: "6px 6px 0 0",
+                                background: "var(--chart-costos)",
+                                border: alturaCostosPct > 0 ? "1px solid var(--chart-costos-text)" : "none",
+                                borderRadius: "4px 4px 0 0",
                                 transition: "height 0.3s ease",
                               }}
                             />
                           </div>
 
-                          <div style={{ textAlign: "center", width: "100%" }}>
-                            <strong style={{ fontSize: 11, color: "var(--text)", display: "block" }}>{dp.label}</strong>
-                            <span style={{ fontSize: 10, color: "var(--primary-dark)", fontWeight: 700 }}>{margen.toFixed(0)}% mg</span>
+                          {/* Montos exactos de cada barra con indicadores de color accesibles */}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: "var(--text)",
+                              maxWidth: "100%",
+                              lineHeight: 1.2,
+                              textAlign: "center",
+                            }}
+                          >
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }} title={`Ventas: $${fmtUsd(dp.ventasUsd)} USD`}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--chart-ventas)", flexShrink: 0 }} />
+                              ${fmtUsd(dp.ventasUsd, 0)}
+                            </span>
+                            <span style={{ color: "var(--text-muted-strong)" }}>·</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }} title={`Costo Insumos: $${fmtUsd(dp.costosUsd)} USD`}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--chart-costos)", flexShrink: 0 }} />
+                              ${fmtUsd(dp.costosUsd, 0)}
+                            </span>
+                          </div>
+
+                          {/* Etiqueta del período y margen */}
+                          <div style={{ textAlign: "center", width: "100%", borderTop: "1px solid var(--border-subtle)", paddingTop: 4, marginTop: 2 }}>
+                            <strong style={{ fontSize: 11, color: "var(--text)", display: "block", whiteSpace: "nowrap" }}>
+                              {dp.label}
+                            </strong>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: margen >= 0 ? "var(--primary-dark)" : "var(--chart-costos-text)",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {margen.toFixed(0)}% mg
+                            </span>
                           </div>
                         </div>
                       );
@@ -2090,22 +2205,22 @@ export default function DashboardClient({
                           const ganancia = dp.ventasUsd - (dp.gastosUsd || 0);
                           const margen = dp.ventasUsd > 0 ? (ganancia / dp.ventasUsd) * 100 : 0;
                           return (
-                            <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                            <tr key={dp.fechaInicio || i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
                               <td style={{ padding: "8px 12px", fontWeight: 700 }}>{dp.label}</td>
                               <td style={{ padding: "8px 12px" }}>{dp.comandas}</td>
-                              <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--primary-dark)" }}>
-                                ${dp.ventasUsd.toFixed(2)}
+                              <td style={{ padding: "8px 12px", fontWeight: 700, color: "var(--chart-ventas-text)" }}>
+                                ${fmtUsd(dp.ventasUsd)}
                               </td>
-                              <td style={{ padding: "8px 12px", color: "#d97706" }}>
-                                ${dp.costosUsd.toFixed(2)}
+                              <td style={{ padding: "8px 12px", color: "var(--chart-costos-text)" }}>
+                                ${fmtUsd(dp.costosUsd)}
                               </td>
-                              <td style={{ padding: "8px 12px", color: "#ef4444" }}>
-                                ${dp.gastosUsd.toFixed(2)}
+                              <td style={{ padding: "8px 12px", color: "var(--primary-dark)" }}>
+                                ${fmtUsd(dp.gastosUsd || 0)}
                               </td>
-                              <td style={{ padding: "8px 12px", fontWeight: 800, color: ganancia >= 0 ? "#16a34a" : "#dc2626" }}>
-                                ${ganancia.toFixed(2)}
+                              <td style={{ padding: "8px 12px", fontWeight: 800, color: ganancia >= 0 ? "var(--green-text)" : "var(--chart-costos-text)" }}>
+                                {fmtSignedUsd(ganancia)}
                               </td>
-                              <td style={{ padding: "8px 12px", fontWeight: 700 }}>
+                              <td style={{ padding: "8px 12px", fontWeight: 700, color: margen >= 0 ? "var(--green-text)" : "var(--chart-costos-text)" }}>
                                 {margen.toFixed(1)}%
                               </td>
                             </tr>
