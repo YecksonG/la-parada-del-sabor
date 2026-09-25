@@ -5,6 +5,7 @@ import { Proveedor, Insumo } from "@/types/database";
 import { guardarProveedor, eliminarProveedor } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import { parseProveedorInsumos } from "@/lib/proveedor-insumos-helper";
+import { normalizarCategoriaInsumo } from "@/lib/categoria-insumo";
 
 interface ProveedoresClientProps {
   proveedores: Proveedor[];
@@ -96,7 +97,8 @@ export default function ProveedoresClient({
     return insumos.filter(
       (ins) =>
         ins.nombre.toLowerCase().includes(term) ||
-        ins.categoria_insumo.toLowerCase().includes(term)
+        normalizarCategoriaInsumo(ins.categoria_insumo).toLowerCase().includes(term) ||
+        (ins.categoria_insumo || "").toLowerCase().includes(term)
     );
   }, [insumos, filtroInsumosModal]);
 
@@ -167,7 +169,7 @@ export default function ProveedoresClient({
     <main className="recetas-container">
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">🏢 Directorio de Proveedores de Despensa</h1>
+          <h1 className="recetas-title">Directorio de Proveedores de Despensa</h1>
           <p className="recetas-subtitle">
             Gestión de distribuidores de harina, carnicerías, charcuterías y empaques mayoristas.
           </p>
@@ -236,7 +238,7 @@ export default function ProveedoresClient({
               <div key={p.id} className="insumo-card">
                 <div className="insumo-card-header">
                   <div>
-                    <h3 className="insumo-name">🏢 {p.nombre}</h3>
+                    <h3 className="insumo-name">{p.nombre}</h3>
                     {p.rif && <span className="receta-cat-badge">RIF: {p.rif}</span>}
                   </div>
                   <span className="badge-ticket">{stats.conteo} Movimientos</span>
@@ -263,9 +265,10 @@ export default function ProveedoresClient({
                     <div className="insumos-supplied-chips">
                       {insumosSuministrados.slice(0, 2).map((ins) => {
                         const precioRef = preciosReferenciales[p.id]?.[ins.id];
+                        const catNorm = normalizarCategoriaInsumo(ins.categoria_insumo);
                         return (
                           <span key={ins.id} className="insumo-supplied-badge" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                            <span>{ins.categoria_insumo === "Carnes" ? "🥩" : ins.categoria_insumo === "Masas" ? "🌽" : ins.categoria_insumo === "Quesos" || ins.categoria_insumo === "Lácteos" ? "🧀" : ins.categoria_insumo === "Vegetales" ? "🥬" : ins.categoria_insumo === "Salsas" ? "🥫" : "📦"} {ins.nombre}</span>
+                            <span>{catNorm === "Carnes" ? "🥩" : catNorm === "Masas" ? "🌽" : catNorm === "Quesos" ? "🧀" : catNorm === "Vegetales" ? "🥬" : catNorm === "Salsas" ? "🥫" : "📦"} {ins.nombre}</span>
                             {precioRef !== undefined && (
                               <strong style={{ color: "var(--accent-hover)", fontSize: 10, background: "rgba(255,255,255,0.08)", padding: "1px 5px", borderRadius: 4 }}>
                                 ${precioRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""}
@@ -578,7 +581,7 @@ export default function ProveedoresClient({
                                 {ins.nombre}
                               </span>
                               <span style={{ fontSize: 9, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                                {ins.categoria_insumo}
+                                {normalizarCategoriaInsumo(ins.categoria_insumo)}
                               </span>
                             </div>
                           </button>

@@ -7,6 +7,7 @@ import { sounds } from "@/lib/sound-effects";
 import {
   parseProveedorInsumos,
 } from "@/lib/proveedor-insumos-helper";
+import { CATEGORIAS_INSUMO, normalizarCategoriaInsumo } from "@/lib/categoria-insumo";
 
 interface InsumosClientProps {
   insumos: Insumo[];
@@ -98,7 +99,7 @@ export default function InsumosClient({
     setStockActual(Number(ins.stock_actual));
     setStockMinimo(Number(ins.stock_minimo));
     setCostoUnitario(Number(ins.costo_unitario_usd));
-    setCategoriaInsumo(ins.categoria_insumo || "General");
+    setCategoriaInsumo(normalizarCategoriaInsumo(ins.categoria_insumo));
 
     // Identificar proveedores vinculados a este insumo
     const provIds = proveedores
@@ -116,12 +117,9 @@ export default function InsumosClient({
     );
   };
 
-  // Insumos clasificados como pre-elaborados (tolerante a espacios/saltos de línea en DB)
+  // Insumos clasificados como pre-elaborados usando la fuente única de verdad
   const insumosPreelaborados = useMemo(() => {
-    return insumos.filter((ins) => {
-      const cat = (ins.categoria_insumo || "").toLowerCase().replace(/\s+/g, "");
-      return cat.includes("pre-elaborado") || cat.includes("preelaborado");
-    });
+    return insumos.filter((ins) => normalizarCategoriaInsumo(ins.categoria_insumo) === "Pre-elaborados");
   }, [insumos]);
 
   const detectarMateriaPrimaSugerida = (ins: Insumo, lista: Insumo[]): Insumo | null => {
@@ -131,8 +129,8 @@ export default function InsumosClient({
         lista.find(
           (i) =>
             i.id !== ins.id &&
-            (i.categoria_insumo?.toLowerCase() === "carnes" || i.nombre.toLowerCase().includes("carne")) &&
-            !i.categoria_insumo?.toLowerCase().includes("pre")
+            (normalizarCategoriaInsumo(i.categoria_insumo) === "Carnes" || i.nombre.toLowerCase().includes("carne")) &&
+            normalizarCategoriaInsumo(i.categoria_insumo) !== "Pre-elaborados"
         ) || null
       );
     }
@@ -142,7 +140,7 @@ export default function InsumosClient({
           (i) =>
             i.id !== ins.id &&
             (i.nombre.toLowerCase().includes("pechuga") || i.nombre.toLowerCase().includes("pollo")) &&
-            !i.categoria_insumo?.toLowerCase().includes("pre")
+            normalizarCategoriaInsumo(i.categoria_insumo) !== "Pre-elaborados"
         ) || null
       );
     }
@@ -151,7 +149,8 @@ export default function InsumosClient({
         lista.find(
           (i) =>
             i.id !== ins.id &&
-            (i.nombre.toLowerCase().includes("pechuga") || i.nombre.toLowerCase().includes("pollo"))
+            (i.nombre.toLowerCase().includes("pechuga") || i.nombre.toLowerCase().includes("pollo")) &&
+            normalizarCategoriaInsumo(i.categoria_insumo) !== "Pre-elaborados"
         ) || null
       );
     }
@@ -251,35 +250,18 @@ export default function InsumosClient({
     }
   };
 
-  const CATEGORIAS_LISTA = [
-    "Pre-elaborados",
-    "Carnes",
-    "Masas",
-    "Quesos",
-    "Lácteos",
-    "Vegetales",
-    "Salsas",
-    "Grasas",
-    "Condimentos",
-    "Bebidas",
-    "Empaques",
-    "Desechables",
-    "General",
-  ];
-
   const insumosFiltrados = useMemo(() => {
     return insumos.filter((ins) => {
-      const catInsumo = ins.categoria_insumo?.toLowerCase() || "general";
+      const catNormalizada = normalizarCategoriaInsumo(ins.categoria_insumo);
+      const catRaw = (ins.categoria_insumo || "").toLowerCase();
       const coincideBusqueda =
         ins.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        catInsumo.includes(busqueda.toLowerCase());
+        catNormalizada.toLowerCase().includes(busqueda.toLowerCase()) ||
+        catRaw.includes(busqueda.toLowerCase());
 
-      // Nota: el solape entre "Empaques" y "Desechables" es DELIBERADO — retro-compatibilidad con valores legacy (singular/plural) en categoria_insumo; NO marcar como bug.
       const coincideCategoria =
         categoriaFiltro === "todas" ||
-        catInsumo === categoriaFiltro.toLowerCase() ||
-        (categoriaFiltro === "Empaques" && (catInsumo === "empaque" || catInsumo === "empaques" || catInsumo === "desechables")) ||
-        (categoriaFiltro === "Desechables" && (catInsumo === "desechable" || catInsumo === "desechables" || catInsumo === "empaques"));
+        catNormalizada.toLowerCase() === categoriaFiltro.toLowerCase();
 
       return coincideBusqueda && coincideCategoria;
     });
@@ -346,7 +328,7 @@ export default function InsumosClient({
       {/* Header con Valor Total y Toggle de Vistas */}
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">📦 Despensa & Stock en Gramos (BOM)</h1>
+          <h1 className="recetas-title">Despensa & Stock en Gramos (BOM)</h1>
           <p className="recetas-subtitle">
             Control de inventario en tiempo real para descuento automático al vender en POS.
           </p>
@@ -389,7 +371,7 @@ export default function InsumosClient({
             style={{ background: "linear-gradient(135deg, #ea580c 0%, #c2410c 100%)", color: "#fff" }}
             title="Registrar preparación de guiso o producción en cocina"
           >
-            <span>🍲</span> Recargar Guiso
+            Recargar Guiso
           </button>
 
           <button type="button" onClick={abrirCrear} className="btn-primary-action">
@@ -423,7 +405,7 @@ export default function InsumosClient({
           className={`view-mode-btn ${categoriaFiltro === "todas" ? "active" : ""}`}
           style={{ padding: "6px 14px", borderRadius: "999px", fontSize: 13, whiteSpace: "nowrap" }}
         >
-          🌐 Todos ({insumos.length})
+          Todos ({insumos.length})
         </button>
         <button
           type="button"
@@ -439,9 +421,9 @@ export default function InsumosClient({
             borderColor: "var(--primary)"
           }}
         >
-          🍳 Pre-elaborados / Guisos
+          Pre-elaborados / Guisos
         </button>
-        {["Carnes", "Masas", "Quesos", "Lácteos", "Vegetales", "Salsas", "Grasas", "Condimentos", "Bebidas", "Empaques", "Desechables"].map((cat) => (
+        {CATEGORIAS_INSUMO.filter((cat) => cat !== "Pre-elaborados").map((cat) => (
           <button
             key={cat}
             type="button"
@@ -500,8 +482,8 @@ export default function InsumosClient({
               <div key={ins.id} className="insumo-card">
                 {/* Fila Superior: Categoría y Botón Discreto de Editar */}
                 <div className="insumo-card-topbar">
-                  <span className={`insumo-cat-tag ${(ins.categoria_insumo || "General").toLowerCase().includes("pre-elaborado") ? "tag-pre-elaborado" : ""}`}>
-                    {(ins.categoria_insumo || "General").toLowerCase().includes("pre-elaborado") ? "🍳 " : ""}{ins.categoria_insumo || "General"}
+                  <span className={`insumo-cat-tag ${normalizarCategoriaInsumo(ins.categoria_insumo).toLowerCase().includes("pre-elaborado") ? "tag-pre-elaborado" : ""}`}>
+                    {normalizarCategoriaInsumo(ins.categoria_insumo)}
                   </span>
                   <button
                     type="button"
@@ -575,7 +557,7 @@ export default function InsumosClient({
                   return (
                     <div className="insumo-suppliers-box">
                       <span className="insumo-suppliers-label">
-                        🏢 Proveedores ({proveedoresDelInsumo.length}):
+                        Proveedores ({proveedoresDelInsumo.length}):
                       </span>
                       {proveedoresDelInsumo.length > 0 ? (
                         <div className="insumos-supplied-chips">
@@ -588,7 +570,7 @@ export default function InsumosClient({
                                 title={p.contacto ? `Contacto: ${p.contacto}` : undefined}
                                 style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
                               >
-                                <span>🏢 {p.nombre.split(" (")[0]}</span>
+                                <span>{p.nombre.split(" (")[0]}</span>
                                 {pRef !== undefined && (
                                   <strong style={{ color: "var(--accent-hover)", fontSize: 10 }}>
                                     ${pRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""}
@@ -624,7 +606,7 @@ export default function InsumosClient({
                     onClick={() => abrirModalGestion(ins, "recargar")}
                     className="btn-insumo-adjust"
                   >
-                    🍲 Recargar / Ajustar
+                    Recargar / Ajustar
                   </button>
                 </div>
               </div>
@@ -686,7 +668,7 @@ export default function InsumosClient({
                       <div>
                         <strong style={{ fontSize: 14, color: "var(--text)" }}>{ins.nombre}</strong>
                         <div style={{ marginTop: 2 }}>
-                          <span className="insumo-cat-tag">{ins.categoria_insumo}</span>
+                          <span className="insumo-cat-tag">{normalizarCategoriaInsumo(ins.categoria_insumo)}</span>
                         </div>
                       </div>
                     </td>
@@ -745,7 +727,7 @@ export default function InsumosClient({
                                 className="insumo-supplied-badge"
                                 style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
                               >
-                                <span>🏢 {p.nombre.split(" (")[0]}</span>
+                                <span>{p.nombre.split(" (")[0]}</span>
                                 {pRef !== undefined && (
                                   <strong style={{ color: "var(--accent-hover)", fontSize: 10 }}>
                                     ${pRef.toFixed(2)}{ins.unidad_medida === "g" ? "/kg" : ins.unidad_medida === "ml" ? "/L" : ""}
@@ -778,7 +760,7 @@ export default function InsumosClient({
                           style={{ padding: "6px 12px", fontSize: 12, width: "auto" }}
                           title="Recargar stock producido o ajustar por merma/inventario"
                         >
-                          🍲 Recargar / Ajustar
+                          Recargar / Ajustar
                         </button>
                         <button
                           type="button"
@@ -843,7 +825,7 @@ export default function InsumosClient({
                     onChange={(e) => setCategoriaInsumo(e.target.value)}
                     className="form-input"
                   >
-                    {CATEGORIAS_LISTA.map((c) => (
+                    {CATEGORIAS_INSUMO.map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -915,7 +897,7 @@ export default function InsumosClient({
                 <div className="form-field">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                     <label style={{ margin: 0 }}>
-                      🏢 Proveedores que lo Suministran ({proveedoresSeleccionados.length} seleccionados)
+                      Proveedores que lo Suministran ({proveedoresSeleccionados.length} seleccionados)
                     </label>
                     {proveedoresSeleccionados.length > 0 && (
                       <button
@@ -947,7 +929,7 @@ export default function InsumosClient({
                           >
                             <span>{sel ? "✅" : "➕"}</span>
                             <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              🏢 {p.nombre}
+                              {p.nombre}
                             </span>
                           </button>
                         );
@@ -985,7 +967,7 @@ export default function InsumosClient({
             <div className="modal-recipe-header">
               <div>
                 <h2 style={{ fontSize: 18, marginBottom: 2, color: "var(--text)" }}>
-                  {modoGestionStock === "recargar" ? "🍲 Recargar Stock / Producción" : "⚖️ Ajuste Directo / Merma"}
+                  {modoGestionStock === "recargar" ? "Recargar Stock / Producción" : "Ajuste Directo / Merma"}
                 </h2>
                 <span style={{ fontSize: 13, color: "#f97316", fontWeight: 800 }}>
                   {insumoGestion.nombre}
@@ -1037,7 +1019,7 @@ export default function InsumosClient({
                   boxShadow: modoGestionStock === "recargar" ? "0 2px 8px rgba(234, 88, 12, 0.3)" : "none",
                 }}
               >
-                <span>🍲</span> Recargar / Producción
+                Recargar / Producción
               </button>
 
               <button
@@ -1067,7 +1049,7 @@ export default function InsumosClient({
                   borderStyle: "solid",
                 }}
               >
-                <span>⚖️</span> Ajuste Físico / Cierre
+                Ajuste Físico / Cierre
               </button>
             </div>
 
@@ -1098,14 +1080,14 @@ export default function InsumosClient({
                   style={{ fontSize: 14, fontWeight: 700 }}
                   required
                 >
-                  <optgroup label="🍳 Pre-elaborados (Guisos & Preparados)">
+                  <optgroup label="Pre-elaborados (Guisos & Preparados)">
                     {insumosPreelaborados.map((ins) => (
                       <option key={ins.id} value={ins.id}>
                         {ins.nombre} (Stock actual: {Number(ins.stock_actual).toLocaleString()} {ins.unidad_medida})
                       </option>
                     ))}
                   </optgroup>
-                  <optgroup label="📦 Todos los demás Insumos">
+                  <optgroup label="Todos los demás Insumos">
                     {insumos
                       .filter((ins) => !insumosPreelaborados.some((p) => p.id === ins.id))
                       .map((ins) => (
@@ -1123,7 +1105,7 @@ export default function InsumosClient({
                   {/* Selector de Materia Prima a Descontar */}
                   <div className="form-field">
                     <label style={{ display: "flex", justifyContent: "space-between", alignItems: "center", color: "var(--text)" }}>
-                      <span>🥩 Materia Prima de Origen (a descontar de despensa):</span>
+                      <span>Materia Prima de Origen (a descontar de despensa):</span>
                       {materiaPrimaSeleccionada && (
                         <span
                           style={{
@@ -1155,9 +1137,9 @@ export default function InsumosClient({
                       className="form-input"
                       style={{ fontSize: 13, fontWeight: 600 }}
                     >
-                      <option value="">🚫 Ninguna (Ingreso directo sin descontar materia prima)</option>
+                      <option value="">Ninguna (Ingreso directo sin descontar materia prima)</option>
                       {materiaPrimaSugerida && (
-                        <optgroup label="✨ Sugerencia Automática">
+                        <optgroup label="Sugerencia Automática">
                           <option value={materiaPrimaSugerida.id}>
                             {materiaPrimaSugerida.nombre} (Stock:{" "}
                             {Number(materiaPrimaSugerida.stock_actual).toLocaleString()}{" "}
@@ -1165,11 +1147,11 @@ export default function InsumosClient({
                           </option>
                         </optgroup>
                       )}
-                      <optgroup label="🥩 Carnes & Proteínas">
+                      <optgroup label="Carnes & Proteínas">
                         {insumos
                           .filter(
                             (i) =>
-                              i.categoria_insumo?.toLowerCase() === "carnes" &&
+                              normalizarCategoriaInsumo(i.categoria_insumo) === "Carnes" &&
                               i.id !== materiaPrimaSugerida?.id &&
                               i.id !== insumoGestion.id
                           )
@@ -1179,18 +1161,18 @@ export default function InsumosClient({
                             </option>
                           ))}
                       </optgroup>
-                      <optgroup label="📦 Otros Insumos del Catálogo">
+                      <optgroup label="Otros Insumos del Catálogo">
                         {insumos
                           .filter(
                             (i) =>
-                              i.categoria_insumo?.toLowerCase() !== "carnes" &&
-                              !i.categoria_insumo?.toLowerCase().includes("pre") &&
+                              normalizarCategoriaInsumo(i.categoria_insumo) !== "Carnes" &&
+                              normalizarCategoriaInsumo(i.categoria_insumo) !== "Pre-elaborados" &&
                               i.id !== materiaPrimaSugerida?.id &&
                               i.id !== insumoGestion.id
                           )
                           .map((i) => (
                             <option key={i.id} value={i.id}>
-                              {i.nombre} ({i.categoria_insumo || "General"})
+                              {i.nombre} ({normalizarCategoriaInsumo(i.categoria_insumo)})
                             </option>
                           ))}
                       </optgroup>
@@ -1213,7 +1195,7 @@ export default function InsumosClient({
                       {/* Campo 1: Carne cruda */}
                       <div className="form-field" style={{ margin: 0 }}>
                         <label style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text)" }}>
-                          🥩 1. Carne / Materia Prima Cruda utilizada ({materiaPrimaSeleccionada.unidad_medida}):
+                          1. Carne / Materia Prima Cruda utilizada ({materiaPrimaSeleccionada.unidad_medida}):
                         </label>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <input
@@ -1301,7 +1283,7 @@ export default function InsumosClient({
                       {/* Campo 2: Guiso terminado */}
                       <div className="form-field" style={{ margin: 0 }}>
                         <label style={{ fontSize: 12.5, fontWeight: 800, color: "var(--text)" }}>
-                          🍲 2. Guiso final obtenido ({insumoGestion.unidad_medida}):
+                          2. Guiso final obtenido ({insumoGestion.unidad_medida}):
                         </label>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <input
@@ -1431,7 +1413,7 @@ export default function InsumosClient({
                               }}
                             >
                               <div>
-                                🥩 <strong style={{ color: "var(--text)" }}>{materiaPrimaSeleccionada.nombre}:</strong> {mpStockActual.toLocaleString()}
+                                <strong style={{ color: "var(--text)" }}>{materiaPrimaSeleccionada.nombre}:</strong> {mpStockActual.toLocaleString()}
                                 g ➡️{" "}
                                 <span
                                   style={{
@@ -1443,7 +1425,7 @@ export default function InsumosClient({
                                 </span>
                               </div>
                               <div>
-                                🍲 <strong style={{ color: "var(--text)" }}>{insumoGestion.nombre}:</strong> {prodStockActual.toLocaleString()}g ➡️{" "}
+                                <strong style={{ color: "var(--text)" }}>{insumoGestion.nombre}:</strong> {prodStockActual.toLocaleString()}g ➡️{" "}
                                 <span style={{ color: "#22c55e", fontWeight: 800 }}>
                                   {prodStockNuevo.toLocaleString()}g
                                 </span>
@@ -1614,10 +1596,10 @@ export default function InsumosClient({
                         : modoGestionStock === "recargar"
                         ? materiaPrimaId
                           ? stockMpInsuficiente
-                            ? "🍲 Registrar Producción (MP en descubierto)"
-                            : "🍲 Registrar Producción (Cocina)"
-                          : "🍲 Confirmar Recarga"
-                        : "⚖️ Confirmar Ajuste"}
+                            ? "Registrar Producción (MP en descubierto)"
+                            : "Registrar Producción (Cocina)"
+                          : "Confirmar Recarga"
+                        : "Confirmar Ajuste"}
                     </button>
                   );
                 })()}

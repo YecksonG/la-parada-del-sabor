@@ -7,7 +7,7 @@ export type Insumo = {
   stock_actual: number;
   stock_minimo: number;
   costo_unitario_usd: number;
-  categoria_insumo: string;
+  categoria_insumo: string | null;
   activo: boolean;
   actualizado_el: string;
   creado_el: string;

@@ -7,6 +7,7 @@ import {
   parseProveedorInsumos,
   serializeProveedorInsumos,
 } from "@/lib/proveedor-insumos-helper";
+import { normalizarCategoriaInsumo } from "@/lib/categoria-insumo";
 
 export type GuardarInsumoPayload = {
   id?: string;
@@ -46,6 +47,7 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
   if (!auth.ok) return { ok: false, error: auth.error };
 
   let insumoId = payload.id;
+  const categoriaFinal = normalizarCategoriaInsumo(payload.categoria_insumo);
 
   if (payload.id) {
     const { error } = await supabase
@@ -56,7 +58,7 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
         stock_actual: payload.stock_actual,
         stock_minimo: payload.stock_minimo,
         costo_unitario_usd: payload.costo_unitario_usd,
-        categoria_insumo: payload.categoria_insumo,
+        categoria_insumo: categoriaFinal,
         actualizado_el: new Date().toISOString(),
       })
       .eq("id", payload.id);
@@ -71,7 +73,7 @@ export async function guardarInsumo(payload: GuardarInsumoPayload) {
         stock_actual: payload.stock_actual,
         stock_minimo: payload.stock_minimo,
         costo_unitario_usd: payload.costo_unitario_usd,
-        categoria_insumo: payload.categoria_insumo,
+        categoria_insumo: categoriaFinal,
       })
       .select("id")
       .single();

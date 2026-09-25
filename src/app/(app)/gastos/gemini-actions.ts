@@ -4,6 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth-guard";
 import type { Insumo, Proveedor } from "@/types/database";
+import { CATEGORIAS_INSUMO, normalizarCategoriaInsumo } from "@/lib/categoria-insumo";
 
 export type InsumoExtraido = {
   insumo_id: string;
@@ -181,7 +182,7 @@ Reglas:
 3. Extrae cada ítem de la factura: nombre, cantidad real comprada, unidad y precio total pagado por el ítem. ¡ATENCIÓN A LOS EMPAQUES!:
    - Si el ítem dice "(250G)", la unidad base es "g" y la cantidad es 250 (o multiplicada por la cantidad de potes). NO pongas cantidad 1 y unidad "Kilo".
    - Si el ítem dice "(8 UND)" o es una caja de cubitos, y en el sistema está como "Caldo (8 und)", eso es 1 paquete completo. Entonces la cantidad es 1 y la unidad es "unidad". Observa el precio para deducir si cobran 1 caja o varios cubitos sueltos.
-4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada prestando atención a la unidad en la que está el insumo en el sistema. Si no hay ninguno parecido, deja el "insumo_id" en blanco "" y sugiere "categoria_sugerida" ('Bebidas', 'Carnes & Proteínas', 'Lácteos & Huevos', 'Verduras & Vegetales', 'Abarrotes & Secos', 'Panadería', 'Desechables & Limpieza', 'Otros') y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
+4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada prestando atención a la unidad en la que está el insumo en el sistema. Si no hay ninguno parecido, deja el "insumo_id" en blanco "" y sugiere "categoria_sugerida" (${CATEGORIAS_INSUMO.map((c) => `'${c}'`).join(", ")}) y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
 5. Para refrescos o bebidas (como Pepsi 1.5L, Pepsi 1L, Coca-Cola, maltas, etc.): si la factura indica bulto (por ejemplo "1 x 6 und", "Bulto", "Pack x 6"), indica unidad: "bulto_refresco_6u" o si viene en unidades pon la cantidad en botellas con unidad: "unidad". NUNCA asignes kilos ni bultos de peso a bebidas.
 6. Determina si la factura está cobrada en Dólares (USD) o Bolívares (BS) y ponlo en "moneda_detectada".
 7. Extrae el monto total general del ticket o factura tal cual está impreso y ponlo en "total_factura_detectado".
@@ -205,7 +206,7 @@ Reglas:
       "cantidad": 250,
       "unidad": "gramo",
       "monto_extraido": 12.50,
-      "categoria_sugerida": "Abarrotes & Secos",
+      "categoria_sugerida": "Condimentos",
       "unidad_base": "g"
     }
   ]
@@ -378,7 +379,7 @@ Reglas:
                 stock_actual: 0,
                 stock_minimo: uMedida === "und" ? 5 : 1000,
                 costo_unitario_usd: costoUnitario,
-                categoria_insumo: it.categoria_sugerida || "Abarrotes & Secos",
+                categoria_insumo: normalizarCategoriaInsumo(it.categoria_sugerida),
                 activo: true,
               })
               .select("*")

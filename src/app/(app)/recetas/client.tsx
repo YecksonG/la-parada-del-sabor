@@ -7,6 +7,7 @@ import { guardarPlatoYReceta, eliminarPlato, toggleProductoActivo } from "./acti
 import { sounds } from "@/lib/sound-effects";
 import Image from "next/image";
 import { getProductImage } from "@/lib/combo-helper";
+import { normalizarCategoriaInsumo } from "@/lib/categoria-insumo";
 
 const EMOJI_CATEGORIAS = [
   {
@@ -374,7 +375,7 @@ export default function RecetasClient({
       {/* Header */}
       <div className="recetas-header">
         <div>
-          <h1 className="recetas-title">🌾 Recetas & Escandallo por Gramos</h1>
+          <h1 className="recetas-title">Recetas & Escandallo por Gramos</h1>
           <p className="recetas-subtitle">
             Define las proporciones exactas en gramos para el descuento automático de inventario al vender.
           </p>
@@ -450,7 +451,7 @@ export default function RecetasClient({
               }}
               className={`cat-pill ${!catFiltro ? "cat-pill-active" : ""}`}
             >
-              <span>🔥</span> Todas ({productos.length})
+              Todas ({productos.length})
             </button>
             {categorias.map((cat) => {
               const count = productos.filter((p) => p.categoria_id === cat.id).length;
@@ -951,10 +952,10 @@ export default function RecetasClient({
               const pvpBs = tasaBcv > 0 ? pvp * tasaBcv : 0;
               const costoBs = tasaBcv > 0 ? costoTotal * tasaBcv : 0;
 
-              const esEmpaque = (cat?: string, nom?: string) => {
-                const c = (cat || "").toLowerCase();
+              const esEmpaque = (cat?: string | null, nom?: string) => {
+                if (normalizarCategoriaInsumo(cat) === "Empaques y Desechables") return true;
                 const n = (nom || "").toLowerCase();
-                return c.includes("empaque") || c.includes("desechable") || n.includes("papel") || n.includes("servilleta") || n.includes("bolsa") || n.includes("caja") || n.includes("vaso");
+                return n.includes("papel") || n.includes("servilleta") || n.includes("bolsa") || n.includes("caja") || n.includes("vaso");
               };
 
               const ingredientesOrdenados = [...(detalleProducto.ingredientes || [])].sort((a, b) => {
@@ -1040,7 +1041,7 @@ export default function RecetasClient({
                                 <td>
                                   <strong>{ing.insumo?.nombre || "Insumo"}</strong>
                                   <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                                    {ing.insumo?.categoria_insumo || "Despensa"}
+                                    {normalizarCategoriaInsumo(ing.insumo?.categoria_insumo)}
                                   </div>
                                 </td>
                                 <td>
@@ -1135,7 +1136,7 @@ export default function RecetasClient({
           <div className="modal-recipe-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-recipe-header">
               <h2>
-                <span>🌾</span> {editandoId ? "Editar Receta y Fórmula" : "Nueva Receta de Plato / Arepa"}
+                {editandoId ? "Editar Receta y Fórmula" : "Nueva Receta de Plato / Arepa"}
               </h2>
               <button
                 type="button"
@@ -1202,7 +1203,7 @@ export default function RecetasClient({
                       checked={popular}
                       onChange={(e) => setPopular(e.target.checked)}
                     />
-                    <span>🔥 Plato Popular</span>
+                    <span>Plato Popular</span>
                   </label>
                   <label className="checkbox-label" style={{ cursor: "pointer" }}>
                     <input
@@ -1231,7 +1232,7 @@ export default function RecetasClient({
               {/* Sección de Ingredientes / Escandallo en Gramos */}
               <div className="recipe-ingredients-builder">
                 <div className="builder-header">
-                  <h4>🌾 Ingredientes & Descuento en Gramos ({ingredientes.length})</h4>
+                  <h4>Ingredientes & Descuento en Gramos ({ingredientes.length})</h4>
                   <button
                     type="button"
                     onClick={agregarFilaIngrediente}
@@ -1353,7 +1354,7 @@ export default function RecetasClient({
                   disabled={guardando}
                   className="btn-submit-recipe"
                 >
-                  {guardando ? "Guardando..." : "💾 Guardar Receta & Costos"}
+                  {guardando ? "Guardando..." : "Guardar Receta & Costos"}
                 </button>
               </div>
             </form>
