@@ -182,7 +182,15 @@ Reglas:
 3. Extrae cada ítem de la factura: nombre, cantidad real comprada, unidad y precio total pagado por el ítem. ¡ATENCIÓN A LOS EMPAQUES!:
    - Si el ítem dice "(250G)", la unidad base es "g" y la cantidad es 250 (o multiplicada por la cantidad de potes). NO pongas cantidad 1 y unidad "Kilo".
    - Si el ítem dice "(8 UND)" o es una caja de cubitos, y en el sistema está como "Caldo (8 und)", eso es 1 paquete completo. Entonces la cantidad es 1 y la unidad es "unidad". Observa el precio para deducir si cobran 1 caja o varios cubitos sueltos.
-4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada prestando atención a la unidad en la que está el insumo en el sistema. Si no hay ninguno parecido, deja el "insumo_id" en blanco "" y sugiere "categoria_sugerida" (${CATEGORIAS_INSUMO.map((c) => `'${c}'`).join(", ")}) y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
+4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada prestando atención a la unidad en la que está el insumo en el sistema.
+   ¡REGLAS CRÍTICAS DE MAPEO PARA EMPAQUES Y DESECHABLES (EVITAR DUPLICADOS)!:
+   - Vasos plásticos / descartables de cualquier marca o código (ej: 'VASOS HENCA', 'VASOS #77', 'VASOS DESECHABLES', etc.): Asignar OBLIGATORIAMENTE al insumo 'Vaso Plástico Desechable'. NUNCA crees un insumo nuevo si es un vaso descartable.
+   - Tapas plásticas descartables: Asignar OBLIGATORIAMENTE al insumo 'Tapas Desechables'.
+   - Servilletas de cualquier marca (Bamboo, Europapel, etc.): Asignar a 'Servilletas (160 und)' o al insumo de servilletas existente.
+   - Bolsas plásticas: Asignar a 'Bolsas Plásticas 10kg / 20kg'.
+   - Papel antigraso / envoltorio: Asignar a 'Papel Antigraso Breakfast 50 und'.
+   - Guantes: Asignar a 'Guantes de Nitrilo Negro L (100 und)'.
+   Si no hay ninguno parecido, deja el "insumo_id" en blanco "" y sugiere "categoria_sugerida" (${CATEGORIAS_INSUMO.map((c) => `'${c}'`).join(", ")}) y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
 5. Para refrescos o bebidas (como Pepsi 1.5L, Pepsi 1L, Coca-Cola, maltas, etc.): si la factura indica bulto (por ejemplo "1 x 6 und", "Bulto", "Pack x 6"), indica unidad: "bulto_refresco_6u" o si viene en unidades pon la cantidad en botellas con unidad: "unidad". NUNCA asignes kilos ni bultos de peso a bebidas.
 6. Determina si la factura está cobrada en Dólares (USD) o Bolívares (BS) y ponlo en "moneda_detectada".
 7. Extrae el monto total general del ticket o factura tal cual está impreso y ponlo en "total_factura_detectado".
@@ -347,12 +355,40 @@ Reglas:
       for (const it of parsed.items) {
         if (!it.insumo_id && it.nombre_extraido?.trim()) {
           const nomLimpio = it.nombre_extraido.trim().toLowerCase();
-          const matchExistente = insumosActualizados.find(
+          // 1. Coincidencia directa o por inclusión
+          let matchExistente = insumosActualizados.find(
             (i) =>
               i.nombre.toLowerCase() === nomLimpio ||
               i.nombre.toLowerCase().includes(nomLimpio) ||
               nomLimpio.includes(i.nombre.toLowerCase())
           );
+
+          // 2. Mapeo inteligente canónico por sinónimos de empaques y desechables (evita duplicados)
+          if (!matchExistente) {
+            const nomSinSignos = nomLimpio.replace(/[()#]/g, " ").replace(/\s+/g, " ").trim();
+            if (/\b(tapa|tapas)\b/i.test(nomSinSignos)) {
+              // Tapas evaluadas antes de vasos para que "tapas para vaso" mapee a tapas
+              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("tapa"));
+            } else if (/\b(vaso|vasos)\b/i.test(nomSinSignos)) {
+              matchExistente =
+                insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso plástico") || i.nombre.toLowerCase().includes("vaso desechable")) ||
+                insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso"));
+            } else if (/\b(kraft|caja kraft)\b/i.test(nomSinSignos)) {
+              if (/(\b6\b|familiar)/i.test(nomSinSignos)) {
+                matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 6"));
+              } else {
+                matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 3"));
+              }
+            } else if (/\b(servilleta|servilletas)\b/i.test(nomSinSignos)) {
+              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("servilleta"));
+            } else if (/\b(bolsa|bolsas)\b/i.test(nomSinSignos)) {
+              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("bolsa"));
+            } else if (/\b(guante|guantes|nitrilo)\b/i.test(nomSinSignos)) {
+              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("guante"));
+            } else if (/\b(antigraso|antigrasos|papel envoltorio)\b/i.test(nomSinSignos)) {
+              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("antigraso"));
+            }
+          }
 
           if (matchExistente) {
             it.insumo_id = matchExistente.id;
