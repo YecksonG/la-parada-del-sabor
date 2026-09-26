@@ -135,7 +135,7 @@ export async function extraerInsumosFactura(base64Image: string, mimeType: strin
 
   // Obtener lista de insumos y proveedores con datos completos
   const [{ data: insumosData }, { data: proveedoresData }] = await Promise.all([
-    supabase.from("insumos").select("*"),
+    supabase.from("insumos").select("*").eq("activo", true).order("nombre", { ascending: true }),
     supabase.from("proveedores").select("*"),
   ]);
 
@@ -355,39 +355,41 @@ Reglas:
       for (const it of parsed.items) {
         if (!it.insumo_id && it.nombre_extraido?.trim()) {
           const nomLimpio = it.nombre_extraido.trim().toLowerCase();
-          // 1. Coincidencia directa o por inclusión
-          let matchExistente = insumosActualizados.find(
-            (i) =>
-              i.nombre.toLowerCase() === nomLimpio ||
-              i.nombre.toLowerCase().includes(nomLimpio) ||
-              nomLimpio.includes(i.nombre.toLowerCase())
-          );
+          const nomSinSignos = nomLimpio.replace(/[()#]/g, " ").replace(/\s+/g, " ").trim();
+          let matchExistente: Insumo | undefined;
 
-          // 2. Mapeo inteligente canónico por sinónimos de empaques y desechables (evita duplicados)
-          if (!matchExistente) {
-            const nomSinSignos = nomLimpio.replace(/[()#]/g, " ").replace(/\s+/g, " ").trim();
-            if (/\b(tapa|tapas)\b/i.test(nomSinSignos)) {
-              // Tapas evaluadas antes de vasos para que "tapas para vaso" mapee a tapas
-              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("tapa"));
-            } else if (/\b(vaso|vasos)\b/i.test(nomSinSignos)) {
-              matchExistente =
-                insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso plástico") || i.nombre.toLowerCase().includes("vaso desechable")) ||
-                insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso"));
-            } else if (/\b(kraft|caja kraft)\b/i.test(nomSinSignos)) {
-              if (/(\b6\b|familiar)/i.test(nomSinSignos)) {
-                matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 6"));
-              } else {
-                matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 3"));
-              }
-            } else if (/\b(servilleta|servilletas)\b/i.test(nomSinSignos)) {
-              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("servilleta"));
-            } else if (/\b(bolsa|bolsas)\b/i.test(nomSinSignos)) {
-              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("bolsa"));
-            } else if (/\b(guante|guantes|nitrilo)\b/i.test(nomSinSignos)) {
-              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("guante"));
-            } else if (/\b(antigraso|antigrasos|papel envoltorio)\b/i.test(nomSinSignos)) {
-              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("antigraso"));
+          // 1. Mapeo canónico inteligente por sinónimos de empaques y desechables (prioritario, evita duplicados)
+          if (/\b(tapa|tapas)\b/i.test(nomSinSignos)) {
+            // Tapas evaluadas antes de vasos para que "tapas para vaso" mapee a tapas
+            matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("tapa"));
+          } else if (/\b(vaso|vasos)\b/i.test(nomSinSignos)) {
+            matchExistente =
+              insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso plástico") || i.nombre.toLowerCase().includes("vaso desechable")) ||
+              insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso"));
+          } else if (/\b(kraft|caja kraft)\b/i.test(nomSinSignos)) {
+            if (/(\b6\b|familiar)/i.test(nomSinSignos)) {
+              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 6"));
+            } else {
+              matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 3"));
             }
+          } else if (/\b(servilleta|servilletas)\b/i.test(nomSinSignos)) {
+            matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("servilleta"));
+          } else if (/\b(bolsa|bolsas)\b/i.test(nomSinSignos)) {
+            matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("bolsa"));
+          } else if (/\b(guante|guantes|nitrilo)\b/i.test(nomSinSignos)) {
+            matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("guante"));
+          } else if (/\b(antigraso|antigrasos|papel envoltorio)\b/i.test(nomSinSignos)) {
+            matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("antigraso"));
+          }
+
+          // 2. Coincidencia directa o por inclusión segura (longitud mínima para evitar falsos positivos con 'e', 'und', etc.)
+          if (!matchExistente) {
+            matchExistente = insumosActualizados.find(
+              (i) =>
+                i.nombre.toLowerCase() === nomLimpio ||
+                (nomLimpio.length >= 4 && i.nombre.toLowerCase().includes(nomLimpio)) ||
+                (nomLimpio.length >= 4 && nomLimpio.includes(i.nombre.toLowerCase()))
+            );
           }
 
           if (matchExistente) {

@@ -10,6 +10,7 @@ export default async function InsumosPage() {
     supabase
       .from("insumos")
       .select("*")
+      .eq("activo", true)
       .order("categoria_insumo", { ascending: true })
       .order("nombre", { ascending: true }),
     supabase
