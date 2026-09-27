@@ -1138,36 +1138,55 @@ ${estadoPago}`;
                     )}
 
                     {/* 3.1 Si está a Crédito / Debe */}
-                    {v.estado === "credito" && (() => {
+                    {(v.estado === "credito" || v.metodo_pago === "credito") && (() => {
                       const { saldoPendienteUsd } = calcularSaldoPendienteComanda(v, tasaBcv);
+                      const tieneSaldo = saldoPendienteUsd > 0.01;
                       return (
                         <div style={{ display: "flex", gap: 6, width: "100%", flexDirection: "column" }}>
-                          <button
-                            type="button"
-                            disabled={procesandoId === v.id}
-                            onClick={() => abrirModalAbono(v)}
-                            className="btn-comanda-complete"
-                            style={{ background: "#16a34a" }}
-                            title="Marcar como saldada o registrar pago total"
-                          >
-                            💰 Saldar Deuda (${saldoPendienteUsd.toFixed(2)})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => abrirModalAbono(v)}
-                            style={{
-                              padding: "6px 10px",
-                              borderRadius: 10,
-                              border: "1px solid var(--border)",
-                              background: "var(--bg-card)",
-                              color: "var(--text)",
-                              fontSize: 11.5,
-                              fontWeight: 800,
-                              cursor: "pointer",
-                            }}
-                          >
-                            🔀 Registrar Abono Parcial
-                          </button>
+                          {v.estado === "credito" && (
+                            <div style={{ display: "flex", gap: 6, width: "100%" }}>
+                              <button
+                                type="button"
+                                disabled={procesandoId === v.id}
+                                onClick={() => handleCambiarEstado(v.id, "preparando")}
+                                className="btn-comanda-complete"
+                                style={{ background: "#f97316", flex: 1 }}
+                              >
+                                {procesandoId === v.id ? "..." : "🍳 Enviar a Cocina"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={procesandoId === v.id}
+                                onClick={() => handleCambiarEstado(v.id, "completada")}
+                                className="btn-comanda-complete"
+                                style={{ background: "#3b82f6", flex: 1 }}
+                              >
+                                {procesandoId === v.id ? "..." : "✅ Entregada"}
+                              </button>
+                            </div>
+                          )}
+                          {tieneSaldo && (
+                            <button
+                              type="button"
+                              onClick={() => abrirModalAbono(v)}
+                              style={{
+                                padding: "6px 10px",
+                                borderRadius: 10,
+                                border: "1px solid var(--border)",
+                                background: "var(--bg-card)",
+                                color: "var(--text)",
+                                fontSize: 11.5,
+                                fontWeight: 800,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 6,
+                              }}
+                            >
+                              <span>💰</span> Abono / Saldar Deuda (${saldoPendienteUsd.toFixed(2)})
+                            </button>
+                          )}
                         </div>
                       );
                     })()}

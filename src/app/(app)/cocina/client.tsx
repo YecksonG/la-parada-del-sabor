@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cambiarEstadoVenta } from "@/app/(app)/ventas/actions";
 import { sounds } from "@/lib/sound-effects";
 import { getComboArepasCount, esArepaIndividual } from "@/lib/combo-helper";
-import { KDS_SELECT_VENTAS, obtenerKdsOrFilter } from "./constants";
+import { KDS_SELECT_VENTAS, KDS_ESTADOS_ACTIVOS } from "./constants";
 
 let soundListeners: Array<() => void> = [];
 function notifySoundChange() {
@@ -208,14 +208,25 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
 
     try {
       const supabase = createClient();
+
+      // 1. Si existe turno de caja abierto se sincroniza con su fecha_apertura; si no, toma las últimas 14 horas
+      const { data: sesionAbierta } = await supabase
+        .from("sesiones_caja")
+        .select("fecha_apertura")
+        .eq("estado", "abierta")
+        .order("fecha_apertura", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       const ahora = new Date();
-      ahora.setDate(ahora.getDate() - 1);
-      const hace24Horas = ahora.toISOString();
+      ahora.setHours(ahora.getHours() - 14);
+      const fechaCorte = sesionAbierta?.fecha_apertura || ahora.toISOString();
 
       const { data, error } = await supabase
         .from("ventas")
         .select(KDS_SELECT_VENTAS)
-        .or(obtenerKdsOrFilter(hace24Horas))
+        .in("estado", KDS_ESTADOS_ACTIVOS)
+        .gte("fecha", fechaCorte)
         .order("fecha", { ascending: true });
 
       if (Object.keys(procesandoIdsRef.current).length > 0) return;

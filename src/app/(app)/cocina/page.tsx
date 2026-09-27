@@ -3,28 +3,36 @@ import CocinaClient from "./client";
 import { Venta } from "@/types/database";
 import "./kds.css";
 
-import { KDS_SELECT_VENTAS, obtenerKdsOrFilter } from "./constants";
+import { KDS_SELECT_VENTAS, KDS_ESTADOS_ACTIVOS } from "./constants";
 
 export const dynamic = "force-dynamic";
 
-function obtenerFechaCorte24Horas(): string {
+function obtenerFechaCortePorDefecto(): string {
+  // Ventana de 14 horas para cubrir el turno nocturno/diurno activo
   const ahora = new Date();
-  ahora.setDate(ahora.getDate() - 1);
+  ahora.setHours(ahora.getHours() - 14);
   return ahora.toISOString();
 }
 
 export default async function CocinaPage() {
   const supabase = await createClient();
 
-  // Comandas activas para el KDS:
-  // 1) En curso ('pendiente', 'preparando', 'credito'): NUNCA se descartan por antigüedad para no perder pedidos.
-  // 2) 'lista' (cajón inferior): limitadas a las últimas 24 horas.
-  const hace24Horas = obtenerFechaCorte24Horas();
+  // 1. Si existe un turno de caja abierto, se sincroniza con su fecha de apertura. Si no, toma las últimas 14 horas.
+  const { data: sesionAbierta } = await supabase
+    .from("sesiones_caja")
+    .select("fecha_apertura")
+    .eq("estado", "abierta")
+    .order("fecha_apertura", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const fechaCorte = sesionAbierta?.fecha_apertura || obtenerFechaCortePorDefecto();
 
   const { data: ventas, error } = await supabase
     .from("ventas")
     .select(KDS_SELECT_VENTAS)
-    .or(obtenerKdsOrFilter(hace24Horas))
+    .in("estado", KDS_ESTADOS_ACTIVOS)
+    .gte("fecha", fechaCorte)
     .order("fecha", { ascending: true });
 
   if (error) {
