@@ -15,5 +15,5 @@ export const KDS_SELECT_VENTAS = `
 `;
 
 export function obtenerKdsOrFilter(hace24HorasIso: string): string {
-  return `(estado.in.(pendiente,preparando,credito),and(estado.eq.lista,fecha.gte.${hace24HorasIso}))`;
+  return `estado.in.(pendiente,preparando,credito),and(estado.eq.lista,fecha.gte.${hace24HorasIso})`;
 }
