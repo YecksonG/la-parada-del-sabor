@@ -1,187 +1,8 @@
 /* ========================================================================= */
 /* KDS — KITCHEN DISPLAY SYSTEM / PANTALLA DE COCINA & PLANCHA (/cocina)    */
-/* Diseñado para legibilidad a 1.5 - 2m, alto contraste y temas duales       */
+/* 100% alineado con el Design System & UI de La Parada del Sabor           */
+/* (Maíz Tostado, Queso Fundido, Rojo Brasa y Carbón Gourmet)               */
 /* ========================================================================= */
-
-:root {
-  --kds-bg-app: #f1f5f9;
-  --kds-bg-header: #ffffff;
-  --kds-bg-card: #ffffff;
-  --kds-bg-card-subtle: #f8fafc;
-  --kds-bg-column: #e2e8f0;
-  --kds-bg-col-header: #ffffff;
-  --kds-bg-footer: #ffffff;
-  --kds-border: #cbd5e1;
-  --kds-border-subtle: #e2e8f0;
-  --kds-border-card: #cbd5e1;
-  --kds-text: #0f172a;
-  --kds-text-title: #0f172a;
-  --kds-text-muted: #64748b;
-  --kds-text-dim: #94a3b8;
-  --kds-item-bg: #f8fafc;
-  --kds-item-border: #e2e8f0;
-  --kds-item-main: #0f172a;
-  --kds-item-extra: #854d0e;
-  --kds-card-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --kds-col-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
-  --kds-filter-bg: #e2e8f0;
-  --kds-filter-text: #64748b;
-  --kds-filter-hover: #0f172a;
-  --kds-btn-icon-bg: #f1f5f9;
-  --kds-btn-icon-text: #64748b;
-  --kds-budare-bg: #f8fafc;
-  --kds-budare-sabores: #334155;
-  --kds-kbd-bg: #e2e8f0;
-  --kds-kbd-text: #0f172a;
-  --kds-kbd-border: #cbd5e1;
-  --kds-recent-bg: #f8fafc;
-  --kds-recent-border: #cbd5e1;
-  --kds-recent-text: #0f172a;
-  --kds-empty-icon: #94a3b8;
-  --kds-empty-title: #1e293b;
-  --kds-empty-desc: #64748b;
-  --kds-scrollbar-track: #e2e8f0;
-  --kds-scrollbar-thumb: #cbd5e1;
-
-  /* Badges en modo claro */
-  --kds-badge-delivery-bg: rgba(147, 51, 234, 0.12);
-  --kds-badge-delivery-color: #6b21a8;
-  --kds-badge-delivery-border: rgba(147, 51, 234, 0.3);
-
-  --kds-badge-pickup-bg: rgba(59, 130, 246, 0.12);
-  --kds-badge-pickup-color: #1e40af;
-  --kds-badge-pickup-border: rgba(59, 130, 246, 0.3);
-
-  --kds-badge-local-bg: rgba(16, 185, 129, 0.12);
-  --kds-badge-local-color: #065f46;
-  --kds-badge-local-border: rgba(16, 185, 129, 0.3);
-
-  --kds-badge-credito-bg: rgba(245, 158, 11, 0.15);
-  --kds-badge-credito-color: #92400e;
-  --kds-badge-credito-border: rgba(245, 158, 11, 0.4);
-
-  --kds-timer-green-bg: rgba(16, 185, 129, 0.15);
-  --kds-timer-green-color: #047857;
-  --kds-timer-green-border: rgba(16, 185, 129, 0.4);
-
-  --kds-timer-amber-bg: rgba(245, 158, 11, 0.15);
-  --kds-timer-amber-color: #b45309;
-  --kds-timer-amber-border: rgba(245, 158, 11, 0.4);
-
-  --kds-timer-red-bg: rgba(239, 68, 68, 0.15);
-  --kds-timer-red-color: #b91c1c;
-  --kds-timer-red-border: rgba(239, 68, 68, 0.4);
-
-  --kds-badge-coccion-fritas-bg: rgba(234, 88, 12, 0.12);
-  --kds-badge-coccion-fritas-color: #c2410c;
-  --kds-badge-coccion-fritas-border: rgba(234, 88, 12, 0.3);
-
-  --kds-badge-coccion-asadas-bg: rgba(6, 182, 212, 0.12);
-  --kds-badge-coccion-asadas-color: #0e7490;
-  --kds-badge-coccion-asadas-border: rgba(6, 182, 212, 0.3);
-
-  --kds-badge-coccion-mixtas-bg: rgba(168, 85, 247, 0.12);
-  --kds-badge-coccion-mixtas-color: #7e22ce;
-  --kds-badge-coccion-mixtas-border: rgba(168, 85, 247, 0.3);
-
-  --kds-badge-coccion-normal-bg: #e2e8f0;
-  --kds-badge-coccion-normal-color: #334155;
-  --kds-badge-coccion-normal-border: #cbd5e1;
-
-  --kds-nota-bg: rgba(254, 243, 199, 0.9);
-  --kds-nota-color: #92400e;
-  --kds-nota-border: rgba(245, 158, 11, 0.4);
-}
-
-[data-theme="dark"] {
-  --kds-bg-app: #0c0c0e;
-  --kds-bg-header: #141418;
-  --kds-bg-card: #16161a;
-  --kds-bg-card-subtle: #1a1a20;
-  --kds-bg-column: #121215;
-  --kds-bg-col-header: #18181c;
-  --kds-bg-footer: #101014;
-  --kds-border: #27272a;
-  --kds-border-subtle: #202025;
-  --kds-border-card: #27272a;
-  --kds-text: #f4f4f5;
-  --kds-text-title: #ffffff;
-  --kds-text-muted: #a1a1aa;
-  --kds-text-dim: #71717a;
-  --kds-item-bg: #1a1a20;
-  --kds-item-border: #27272a;
-  --kds-item-main: #ffffff;
-  --kds-item-extra: #fef08a;
-  --kds-card-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --kds-col-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
-  --kds-filter-bg: #101014;
-  --kds-filter-text: #a1a1aa;
-  --kds-filter-hover: #ffffff;
-  --kds-btn-icon-bg: #1a1a20;
-  --kds-btn-icon-text: #a1a1aa;
-  --kds-budare-bg: #1a1a20;
-  --kds-budare-sabores: #d4d4d8;
-  --kds-kbd-bg: #27272a;
-  --kds-kbd-text: #e4e4e7;
-  --kds-kbd-border: #3f3f46;
-  --kds-recent-bg: #18181c;
-  --kds-recent-border: #27272a;
-  --kds-recent-text: #ffffff;
-  --kds-empty-icon: #52525b;
-  --kds-empty-title: #d4d4d8;
-  --kds-empty-desc: #a1a1aa;
-  --kds-scrollbar-track: #121215;
-  --kds-scrollbar-thumb: #27272a;
-
-  /* Badges en modo oscuro */
-  --kds-badge-delivery-bg: rgba(88, 28, 135, 0.8);
-  --kds-badge-delivery-color: #d8b4fe;
-  --kds-badge-delivery-border: rgba(147, 51, 234, 0.7);
-
-  --kds-badge-pickup-bg: rgba(30, 58, 138, 0.8);
-  --kds-badge-pickup-color: #93c5fd;
-  --kds-badge-pickup-border: rgba(59, 130, 246, 0.7);
-
-  --kds-badge-local-bg: rgba(6, 78, 59, 0.8);
-  --kds-badge-local-color: #86efac;
-  --kds-badge-local-border: rgba(16, 185, 129, 0.7);
-
-  --kds-badge-credito-bg: rgba(180, 83, 9, 0.25);
-  --kds-badge-credito-color: #fde047;
-  --kds-badge-credito-border: rgba(245, 158, 11, 0.7);
-
-  --kds-timer-green-bg: rgba(6, 78, 59, 0.6);
-  --kds-timer-green-color: #34d399;
-  --kds-timer-green-border: rgba(16, 185, 129, 0.6);
-
-  --kds-timer-amber-bg: rgba(120, 53, 15, 0.7);
-  --kds-timer-amber-color: #fde68a;
-  --kds-timer-amber-border: rgba(245, 158, 11, 0.7);
-
-  --kds-timer-red-bg: rgba(127, 29, 29, 0.8);
-  --kds-timer-red-color: #fca5a5;
-  --kds-timer-red-border: #ef4444;
-
-  --kds-badge-coccion-fritas-bg: rgba(234, 88, 12, 0.18);
-  --kds-badge-coccion-fritas-color: #fb923c;
-  --kds-badge-coccion-fritas-border: rgba(249, 115, 22, 0.4);
-
-  --kds-badge-coccion-asadas-bg: rgba(6, 182, 212, 0.18);
-  --kds-badge-coccion-asadas-color: #67e8f9;
-  --kds-badge-coccion-asadas-border: rgba(6, 182, 212, 0.4);
-
-  --kds-badge-coccion-mixtas-bg: rgba(168, 85, 247, 0.18);
-  --kds-badge-coccion-mixtas-color: #d8b4fe;
-  --kds-badge-coccion-mixtas-border: rgba(168, 85, 247, 0.4);
-
-  --kds-badge-coccion-normal-bg: #27272a;
-  --kds-badge-coccion-normal-color: #d4d4d8;
-  --kds-badge-coccion-normal-border: #3f3f46;
-
-  --kds-nota-bg: rgba(120, 53, 15, 0.4);
-  --kds-nota-color: #fde68a;
-  --kds-nota-border: rgba(180, 83, 9, 0.6);
-}
 
 .kds-wrapper {
   display: flex;
@@ -189,12 +10,12 @@
   flex: 1;
   height: calc(100dvh - 68px);
   max-height: calc(100dvh - 68px);
-  background-color: var(--kds-bg-app);
-  color: var(--kds-text);
+  background: var(--bg);
+  color: var(--text);
   font-family: inherit;
   user-select: none;
   overflow: hidden;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 :fullscreen .kds-wrapper,
@@ -208,11 +29,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
-  background-color: var(--kds-bg-header);
-  border-bottom: 1px solid var(--kds-border);
+  padding: 10px 18px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
   gap: 16px;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .kds-brand-wrap {
@@ -228,11 +50,11 @@
 }
 
 .kds-title {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--kds-text-title);
+  letter-spacing: 0.04em;
+  color: var(--text);
   margin: 0;
 }
 
@@ -241,10 +63,10 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  font-weight: 700;
-  color: #10b981;
-  background-color: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-weight: 800;
+  color: var(--green-text);
+  background: var(--green-light);
+  border: 1px solid var(--green);
   padding: 2px 8px;
   border-radius: 9999px;
 }
@@ -253,16 +75,16 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 8px #10b981;
+  background-color: var(--green);
+  box-shadow: 0 0 8px var(--green);
   animation: kdsPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .kds-clock {
   font-size: 13px;
   font-family: monospace;
-  font-weight: 600;
-  color: var(--kds-text-muted);
+  font-weight: 700;
+  color: var(--text-muted);
   margin: 2px 0 0 0;
 }
 
@@ -271,10 +93,10 @@
   display: none;
   align-items: center;
   gap: 14px;
-  background-color: var(--kds-budare-bg);
-  border: 1px solid var(--kds-border);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
   padding: 6px 14px;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 @media (min-width: 860px) {
@@ -293,28 +115,28 @@
   font-size: 10px;
   text-transform: uppercase;
   font-weight: 800;
-  color: var(--kds-text-muted);
+  color: var(--text-muted);
   letter-spacing: 0.05em;
 }
 
 .kds-budare-stat-val {
   font-size: 18px;
   font-weight: 900;
-  color: #f59e0b;
+  color: var(--primary-dark);
   font-family: monospace;
   line-height: 1.1;
 }
 
 .kds-budare-stat-val small {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--kds-text-muted);
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 .kds-budare-divider {
   width: 1px;
   height: 24px;
-  background-color: var(--kds-border);
+  background-color: var(--border);
 }
 
 .kds-budare-pills {
@@ -324,32 +146,44 @@
 
 .kds-pill-fritas {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   padding: 3px 8px;
   border-radius: 6px;
-  background-color: var(--kds-badge-coccion-fritas-bg);
-  color: var(--kds-badge-coccion-fritas-color);
-  border: 1px solid var(--kds-badge-coccion-fritas-border);
+  background-color: rgba(234, 88, 12, 0.15);
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.35);
+}
+
+[data-theme="dark"] .kds-pill-fritas {
+  background-color: rgba(234, 88, 12, 0.25);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.5);
 }
 
 .kds-pill-asadas {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   padding: 3px 8px;
   border-radius: 6px;
-  background-color: var(--kds-badge-coccion-asadas-bg);
-  color: var(--kds-badge-coccion-asadas-color);
-  border: 1px solid var(--kds-badge-coccion-asadas-border);
+  background-color: rgba(6, 182, 212, 0.15);
+  color: #0e7490;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+[data-theme="dark"] .kds-pill-asadas {
+  background-color: rgba(6, 182, 212, 0.25);
+  color: #67e8f9;
+  border-color: rgba(6, 182, 212, 0.5);
 }
 
 .kds-budare-sabores {
   font-size: 11px;
-  color: var(--kds-budare-sabores);
+  color: var(--text);
   max-width: 240px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* Controles Derecha */
@@ -361,40 +195,42 @@
 
 .kds-filter-tabs {
   display: flex;
-  background-color: var(--kds-filter-bg);
-  border: 1px solid var(--kds-border);
-  border-radius: 8px;
-  padding: 2px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 4px;
 }
 
 .kds-filter-tab {
   border: none;
   background: transparent;
-  color: var(--kds-filter-text);
-  padding: 5px 10px;
+  color: var(--text-muted);
+  padding: 5px 12px;
   font-size: 12px;
-  font-weight: 600;
-  border-radius: 6px;
+  font-weight: 800;
+  border-radius: 9999px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .kds-filter-tab:hover {
-  color: var(--kds-filter-hover);
+  color: var(--text);
 }
 
 .kds-filter-tab.active {
-  background-color: #f59e0b;
+  background: var(--primary);
   color: #000000;
-  font-weight: 800;
+  font-weight: 900;
+  box-shadow: var(--shadow-sm);
 }
 
 .kds-btn-icon {
-  background-color: var(--kds-btn-icon-bg);
-  border: 1px solid var(--kds-border);
-  color: var(--kds-btn-icon-text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
   padding: 6px;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -403,20 +239,20 @@
 }
 
 .kds-btn-icon:hover {
-  color: var(--kds-text-title);
-  border-color: var(--kds-border-focus);
+  color: var(--text);
+  border-color: var(--primary);
 }
 
 .kds-btn-icon.active {
-  color: #f59e0b;
-  background-color: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.5);
+  color: var(--primary-dark);
+  background: var(--primary-light);
+  border-color: var(--primary);
 }
 
 .kds-btn-icon.muted {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--accent);
+  background: var(--accent-light);
+  border-color: var(--accent);
 }
 
 /* 2. TABLERO DE 2 COLUMNAS */
@@ -424,8 +260,8 @@
   flex: 1;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
-  padding: 12px;
+  gap: 16px;
+  padding: 16px;
   overflow: hidden;
 }
 
@@ -436,22 +272,22 @@
 }
 
 .kds-column {
-  background-color: var(--kds-bg-column);
-  border: 1px solid var(--kds-border);
-  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: var(--kds-col-shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 .kds-col-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background-color: var(--kds-bg-col-header);
-  border-bottom: 1px solid var(--kds-border);
+  padding: 12px 18px;
+  background: var(--bg-subtle);
+  border-bottom: 1.5px solid var(--border);
 }
 
 .kds-col-title-wrap {
@@ -464,55 +300,60 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background-color: #f59e0b;
+  background-color: var(--primary);
 }
 
 .kds-col-dot-cyan {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background-color: #06b6d4;
+  background-color: var(--chart-ventas);
   animation: kdsPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .kds-col-title {
-  font-size: 13px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--kds-text-title);
+  color: var(--text);
   margin: 0;
 }
 
 .kds-col-badge-amber {
   font-family: monospace;
-  font-weight: 800;
-  font-size: 12px;
-  padding: 2px 8px;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 3px 10px;
   border-radius: 9999px;
-  background-color: var(--kds-badge-credito-bg);
-  color: var(--kds-badge-credito-color);
-  border: 1px solid var(--kds-badge-credito-border);
+  background: var(--primary);
+  color: #000000;
+  box-shadow: var(--shadow-sm);
 }
 
 .kds-col-badge-cyan {
   font-family: monospace;
-  font-weight: 800;
-  font-size: 12px;
-  padding: 2px 8px;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 3px 10px;
   border-radius: 9999px;
-  background-color: var(--kds-badge-pickup-bg);
-  color: var(--kds-badge-pickup-color);
-  border: 1px solid var(--kds-badge-pickup-border);
+  background: var(--chart-ventas);
+  color: #ffffff;
+  box-shadow: var(--shadow-sm);
 }
 
 .kds-col-body {
   flex: 1;
-  padding: 10px;
+  padding: 14px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  background: rgba(254, 243, 199, 0.2);
+}
+
+[data-theme="dark"] .kds-col-body {
+  background: rgba(12, 10, 9, 0.35);
 }
 
 /* Scrollbar personalizado */
@@ -520,69 +361,78 @@
   width: 6px;
 }
 .kds-col-body::-webkit-scrollbar-track {
-  background: var(--kds-scrollbar-track);
+  background: transparent;
 }
 .kds-col-body::-webkit-scrollbar-thumb {
-  background: var(--kds-scrollbar-thumb);
+  background: var(--text-muted);
   border-radius: 4px;
 }
 
 /* Empty State */
 .kds-empty-box {
   height: 100%;
-  min-height: 240px;
+  min-height: 260px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--kds-empty-desc);
+  color: var(--text-muted);
   text-align: center;
-  padding: 24px;
+  padding: 32px 24px;
 }
 
 .kds-empty-box svg {
-  width: 44px;
-  height: 44px;
-  margin-bottom: 8px;
-  stroke: var(--kds-empty-icon);
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  stroke: var(--primary);
+  opacity: 0.85;
 }
 
 .kds-empty-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--kds-empty-title);
-  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--text);
+  margin: 0 0 6px 0;
 }
 
 .kds-empty-desc {
-  font-size: 12px;
-  color: var(--kds-empty-desc);
+  font-size: 13px;
+  color: var(--text-muted);
   margin: 0;
 }
 
 /* 3. TARJETA DE COMANDA */
 .kds-card {
-  background-color: var(--kds-bg-card);
-  border: 1px solid var(--kds-border-card);
-  border-radius: 12px;
-  padding: 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 18px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: all 0.15s ease;
-  box-shadow: var(--kds-card-shadow);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.kds-card:not(.kds-card-primera):hover {
+  box-shadow: var(--shadow-md);
 }
 
 .kds-card-primera {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.5), 0 8px 24px rgba(245, 158, 11, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary), var(--shadow-md);
+}
+
+.kds-card-primera:hover {
+  box-shadow: 0 0 0 3px var(--primary), var(--shadow-lg);
 }
 
 .kds-card-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--kds-border);
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 8px;
   gap: 8px;
 }
@@ -594,10 +444,10 @@
 }
 
 .kds-comanda-id {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   font-family: monospace;
-  color: var(--kds-text-title);
+  color: var(--text);
 }
 
 .kds-badge-delivery {
@@ -605,12 +455,18 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
+  font-weight: 800;
+  padding: 3px 8px;
   border-radius: 6px;
-  background-color: var(--kds-badge-delivery-bg);
-  color: var(--kds-badge-delivery-color);
-  border: 1px solid var(--kds-badge-delivery-border);
+  background-color: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #d8b4fe;
+}
+
+[data-theme="dark"] .kds-badge-delivery {
+  background-color: rgba(88, 28, 135, 0.4);
+  color: #d8b4fe;
+  border-color: rgba(147, 51, 234, 0.6);
 }
 
 .kds-badge-pickup {
@@ -618,12 +474,18 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
+  font-weight: 800;
+  padding: 3px 8px;
   border-radius: 6px;
-  background-color: var(--kds-badge-pickup-bg);
-  color: var(--kds-badge-pickup-color);
-  border: 1px solid var(--kds-badge-pickup-border);
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+[data-theme="dark"] .kds-badge-pickup {
+  background-color: rgba(30, 58, 138, 0.4);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.6);
 }
 
 .kds-badge-local {
@@ -631,12 +493,12 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
+  font-weight: 800;
+  padding: 3px 8px;
   border-radius: 6px;
-  background-color: var(--kds-badge-local-bg);
-  color: var(--kds-badge-local-color);
-  border: 1px solid var(--kds-badge-local-border);
+  background-color: var(--bg-subtle);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 .kds-badge-credito {
@@ -644,12 +506,18 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
+  font-weight: 800;
+  padding: 3px 8px;
   border-radius: 6px;
-  background-color: var(--kds-badge-credito-bg);
-  color: var(--kds-badge-credito-color);
-  border: 1px solid var(--kds-badge-credito-border);
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+  border: 1px solid var(--primary);
+}
+
+[data-theme="dark"] .kds-badge-credito {
+  background-color: rgba(180, 83, 9, 0.3);
+  color: #fde047;
+  border-color: rgba(245, 158, 11, 0.6);
 }
 
 /* Cronómetro */
@@ -664,22 +532,40 @@
 }
 
 .kds-timer-green {
-  background-color: var(--kds-timer-green-bg);
-  color: var(--kds-timer-green-color);
-  border-color: var(--kds-timer-green-border);
+  background-color: var(--green-light);
+  color: var(--green-text);
+  border-color: var(--green);
+}
+
+[data-theme="dark"] .kds-timer-green {
+  background-color: rgba(6, 78, 59, 0.6);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.6);
 }
 
 .kds-timer-amber {
-  background-color: var(--kds-timer-amber-bg);
-  color: var(--kds-timer-amber-color);
-  border-color: var(--kds-timer-amber-border);
+  background-color: #fef3c7;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+[data-theme="dark"] .kds-timer-amber {
+  background-color: rgba(120, 53, 15, 0.6);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.6);
 }
 
 .kds-timer-red {
-  background-color: var(--kds-timer-red-bg);
-  color: var(--kds-timer-red-color);
-  border-color: var(--kds-timer-red-border);
-  animation: kdsPulse 1.5s infinite;
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+  animation: kdsTimerPulse 1.5s infinite;
+}
+
+[data-theme="dark"] .kds-timer-red {
+  background-color: rgba(127, 29, 29, 0.7);
+  color: #fca5a5;
+  border-color: #ef4444;
 }
 
 /* Fila de Cocción y Cliente */
@@ -701,32 +587,50 @@
 }
 
 .kds-badge-coccion.fritas {
-  background-color: var(--kds-badge-coccion-fritas-bg);
-  color: var(--kds-badge-coccion-fritas-color);
-  border-color: var(--kds-badge-coccion-fritas-border);
+  background-color: rgba(234, 88, 12, 0.12);
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.35);
+}
+
+[data-theme="dark"] .kds-badge-coccion.fritas {
+  background-color: rgba(234, 88, 12, 0.2);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.5);
 }
 
 .kds-badge-coccion.asadas {
-  background-color: var(--kds-badge-coccion-asadas-bg);
-  color: var(--kds-badge-coccion-asadas-color);
-  border-color: var(--kds-badge-coccion-asadas-border);
+  background-color: rgba(6, 182, 212, 0.12);
+  color: #0e7490;
+  border-color: rgba(6, 182, 212, 0.35);
+}
+
+[data-theme="dark"] .kds-badge-coccion.asadas {
+  background-color: rgba(6, 182, 212, 0.2);
+  color: #67e8f9;
+  border-color: rgba(6, 182, 212, 0.5);
 }
 
 .kds-badge-coccion.mixtas {
-  background-color: var(--kds-badge-coccion-mixtas-bg);
-  color: var(--kds-badge-coccion-mixtas-color);
-  border-color: var(--kds-badge-coccion-mixtas-border);
+  background-color: rgba(168, 85, 247, 0.12);
+  color: #7e22ce;
+  border-color: rgba(168, 85, 247, 0.35);
+}
+
+[data-theme="dark"] .kds-badge-coccion.mixtas {
+  background-color: rgba(168, 85, 247, 0.2);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.5);
 }
 
 .kds-badge-coccion.normal {
-  background-color: var(--kds-badge-coccion-normal-bg);
-  color: var(--kds-badge-coccion-normal-color);
-  border-color: var(--kds-badge-coccion-normal-border);
+  background-color: var(--bg-card);
+  color: var(--text-muted);
+  border-color: var(--border);
 }
 
 .kds-client-name {
   font-size: 12px;
-  color: var(--kds-text-muted);
+  color: var(--text-muted);
   font-weight: 600;
   max-width: 150px;
   white-space: nowrap;
@@ -735,7 +639,8 @@
 }
 
 .kds-client-name strong {
-  color: var(--kds-text-title);
+  color: var(--text);
+  font-weight: 800;
 }
 
 /* Lista de Ítems / Arepas */
@@ -746,16 +651,17 @@
 }
 
 .kds-item-card {
-  background-color: var(--kds-item-bg);
-  border: 1px solid var(--kds-item-border);
-  border-radius: 8px;
-  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .kds-item-main {
   font-size: 14px;
-  font-weight: 700;
-  color: var(--kds-item-main);
+  font-weight: 800;
+  color: var(--text);
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -763,9 +669,9 @@
 
 .kds-item-qty {
   font-family: monospace;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
-  color: #f59e0b;
+  color: var(--primary-dark);
 }
 
 .kds-item-name {
@@ -793,23 +699,31 @@
 }
 
 .kds-extra-arrow {
-  color: var(--kds-text-dim);
+  color: var(--text-muted);
   font-size: 12px;
 }
 
 .kds-extra-name {
-  color: var(--kds-item-extra);
+  color: var(--text-muted-strong);
+  font-weight: 700;
 }
 
 .kds-item-nota {
   margin-top: 6px;
-  font-size: 11px;
-  color: var(--kds-nota-color);
-  background-color: var(--kds-nota-bg);
-  border: 1px solid var(--kds-nota-border);
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 12px;
+  color: var(--primary-dark);
+  background: var(--bg-card);
+  border: 1px dashed var(--primary);
+  padding: 4px 8px;
+  border-radius: 6px;
   font-style: italic;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .kds-item-nota {
+  color: #fde68a;
+  background: #141210;
+  border-color: var(--primary);
 }
 
 .kds-alerta-comanda {
@@ -817,19 +731,25 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  background-color: var(--kds-nota-bg);
-  border: 1px solid var(--kds-nota-border);
-  color: var(--kds-nota-color);
+  background-color: #fef2f2;
+  border: 1.5px solid #ef4444;
+  color: #991b1b;
   padding: 8px 10px;
   border-radius: 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 800;
+}
+
+[data-theme="dark"] .kds-alerta-comanda {
+  background-color: rgba(127, 29, 29, 0.35);
+  border-color: #ef4444;
+  color: #fca5a5;
 }
 
 .kds-alerta-comanda svg {
   width: 16px;
   height: 16px;
-  color: #f59e0b;
+  color: #dc2626;
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -838,75 +758,80 @@
 .kds-action-btn-wrap {
   margin-top: 4px;
   padding-top: 8px;
-  border-top: 1px solid var(--kds-border);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .kds-btn-action {
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 11px 16px;
+  border-radius: 12px;
   border: none;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: var(--shadow-sm);
 }
 
-.kds-btn-action:active {
-  transform: scale(0.98);
+.kds-btn-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.kds-btn-action:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .kds-btn-action:disabled {
-  opacity: 0.5;
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
 .kds-btn-plancha {
-  background-color: #f59e0b;
+  background: var(--primary);
   color: #000000;
 }
 
 .kds-btn-plancha:hover:not(:disabled) {
-  background-color: #fbbf24;
+  background: var(--primary-hover);
 }
 
 .kds-btn-lista {
-  background-color: #10b981;
+  background: var(--green);
   color: #000000;
 }
 
 .kds-btn-lista:hover:not(:disabled) {
-  background-color: #34d399;
+  background: #34d399;
 }
 
 .kds-kbd-badge {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(0, 0, 0, 0.15);
   color: #000000;
   font-family: monospace;
   font-size: 13px;
   font-weight: 900;
-  padding: 3px 8px;
-  border-radius: 5px;
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
 }
 
 /* 4. BARRA INFERIOR / RECIÉN LISTAS */
 .kds-footer {
-  background-color: var(--kds-bg-footer);
-  border-top: 1px solid var(--kds-border);
-  padding: 8px 16px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding: 10px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   font-size: 12px;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .kds-drawer-left {
@@ -918,15 +843,15 @@
 
 .kds-drawer-title {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 900;
   text-transform: uppercase;
-  color: var(--kds-text-muted);
+  color: var(--text);
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
 
 .kds-drawer-empty {
-  color: var(--kds-text-dim);
+  color: var(--text-muted);
   font-style: italic;
   font-size: 11px;
 }
@@ -943,22 +868,22 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: var(--kds-recent-bg);
-  border: 1px solid var(--kds-recent-border);
-  border-radius: 6px;
-  padding: 4px 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
   white-space: nowrap;
 }
 
 .kds-recent-id {
   font-family: monospace;
-  font-weight: 800;
-  color: var(--kds-recent-text);
+  font-weight: 900;
+  color: var(--text);
 }
 
 .kds-recent-client {
   font-size: 11px;
-  color: var(--kds-text-muted);
+  color: var(--text-muted);
   max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -967,8 +892,8 @@
 .kds-btn-undo {
   border: none;
   background: transparent;
-  color: #f59e0b;
-  font-weight: 700;
+  color: var(--primary-dark);
+  font-weight: 800;
   font-size: 11px;
   cursor: pointer;
   text-decoration: underline;
@@ -976,14 +901,14 @@
 }
 
 .kds-btn-undo:hover {
-  color: #fbbf24;
+  color: var(--text);
 }
 
 .kds-shortcuts-legend {
   display: none;
   align-items: center;
   gap: 12px;
-  color: var(--kds-text-muted);
+  color: var(--text-muted);
   font-size: 11px;
   font-family: monospace;
   white-space: nowrap;
@@ -996,12 +921,12 @@
 }
 
 .kds-shortcuts-legend kbd {
-  background-color: var(--kds-kbd-bg);
-  color: var(--kds-kbd-text);
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--kds-kbd-border);
-  font-weight: 700;
+  background: var(--bg-subtle);
+  color: var(--text);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-weight: 800;
 }
 
 /* 5. TOAST FEEDBACK */
@@ -1014,20 +939,32 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 13px;
-  font-weight: 700;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  font-weight: 800;
+  box-shadow: var(--shadow-lg);
   border: 1px solid;
 }
 
 .kds-feedback-toast.exito {
+  background-color: var(--green-light);
+  color: var(--green-text);
+  border-color: var(--green);
+}
+
+[data-theme="dark"] .kds-feedback-toast.exito {
   background-color: rgba(6, 78, 59, 0.95);
   color: #a7f3d0;
   border-color: #059669;
 }
 
 .kds-feedback-toast.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #f87171;
+}
+
+[data-theme="dark"] .kds-feedback-toast.error {
   background-color: rgba(127, 29, 29, 0.95);
   color: #fee2e2;
   border-color: #dc2626;
@@ -1036,9 +973,20 @@
 @keyframes kdsPulse {
   0%, 100% {
     opacity: 1;
+    transform: scale(1);
   }
   50% {
     opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes kdsTimerPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
   }
 }
 
@@ -1050,22 +998,34 @@
   gap: 12px;
   padding: 8px 16px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   flex-shrink: 0;
   border-bottom: 1px solid transparent;
 }
 
 .kds-banner-alerta.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #f87171;
+}
+
+[data-theme="dark"] .kds-banner-alerta.error {
   background-color: rgba(127, 29, 29, 0.95);
   color: #fee2e2;
   border-color: #dc2626;
 }
 
 .kds-banner-alerta.audio {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+  cursor: pointer;
+}
+
+[data-theme="dark"] .kds-banner-alerta.audio {
   background-color: rgba(30, 58, 138, 0.95);
   color: #dbeafe;
   border-color: #3b82f6;
-  cursor: pointer;
 }
 
 .kds-banner-texto {
@@ -1073,11 +1033,11 @@
 }
 
 .kds-banner-btn {
-  background-color: #ffffff;
-  color: #0f172a;
+  background-color: var(--primary);
+  color: #000000;
   border: none;
-  border-radius: 4px;
-  padding: 4px 10px;
+  border-radius: 6px;
+  padding: 5px 12px;
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -1093,8 +1053,9 @@
 .kds-wrapper button:focus-visible,
 .kds-wrapper a:focus-visible,
 .kds-wrapper [tabindex]:focus-visible {
-  outline: 3px solid #f59e0b;
+  outline: 2px solid var(--text);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--primary-glow);
 }
 
 /* 8. MOVIMIENTO REDUCIDO */
