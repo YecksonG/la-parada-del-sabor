@@ -253,6 +253,7 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
 
   revalidatePath("/");
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/caja");
   revalidatePath("/dashboard");
   revalidatePath("/insumos");

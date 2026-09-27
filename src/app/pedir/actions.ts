@@ -151,6 +151,7 @@ export async function crearPedidoWebPublico(payload: PayloadPedidoWeb) {
   }
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/caja");
   revalidatePath("/dashboard");
   revalidatePath("/");

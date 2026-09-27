@@ -1,5 +1,3 @@
-import { Producto } from "@/types/database";
-
 export interface RellenoArepa {
   id: string;
   nombre: string;
@@ -194,13 +192,7 @@ export function serializarRellenosCombo(
       if (coccionModo === "mixtas") {
         const desglose = (coccionDesglose && coccionDesglose[relleno.id]) || { asadas: 0, fritas: cant };
         const { asadas = 0, fritas = 0 } = desglose;
-        if (asadas > 0 && fritas > 0) {
-          lineas.push(`${nombreCorto} (${asadas}A/${fritas}F)`);
-        } else if (asadas > 0) {
-          lineas.push(`${asadas}x ${nombreCorto} Asada${asadas > 1 ? "s" : ""}`);
-        } else {
-          lineas.push(`${fritas}x ${nombreCorto} Frita${fritas > 1 ? "s" : ""}`);
-        }
+        lineas.push(`${nombreCorto} (${asadas}A/${fritas}F)`);
       } else {
         lineas.push(`${cant}x ${nombreCorto}`);
       }
@@ -214,12 +206,38 @@ export function serializarRellenosCombo(
     sufijoCoccion = " [Todas Asadas]";
   }
 
-  let res = `Rellenos: ${lineas.join(", ")}${sufijoCoccion}`;
-  if (notaAdicional?.trim()) {
-    const obsLimpia = notaAdicional.trim().slice(0, 40);
-    res += ` — Obs: ${obsLimpia}`;
+  const MAX = 145;
+  const prefijo = "Rellenos: ";
+  const cola = notaAdicional?.trim() ? ` — Obs: ${notaAdicional.trim().slice(0, 40)}` : "";
+  const presupuesto = MAX - prefijo.length - cola.length - sufijoCoccion.length;
+
+  const itemsEmpacados: string[] = [];
+  let longitudAcumulada = 0;
+
+  for (const item of lineas) {
+    const separador = itemsEmpacados.length > 0 ? ", " : "";
+    const costo = separador.length + item.length;
+
+    if (longitudAcumulada + costo <= presupuesto) {
+      itemsEmpacados.push(item);
+      longitudAcumulada += costo;
+    } else {
+      // Si no cabe completo, intentamos recortar únicamente el nombre del sabor preservando el token de cocción íntegro
+      const matchMixto = item.match(/^(.*?)\s*(\(\d+A\/\d+F\))$/);
+      if (matchMixto) {
+        const [, nombreSabor, tokenCoccion] = matchMixto;
+        const espacioParaNombre = presupuesto - longitudAcumulada - separador.length - tokenCoccion.length - 1;
+        if (espacioParaNombre >= 3) {
+          const nombreAbreviado = nombreSabor.slice(0, espacioParaNombre).trim();
+          itemsEmpacados.push(`${nombreAbreviado} ${tokenCoccion}`);
+          longitudAcumulada = presupuesto;
+        }
+      }
+      break; // No cortar a ciegas por la mitad
+    }
   }
 
-  return res.slice(0, 145);
+  const cuerpo = itemsEmpacados.join(", ");
+  return `${prefijo}${cuerpo}${sufijoCoccion}${cola}`.slice(0, MAX);
 }
 

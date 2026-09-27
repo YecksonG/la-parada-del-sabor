@@ -1,0 +1,941 @@
+/* ========================================================================= */
+/* KDS — KITCHEN DISPLAY SYSTEM / PANTALLA DE COCINA & PLANCHA (/cocina)    */
+/* Diseñado para legibilidad a 1.5 - 2m, alto contraste y sin dependencias  */
+/* ========================================================================= */
+
+.kds-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: calc(100dvh - 68px);
+  max-height: calc(100dvh - 68px);
+  background-color: #0c0c0e;
+  color: #f4f4f5;
+  font-family: inherit;
+  user-select: none;
+  overflow: hidden;
+}
+
+:fullscreen .kds-wrapper,
+.kds-wrapper:fullscreen {
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+/* 1. CABECERA KDS */
+.kds-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background-color: #141418;
+  border-bottom: 1px solid #27272a;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.kds-brand-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kds-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kds-title {
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #ffffff;
+  margin: 0;
+}
+
+.kds-badge-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #34d399;
+  background-color: rgba(6, 78, 59, 0.6);
+  border: 1px solid rgba(5, 150, 105, 0.7);
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.kds-dot-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #34d399;
+  box-shadow: 0 0 8px #34d399;
+  animation: kdsPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.kds-clock {
+  font-size: 13px;
+  font-family: monospace;
+  font-weight: 600;
+  color: #a1a1aa;
+  margin: 2px 0 0 0;
+}
+
+/* Resumen Budare */
+.kds-budare-bar {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  background-color: #1a1a20;
+  border: 1px solid #27272a;
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+
+@media (min-width: 860px) {
+  .kds-budare-bar {
+    display: flex;
+  }
+}
+
+.kds-budare-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.kds-budare-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: #a1a1aa;
+  letter-spacing: 0.05em;
+}
+
+.kds-budare-stat-val {
+  font-size: 18px;
+  font-weight: 900;
+  color: #f59e0b;
+  font-family: monospace;
+  line-height: 1.1;
+}
+
+.kds-budare-stat-val small {
+  font-size: 11px;
+  font-weight: 600;
+  color: #a1a1aa;
+}
+
+.kds-budare-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #27272a;
+}
+
+.kds-budare-pills {
+  display: flex;
+  gap: 6px;
+}
+
+.kds-pill-fritas {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: rgba(124, 45, 18, 0.6);
+  color: #fdba74;
+  border: 1px solid rgba(234, 88, 12, 0.6);
+}
+
+.kds-pill-asadas {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background-color: rgba(22, 78, 99, 0.6);
+  color: #67e8f9;
+  border: 1px solid rgba(8, 145, 178, 0.6);
+}
+
+.kds-budare-sabores {
+  font-size: 11px;
+  color: #d4d4d8;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+
+/* Controles Derecha */
+.kds-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kds-filter-tabs {
+  display: flex;
+  background-color: #101014;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.kds-filter-tab {
+  border: none;
+  background: transparent;
+  color: #a1a1aa;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kds-filter-tab:hover {
+  color: #ffffff;
+}
+
+.kds-filter-tab.active {
+  background-color: #f59e0b;
+  color: #000000;
+  font-weight: 800;
+}
+
+.kds-btn-icon {
+  background-color: #1a1a20;
+  border: 1px solid #27272a;
+  color: #a1a1aa;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.kds-btn-icon:hover {
+  color: #ffffff;
+  border-color: #3f3f46;
+}
+
+.kds-btn-icon.active {
+  color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.kds-btn-icon.muted {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* 2. TABLERO DE 2 COLUMNAS */
+.kds-board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .kds-board {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.kds-column {
+  background-color: #121215;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.kds-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background-color: #18181c;
+  border-bottom: 1px solid #27272a;
+}
+
+.kds-col-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kds-col-dot-amber {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #f59e0b;
+}
+
+.kds-col-dot-cyan {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #06b6d4;
+  animation: kdsPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.kds-col-title {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #f4f4f5;
+  margin: 0;
+}
+
+.kds-col-badge-amber {
+  font-family: monospace;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: rgba(120, 53, 15, 0.7);
+  color: #fde68a;
+  border: 1px solid rgba(217, 119, 6, 0.6);
+}
+
+.kds-col-badge-cyan {
+  font-family: monospace;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: rgba(22, 78, 99, 0.7);
+  color: #a5f3fc;
+  border: 1px solid rgba(8, 145, 178, 0.6);
+}
+
+.kds-col-body {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Scrollbar personalizado */
+.kds-col-body::-webkit-scrollbar {
+  width: 6px;
+}
+.kds-col-body::-webkit-scrollbar-track {
+  background: #121215;
+}
+.kds-col-body::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+/* Empty State */
+.kds-empty-box {
+  height: 100%;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #71717a;
+  text-align: center;
+  padding: 24px;
+}
+
+.kds-empty-box svg {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 8px;
+  stroke: #52525b;
+}
+
+.kds-empty-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #d4d4d8;
+  margin: 0 0 4px 0;
+}
+
+.kds-empty-desc {
+  font-size: 12px;
+  color: #a1a1aa;
+  margin: 0;
+}
+
+/* 3. TARJETA DE COMANDA */
+.kds-card {
+  background-color: #16161a;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.15s ease;
+}
+
+.kds-card-primera {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.5), 0 8px 24px rgba(245, 158, 11, 0.12);
+}
+
+.kds-card-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #27272a;
+  padding-bottom: 8px;
+  gap: 8px;
+}
+
+.kds-card-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kds-comanda-id {
+  font-size: 18px;
+  font-weight: 900;
+  font-family: monospace;
+  color: #ffffff;
+}
+
+.kds-badge-delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background-color: rgba(88, 28, 135, 0.8);
+  color: #d8b4fe;
+  border: 1px solid rgba(147, 51, 234, 0.7);
+}
+
+.kds-badge-pickup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background-color: rgba(30, 58, 138, 0.8);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.7);
+}
+
+.kds-badge-local {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background-color: rgba(6, 78, 59, 0.8);
+  color: #86efac;
+  border: 1px solid rgba(16, 185, 129, 0.7);
+}
+
+.kds-badge-credito {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background-color: rgba(180, 83, 9, 0.25);
+  color: #fde047;
+  border: 1px solid rgba(245, 158, 11, 0.7);
+}
+
+/* Cronómetro */
+.kds-timer-pill {
+  font-family: monospace;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid;
+  letter-spacing: 0.05em;
+}
+
+.kds-timer-green {
+  background-color: rgba(6, 78, 59, 0.6);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.kds-timer-amber {
+  background-color: rgba(120, 53, 15, 0.7);
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.7);
+}
+
+.kds-timer-red {
+  background-color: rgba(127, 29, 29, 0.8);
+  color: #fca5a5;
+  border-color: #ef4444;
+  animation: kdsPulse 1.5s infinite;
+}
+
+/* Fila de Cocción y Cliente */
+.kds-coccion-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kds-badge-coccion {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border: 1px solid;
+}
+
+.kds-badge-coccion.fritas {
+  background-color: rgba(234, 88, 12, 0.18);
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.4);
+}
+
+.kds-badge-coccion.asadas {
+  background-color: rgba(6, 182, 212, 0.18);
+  color: #67e8f9;
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.kds-badge-coccion.mixtas {
+  background-color: rgba(168, 85, 247, 0.18);
+  color: #d8b4fe;
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.kds-badge-coccion.normal {
+  background-color: #27272a;
+  color: #d4d4d8;
+  border-color: #3f3f46;
+}
+
+.kds-client-name {
+  font-size: 12px;
+  color: #a1a1aa;
+  font-weight: 600;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kds-client-name strong {
+  color: #f4f4f5;
+}
+
+/* Lista de Ítems / Arepas */
+.kds-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kds-item-card {
+  background-color: #1a1a20;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.kds-item-main {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.kds-item-qty {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 900;
+  color: #f59e0b;
+}
+
+.kds-item-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kds-extras-list {
+  margin-top: 4px;
+  padding-left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kds-extra-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kds-extra-arrow {
+  color: #71717a;
+  font-size: 12px;
+}
+
+.kds-extra-name {
+  color: #fef08a;
+}
+
+.kds-item-nota {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #fde68a;
+  background-color: rgba(120, 53, 15, 0.4);
+  border: 1px solid rgba(180, 83, 9, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-style: italic;
+}
+
+.kds-alerta-comanda {
+  margin-top: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background-color: rgba(120, 53, 15, 0.5);
+  border: 1px solid rgba(217, 119, 6, 0.8);
+  color: #fde68a;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kds-alerta-comanda svg {
+  width: 16px;
+  height: 16px;
+  color: #f59e0b;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Botón de Acción */
+.kds-action-btn-wrap {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #27272a;
+}
+
+.kds-btn-action {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.kds-btn-action:active {
+  transform: scale(0.98);
+}
+
+.kds-btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kds-btn-plancha {
+  background-color: #f59e0b;
+  color: #000000;
+}
+
+.kds-btn-plancha:hover:not(:disabled) {
+  background-color: #fbbf24;
+}
+
+.kds-btn-lista {
+  background-color: #10b981;
+  color: #000000;
+}
+
+.kds-btn-lista:hover:not(:disabled) {
+  background-color: #34d399;
+}
+
+.kds-kbd-badge {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: #000000;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* 4. BARRA INFERIOR / RECIÉN LISTAS */
+.kds-footer {
+  background-color: #101014;
+  border-top: 1px solid #27272a;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.kds-drawer-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.kds-drawer-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.kds-drawer-empty {
+  color: #71717a;
+  font-style: italic;
+  font-size: 11px;
+}
+
+.kds-recent-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+}
+
+.kds-recent-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #18181c;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.kds-recent-id {
+  font-family: monospace;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.kds-recent-client {
+  font-size: 11px;
+  color: #a1a1aa;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kds-btn-undo {
+  border: none;
+  background: transparent;
+  color: #f59e0b;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.kds-btn-undo:hover {
+  color: #fbbf24;
+}
+
+.kds-shortcuts-legend {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  color: #d4d4d8;
+  font-size: 11px;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+@media (min-width: 960px) {
+  .kds-shortcuts-legend {
+    display: flex;
+  }
+}
+
+.kds-shortcuts-legend kbd {
+  background-color: #27272a;
+  color: #e4e4e7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #3f3f46;
+  font-weight: 700;
+}
+
+/* 5. TOAST FEEDBACK */
+.kds-feedback-toast {
+  position: fixed;
+  bottom: 50px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  border: 1px solid;
+}
+
+.kds-feedback-toast.exito {
+  background-color: rgba(6, 78, 59, 0.95);
+  color: #a7f3d0;
+  border-color: #059669;
+}
+
+.kds-feedback-toast.error {
+  background-color: rgba(127, 29, 29, 0.95);
+  color: #fecaca;
+  border-color: #dc2626;
+}
+
+@keyframes kdsPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* 6. BANNERS DE ALERTA DEL SISTEMA */
+.kds-banner-alerta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  border-bottom: 1px solid transparent;
+}
+
+.kds-banner-alerta.error {
+  background-color: rgba(127, 29, 29, 0.95);
+  color: #fee2e2;
+  border-color: #dc2626;
+}
+
+.kds-banner-alerta.audio {
+  background-color: rgba(30, 58, 138, 0.95);
+  color: #dbeafe;
+  border-color: #3b82f6;
+  cursor: pointer;
+}
+
+.kds-banner-texto {
+  flex: 1;
+}
+
+.kds-banner-btn {
+  background-color: #ffffff;
+  color: #0f172a;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.kds-banner-btn:hover {
+  opacity: 0.9;
+}
+
+/* 7. ACCESIBILIDAD Y FOCO VISIBLE */
+.kds-wrapper button:focus-visible,
+.kds-wrapper a:focus-visible,
+.kds-wrapper [tabindex]:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* 8. MOVIMIENTO REDUCIDO */
+@media (prefers-reduced-motion: reduce) {
+  .kds-wrapper *,
+  .kds-wrapper *::before,
+  .kds-wrapper *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* 9. UTILIDAD DE ACCESIBILIDAD SR-ONLY */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

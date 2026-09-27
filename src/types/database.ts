@@ -187,7 +187,7 @@ export type Venta = {
   notas_comanda: string | null;
   creado_por?: string | null;
   origen_pedido?: OrigenPedido | null;
-  creado_el: string;
+  creado_el?: string;
   cliente?: Cliente;
   items?: VentaItem[];
 };

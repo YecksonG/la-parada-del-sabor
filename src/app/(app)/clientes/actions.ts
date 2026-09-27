@@ -95,10 +95,26 @@ export type RegistrarPagoCreditoPayload = {
   tag_abono: string;
 };
 
+const METODOS_PAGO_VALIDOS: MetodoPago[] = [
+  "pago_movil",
+  "pago_movil_bs",
+  "efectivo_usd",
+  "efectivo_bs",
+  "transferencia",
+  "binance",
+  "zelle",
+  "pago_mixto",
+  "credito",
+];
+
 export async function registrarPagoComandaCredito(payload: RegistrarPagoCreditoPayload) {
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!payload.venta_id || !UUID_REGEX.test(payload.venta_id)) {
     return { ok: false, error: "Identificador de comanda inválido." };
+  }
+
+  if (!METODOS_PAGO_VALIDOS.includes(payload.metodo_pago_abono)) {
+    return { ok: false, error: "Método de pago de abono inválido." };
   }
 
   const supabase = await createClient();
@@ -119,17 +135,22 @@ export async function registrarPagoComandaCredito(payload: RegistrarPagoCreditoP
   const notasActuales = venta.notas_comanda ? venta.notas_comanda.trim() : "";
   const nuevasNotas = notasActuales ? `${notasActuales} • ${payload.tag_abono}` : payload.tag_abono;
 
-  const updateFields: Record<string, any> = {
+  const updateFields: Record<string, unknown> = {
     notas_comanda: nuevasNotas,
   };
 
   if (payload.es_pago_total) {
-    // Si saldó la deuda completamente
-    updateFields.estado = "completada";
+    // Si saldó la deuda completamente:
+    // Si la venta está aún en cocina (pendiente, preparando, lista), NO cambiar el estado para que permanezca en el KDS
+    if (venta.estado !== "preparando" && venta.estado !== "lista" && venta.estado !== "pendiente") {
+      updateFields.estado = "completada";
+    }
     updateFields.metodo_pago = payload.metodo_pago_abono;
   } else {
-    // Abono parcial: permanece en credito pero registramos el abono en notas
-    updateFields.estado = "credito";
+    // Abono parcial: si estaba en credito permanece en credito; si ya estaba en cocina o completada, no alterar estado operativo
+    if (venta.estado === "credito") {
+      updateFields.estado = "credito";
+    }
   }
 
   const { error: updateError } = await supabase
@@ -143,6 +164,7 @@ export async function registrarPagoComandaCredito(payload: RegistrarPagoCreditoP
 
   revalidatePath("/clientes");
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/dashboard");
   revalidatePath("/caja");
   revalidatePath("/");
@@ -182,12 +204,12 @@ export async function eliminarAbonoComandaCredito(payload: {
     .replace(/\s*•\s*$/, "")
     .trim();
 
-  const updateFields: Record<string, any> = {
+  const updateFields: Record<string, unknown> = {
     notas_comanda: limpias.length > 0 ? limpias : null,
   };
 
-  // Si estaba completada por error o habia saldado, al eliminar abono vuelve a estado credito
-  if (venta.estado === "completada") {
+  // Si no está completada ni lista, al eliminar abono el estado y método vuelven a credito
+  if (venta.estado !== "completada" && venta.estado !== "lista") {
     updateFields.estado = "credito";
     updateFields.metodo_pago = "credito";
   }
@@ -203,6 +225,7 @@ export async function eliminarAbonoComandaCredito(payload: {
 
   revalidatePath("/clientes");
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/dashboard");
   revalidatePath("/caja");
   revalidatePath("/");
@@ -239,11 +262,13 @@ export async function limpiarTodosAbonosComandaCredito(payload: {
     .replace(/\s*•\s*$/, "")
     .trim();
 
-  const updateFields: Record<string, any> = {
+  const updateFields: Record<string, unknown> = {
     notas_comanda: limpias.length > 0 ? limpias : null,
-    estado: "credito",
-    metodo_pago: "credito",
   };
+  if (venta.estado !== "completada" && venta.estado !== "lista") {
+    updateFields.estado = "credito";
+    updateFields.metodo_pago = "credito";
+  }
 
   const { error: updateError } = await supabase
     .from("ventas")
@@ -256,9 +281,10 @@ export async function limpiarTodosAbonosComandaCredito(payload: {
 
   revalidatePath("/clientes");
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/dashboard");
   revalidatePath("/caja");
   revalidatePath("/");
 
-  return { ok: true, notas_comanda: updateFields.notas_comanda, estado: updateFields.estado };
+  return { ok: true, notas_comanda: updateFields.notas_comanda, estado: updateFields.estado || venta.estado };
 }

@@ -23,7 +23,7 @@ const METODOS_PAGO_VALIDOS: MetodoPago[] = [
 const TRANSICIONES_VALIDAS: Record<EstadoVenta, EstadoVenta[]> = {
   pendiente: ["preparando", "cancelada", "credito"],
   preparando: ["lista", "completada", "cancelada", "credito"],
-  lista: ["completada", "cancelada", "credito"],
+  lista: ["preparando", "completada", "cancelada", "credito"],
   credito: ["completada", "cancelada", "preparando", "lista"],
   completada: ["cancelada", "credito"],
   cancelada: ["preparando", "credito"],
@@ -68,6 +68,7 @@ export async function cambiarEstadoVenta(venta_id: string, nuevoEstado: EstadoVe
   if (errorUpdate) return { ok: false, error: errorUpdate.message };
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/caja");
   revalidatePath("/dashboard");
   revalidatePath("/insumos");
@@ -135,6 +136,7 @@ export async function actualizarMetodoPagoVenta(
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/caja");
   revalidatePath("/clientes");
   revalidatePath("/dashboard");
@@ -207,6 +209,7 @@ export async function actualizarPagoFraccionadoVenta(payload: {
   }
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/caja");
   revalidatePath("/clientes");
   revalidatePath("/dashboard");
@@ -341,6 +344,7 @@ export async function actualizarDetallesComanda(payload: ActualizarComandaPayloa
   if (errorUpdate) return { ok: false, error: errorUpdate.message };
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/caja");
   revalidatePath("/clientes");
   revalidatePath("/dashboard");
@@ -405,6 +409,7 @@ export async function eliminarComanda(venta_id: string) {
   }
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/caja");
   revalidatePath("/clientes");
   revalidatePath("/dashboard");
@@ -463,6 +468,7 @@ export async function actualizarCoccionItemComanda(
   if (updErr) return { ok: false, error: updErr.message };
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/dashboard");
   revalidatePath(`/recibo/${item.venta_id}`);
 
@@ -490,6 +496,7 @@ export async function actualizarNotasItemComanda(
   if (updErr) return { ok: false, error: updErr.message };
 
   revalidatePath("/ventas");
+  revalidatePath("/cocina");
   revalidatePath("/dashboard");
 
   return { ok: true };

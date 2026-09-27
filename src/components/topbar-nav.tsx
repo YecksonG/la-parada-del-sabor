@@ -16,14 +16,203 @@ interface TopbarNavProps {
 type NavCategory = {
   id: string;
   label: string;
-  icon: string;
+  icon: string | React.ReactNode;
   items: {
     href: string;
     label: string;
-    icon: string;
+    icon: string | React.ReactNode;
     desc: string;
   }[];
 };
+
+function IconPlancha() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "inline-block", verticalAlign: "middle" }}
+      aria-hidden="true"
+    >
+      <path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+    </svg>
+  );
+}
+
+function IconCart() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "inline-block", verticalAlign: "middle" }}
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  );
+}
+
+function IconClipboard() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "inline-block", verticalAlign: "middle" }}
+      aria-hidden="true"
+    >
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+      <path d="M9 12h6M9 16h6" />
+    </svg>
+  );
+}
+
+function IconCash() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "inline-block", verticalAlign: "middle" }}
+      aria-hidden="true"
+    >
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <circle cx="12" cy="12" r="2" />
+      <path d="M6 12h.01M18 12h.01" />
+    </svg>
+  );
+}
+
+function IconGlobe() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
+function IconBook() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
+function IconBox() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  );
+}
+
+function IconUsers() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function IconBuilding() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+      <line x1="9" y1="22" x2="9" y2="22.01" />
+      <line x1="15" y1="22" x2="15" y2="22.01" />
+      <line x1="9" y1="6" x2="9" y2="6.01" />
+      <line x1="15" y1="6" x2="15" y2="6.01" />
+      <line x1="9" y1="10" x2="9" y2="10.01" />
+      <line x1="15" y1="10" x2="15" y2="10.01" />
+      <line x1="9" y1="14" x2="9" y2="14.01" />
+      <line x1="15" y1="14" x2="15" y2="14.01" />
+      <line x1="9" y1="18" x2="9" y2="18.01" />
+      <line x1="15" y1="18" x2="15" y2="18.01" />
+    </svg>
+  );
+}
+
+function IconChart() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  );
+}
+
+function IconBriefcase() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+  );
+}
+
+function IconCurrency() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
+}
+
+function IconBell() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function IconBellOff() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+      <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+      <path d="M18 8a6 6 0 0 0-9.33-5" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
 
 export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   const pathname = usePathname();
@@ -37,10 +226,11 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   const inicial = nombre.charAt(0).toUpperCase();
 
   // Enlaces de Acción Rápida (Operativos del Día a Día)
-  const enlacesDirectos = [
-    { href: "/", label: "POS", icon: "🛒" },
-    { href: "/ventas", label: "Comandas", icon: "📋" },
-    { href: "/caja", label: "Caja", icon: "💰" },
+  const enlacesDirectos: { href: string; label: string; icon: React.ReactNode }[] = [
+    { href: "/", label: "POS", icon: <IconCart /> },
+    { href: "/ventas", label: "Comandas", icon: <IconClipboard /> },
+    { href: "/cocina", label: "Cocina KDS", icon: <IconPlancha /> },
+    { href: "/caja", label: "Caja", icon: <IconCash /> },
   ];
 
   // Categorías de Gestión Agrupadas
@@ -48,12 +238,12 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     {
       id: "web",
       label: "Canal Digital",
-      icon: "🌐",
+      icon: <IconGlobe />,
       items: [
         {
           href: "/pedir",
           label: "Menú Online de Clientes",
-          icon: "🌐",
+          icon: <IconGlobe />,
           desc: "Portal de autoservicio para pedidos web",
         },
       ],
@@ -61,18 +251,18 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     {
       id: "cocina",
       label: "Cocina & Stock",
-      icon: "🌾",
+      icon: <IconBook />,
       items: [
         {
           href: "/recetas",
           label: "Recetas & Escandallo",
-          icon: "🌾",
+          icon: <IconBook />,
           desc: "Fórmulas exactas y costos por ración",
         },
         {
           href: "/insumos",
           label: "Despensa & Stock",
-          icon: "📦",
+          icon: <IconBox />,
           desc: "Stock, inventario y alertas mínimas",
         },
       ],
@@ -80,18 +270,18 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     {
       id: "directorio",
       label: "Directorio",
-      icon: "👥",
+      icon: <IconUsers />,
       items: [
         {
           href: "/proveedores",
           label: "Proveedores",
-          icon: "🏢",
+          icon: <IconBuilding />,
           desc: "Directorio e insumos suministrados",
         },
         {
           href: "/clientes",
           label: "Clientes",
-          icon: "👥",
+          icon: <IconUsers />,
           desc: "Historial, fidelidad y cuentas",
         },
       ],
@@ -99,24 +289,24 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     {
       id: "gestion",
       label: "Gestión",
-      icon: "📊",
+      icon: <IconChart />,
       items: [
         {
           href: "/dashboard",
           label: "Dashboard",
-          icon: "📊",
+          icon: <IconChart />,
           desc: "Métricas, ventas y finanzas en vivo",
         },
         {
           href: "/gastos",
           label: "Compras & Gastos",
-          icon: "💼",
+          icon: <IconBriefcase />,
           desc: "Entrada de stock, servicios, nómina y cuentas",
         },
         {
           href: "/tasas",
           label: "Tasas Cambiarias",
-          icon: "💵",
+          icon: <IconCurrency />,
           desc: "BCV, Paralelo y calculadora dual",
         },
       ],
@@ -124,9 +314,10 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   ];
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    const frame = requestAnimationFrame(() => {
       setSoundEnabled(sounds.isEnabled());
-    }
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const handleToggleSound = () => {
@@ -134,12 +325,14 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     setSoundEnabled(nextState);
   };
 
-  // Cerrar menús al cambiar de ruta
-  useEffect(() => {
+  // Cerrar menús al cambiar de ruta ajustando estado en render (patrón recomendado por React)
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
     setMenuAbierto(false);
     setDropdownUsuario(false);
     setActiveDropdown(null);
-  }, [pathname]);
+  }
 
   // Click outside y Escape para cerrar dropdowns
   useEffect(() => {
@@ -199,7 +392,18 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
             aria-label="Abrir menú de navegación"
             aria-expanded={menuAbierto}
           >
-            {menuAbierto ? "✕" : "☰"}
+            {menuAbierto ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
           </button>
 
           <Link href="/" className="topbar-brand" onClick={() => sounds.playPop()}>
@@ -256,7 +460,9 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
                 >
                   <span>{cat.icon}</span>
                   <span>{cat.label}</span>
-                  <span className={`nav-dropdown-chevron ${isOpen ? "open" : ""}`}>▼</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={`nav-dropdown-chevron ${isOpen ? "open" : ""}`} aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
                 </button>
 
                 {isOpen && (
@@ -307,7 +513,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
             title={soundEnabled ? "Sonidos gourmet activados" : "Sonidos silenciados"}
             aria-label={soundEnabled ? "Silenciar sonidos gourmet" : "Activar sonidos gourmet"}
           >
-            {soundEnabled ? "🔔" : "🔕"}
+            {soundEnabled ? <IconBell /> : <IconBellOff />}
           </button>
 
           <ThemeToggle />
@@ -331,16 +537,16 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
                   <span className="dropdown-user-role">Operador Gastronómico</span>
                 </div>
                 <div className="dropdown-divider"></div>
-                <Link href="/dashboard" className="nav-link" style={{ padding: "8px 10px" }}>
-                  📊 Ver Dashboard
+                <Link href="/dashboard" className="nav-link" style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <IconChart /> Ver Dashboard
                 </Link>
-                <Link href="/caja" className="nav-link" style={{ padding: "8px 10px" }}>
-                  💰 Control de Caja
+                <Link href="/caja" className="nav-link" style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <IconCash /> Control de Caja
                 </Link>
                 <div className="dropdown-divider"></div>
                 <form action={cerrarSesion}>
                   <button type="submit" className="dropdown-logout-btn">
-                    <span>🚪</span> Cerrar Sesión
+                    Cerrar Sesión
                   </button>
                 </form>
               </div>
@@ -383,7 +589,10 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
                 onClick={() => setMenuAbierto(false)}
                 aria-label="Cerrar menú"
               >
-                ✕
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 
@@ -391,7 +600,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
             <div className="mobile-drawer-body">
               {/* Sección 1: Operaciones */}
               <div className="mobile-drawer-group">
-                <div className="mobile-drawer-group-label">⚡ Operaciones</div>
+                <div className="mobile-drawer-group-label">Operaciones</div>
                 {enlacesDirectos.map((enlace) => {
                   const activo = pathname === enlace.href;
                   return (
@@ -454,7 +663,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
               </div>
               <form action={cerrarSesion} style={{ width: "100%" }}>
                 <button type="submit" className="mobile-drawer-logout-btn">
-                  <span>🚪</span> Cerrar Sesión
+                  Cerrar Sesión
                 </button>
               </form>
             </div>

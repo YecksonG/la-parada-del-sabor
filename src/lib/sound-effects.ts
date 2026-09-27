@@ -14,14 +14,31 @@ class SoundEngine {
 
   private initCtx() {
     if (!this.ctx && typeof window !== "undefined") {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         this.ctx = new AudioCtx();
       }
     }
     if (this.ctx && this.ctx.state === "suspended") {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
+  }
+
+  public async resumeContext(): Promise<boolean> {
+    this.initCtx();
+    if (!this.ctx) return false;
+    if (this.ctx.state === "suspended") {
+      try {
+        await this.ctx.resume();
+      } catch {
+        return false;
+      }
+    }
+    return (this.ctx.state as string) === "running";
+  }
+
+  public isSuspended(): boolean {
+    return !!(this.ctx && this.ctx.state === "suspended");
   }
 
   public isEnabled(): boolean {
@@ -61,7 +78,7 @@ class SoundEngine {
 
       osc.start();
       osc.stop(this.ctx.currentTime + 0.08);
-    } catch (e) {
+    } catch {
       // Audio context ignore
     }
   }
@@ -98,7 +115,7 @@ class SoundEngine {
       gain2.connect(this.ctx.destination);
       osc2.start(now);
       osc2.stop(now + 0.5);
-    } catch (e) {}
+    } catch {}
   }
 
   // Sonido 3: Caja Registradora / Monedas (Chime al facturar con éxito)
@@ -128,7 +145,7 @@ class SoundEngine {
         osc.start(startTime);
         osc.stop(startTime + 0.35);
       });
-    } catch (e) {}
+    } catch {}
   }
 
   // Sonido 4: Descartar / Restar item
@@ -154,7 +171,7 @@ class SoundEngine {
 
       osc.start(now);
       osc.stop(now + 0.1);
-    } catch (e) {}
+    } catch {}
   }
 
   // Sonido 5: Notificación / Estado actualizado (Chime suave y placentero)
@@ -184,7 +201,7 @@ class SoundEngine {
         osc.start(startTime);
         osc.stop(startTime + 0.3);
       });
-    } catch (e) {}
+    } catch {}
   }
 }
 
