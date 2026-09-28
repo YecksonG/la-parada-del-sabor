@@ -184,6 +184,7 @@ export type Venta = {
   delivery_monto_bs?: number | null;
   direccion_delivery?: string | null;
   estado: EstadoVenta;
+  en_cola_kds?: boolean | null;
   notas_comanda: string | null;
   creado_por?: string | null;
   origen_pedido?: OrigenPedido | null;

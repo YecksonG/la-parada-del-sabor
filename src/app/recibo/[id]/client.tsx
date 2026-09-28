@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { obtenerEstadoRecibo } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import { parsearPagoMixtoDeNotas, METODOS_FRACCION_INFO } from "@/lib/pago-mixto";
+import { limpiarTagKdsCola } from "@/app/(app)/cocina/constants";
 
 type ReciboItemExtra = {
   id: string;
@@ -683,13 +684,17 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
             </div>
           </div>
 
-          {/* Notas generales de la comanda */}
-          {venta.notas_comanda && (
-            <div className="recibo-order-note">
-              <span className="recibo-order-note-title">Observaciones:</span>
-              <p>{venta.notas_comanda}</p>
-            </div>
-          )}
+          {/* Notas generales de la comanda (sanitizadas de tags internos de KDS) */}
+          {(() => {
+            const notasLimpias = limpiarTagKdsCola(venta.notas_comanda);
+            if (!notasLimpias) return null;
+            return (
+              <div className="recibo-order-note">
+                <span className="recibo-order-note-title">Observaciones:</span>
+                <p>{notasLimpias}</p>
+              </div>
+            );
+          })()}
 
           {/* Resumen Financiero Dual */}
           <div className="recibo-totals-box">
@@ -1092,7 +1097,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                         💵 Pedido registrado con solicitud de cambio / vuelto.
                       </p>
                       <p style={{ margin: "4px 0 0 0", fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>
-                        {venta.notas_comanda}
+                        {limpiarTagKdsCola(venta.notas_comanda)}
                       </p>
                     </div>
                   ) : (

@@ -4,9 +4,10 @@ import { useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore
 import { Venta, VentaItem, VentaItemExtra } from "@/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { cambiarEstadoVenta } from "@/app/(app)/ventas/actions";
+import { devolverComandaAColaAction, moverComandaAPlanchaAction } from "./actions";
 import { sounds } from "@/lib/sound-effects";
 import { getComboArepasCount, esArepaIndividual } from "@/lib/combo-helper";
-import { KDS_SELECT_VENTAS, KDS_ESTADOS_ACTIVOS } from "./constants";
+import { KDS_SELECT_VENTAS, KDS_ESTADOS_ACTIVOS, TAG_KDS_COLA, limpiarTagKdsCola } from "./constants";
 
 let soundListeners: Array<() => void> = [];
 function notifySoundChange() {
@@ -29,6 +30,14 @@ const NOOP_SUBSCRIBE = () => () => {};
 interface CocinaClientProps {
   initialVentas: Venta[];
   initialError?: string | null;
+}
+
+interface AccionHistorial {
+  id: string;
+  numeroComanda: number | string;
+  tipo: "a_plancha" | "a_lista" | "a_cola";
+  estadoPrevio: "pendiente" | "credito" | "preparando" | "lista";
+  timestamp: number;
 }
 
 // Helper para clasificar tipo de cocción predominante en la comanda
@@ -86,6 +95,9 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
   const [procesandoIds, setProcesandoIds] = useState<Record<string, number>>({});
   const [pantallaCompleta, setPantallaCompleta] = useState<boolean>(false);
   const [ultimaCompletadaId, setUltimaCompletadaId] = useState<string | null>(null);
+  const [historialAcciones, setHistorialAcciones] = useState<AccionHistorial[]>([]);
+  const [columnaActiva, setColumnaActiva] = useState<"nuevas" | "plancha">("plancha");
+  const [comandaSeleccionadaId, setComandaSeleccionadaId] = useState<string | null>(null);
   const [tiempoTick, setTiempoTick] = useState<number>(0);
   const isClient = useSyncExternalStore(NOOP_SUBSCRIBE, () => true, () => false);
   const [feedback, setFeedback] = useState<{ tipo: "exito" | "error"; texto: string } | null>(null);
@@ -95,6 +107,9 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
   const comandasFiltradasRef = useRef<Venta[]>([]);
   const comandasRecienListasRef = useRef<Venta[]>([]);
   const ultimaCompletadaIdRef = useRef(ultimaCompletadaId);
+  const historialAccionesRef = useRef<AccionHistorial[]>(historialAcciones);
+  const columnaActivaRef = useRef<"nuevas" | "plancha">(columnaActiva);
+  const comandaSeleccionadaIdRef = useRef<string | null>(comandaSeleccionadaId);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const procesandoIdsRef = useRef<Record<string, number>>({});
 
@@ -105,6 +120,18 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
   useEffect(() => {
     ultimaCompletadaIdRef.current = ultimaCompletadaId;
   }, [ultimaCompletadaId]);
+
+  useEffect(() => {
+    historialAccionesRef.current = historialAcciones;
+  }, [historialAcciones]);
+
+  useEffect(() => {
+    columnaActivaRef.current = columnaActiva;
+  }, [columnaActiva]);
+
+  useEffect(() => {
+    comandaSeleccionadaIdRef.current = comandaSeleccionadaId;
+  }, [comandaSeleccionadaId]);
 
   // Retención accesible de foco tras el avance de una comanda
   useEffect(() => {
@@ -318,32 +345,36 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
           } else if (payload.eventType === "UPDATE") {
             const updated = payload.new as Partial<Venta>;
             if (updated.id) {
-              if (updated.estado) {
-                if (updated.estado === "cancelada" || updated.estado === "completada") {
-                  setVentas((prev) => prev.filter((v) => v.id !== updated.id));
-                } else {
-                  setVentas((prev) =>
-                    prev.map((v) => (v.id === updated.id ? ({ ...v, ...updated } as Venta) : v))
-                  );
-                }
+              if (updated.estado === "cancelada" || updated.estado === "completada") {
+                setVentas((prev) => prev.filter((v) => v.id !== updated.id));
               } else {
-                // Fallback defensivo si REPLICA IDENTITY de Postgres no envía la fila completa
-                supabase
-                  .from("ventas")
-                  .select("id, estado")
-                  .eq("id", updated.id)
-                  .single()
-                  .then(({ data }) => {
-                    if (data) {
-                      if (data.estado === "cancelada" || data.estado === "completada") {
-                        setVentas((prev) => prev.filter((v) => v.id !== data.id));
-                      } else {
-                        setVentas((prev) =>
-                          prev.map((v) => (v.id === data.id ? { ...v, estado: data.estado } : v))
-                        );
+                setVentas((prev) =>
+                  prev.map((v) => (v.id === updated.id ? ({ ...v, ...updated } as Venta) : v))
+                );
+
+                // Si faltan campos clave por REPLICA IDENTITY DEFAULT, sincronizar fila completa
+                if (updated.notas_comanda === undefined && updated.en_cola_kds === undefined) {
+                  supabase
+                    .from("ventas")
+                    .select("id, estado, notas_comanda, en_cola_kds")
+                    .eq("id", updated.id)
+                    .single()
+                    .then(({ data }) => {
+                      if (data) {
+                        if (data.estado === "cancelada" || data.estado === "completada") {
+                          setVentas((prev) => prev.filter((v) => v.id !== data.id));
+                        } else {
+                          setVentas((prev) =>
+                            prev.map((v) =>
+                              v.id === data.id
+                                ? { ...v, estado: data.estado, notas_comanda: data.notas_comanda, en_cola_kds: data.en_cola_kds }
+                                : v
+                            )
+                          );
+                        }
                       }
-                    }
-                  });
+                    });
+                }
               }
             }
           } else if (payload.eventType === "DELETE") {
@@ -390,14 +421,14 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
 
   // 4. Acciones de avance de estado (Con retroalimentación inmediata por ítem y TTL defensivo)
   const avanzarComanda = useCallback(
-    async (id: string, nuevoEstado: "preparando" | "lista") => {
+    async (id: string, nuevoEstado: "preparando" | "lista"): Promise<boolean> => {
       const now = Date.now();
       const nextProcesando = { ...procesandoIdsRef.current };
       for (const [k, ts] of Object.entries(nextProcesando)) {
         if (now - ts > 20000) delete nextProcesando[k];
       }
       if (nextProcesando[id]) {
-        return;
+        return false;
       }
       nextProcesando[id] = now;
       procesandoIdsRef.current = nextProcesando;
@@ -410,18 +441,30 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
 
       if (hadFocus) {
         if (nuevoEstado === "preparando") {
-          const col1 = comandasFiltradasRef.current.filter((v) => v.estado === "pendiente" || v.estado === "credito");
+          const col1 = comandasFiltradasRef.current.filter(
+            (v) =>
+              v.estado === "pendiente" ||
+              v.estado === "credito" ||
+              (v.estado === "preparando" && v.notas_comanda?.includes(TAG_KDS_COLA))
+          );
           const idx = col1.findIndex((v) => v.id === id);
           const sig = col1[idx + 1] || col1[idx - 1];
           enfocarProximaRef.current = sig ? sig.id : id;
         } else {
-          const col2 = comandasFiltradasRef.current.filter((v) => v.estado === "preparando");
+          const col2 = comandasFiltradasRef.current.filter(
+            (v) => v.estado === "preparando" && !v.notas_comanda?.includes(TAG_KDS_COLA)
+          );
           const idx = col2.findIndex((v) => v.id === id);
           const sig = col2[idx + 1] || col2[idx - 1];
           if (sig) {
             enfocarProximaRef.current = sig.id;
           } else {
-            const col1 = comandasFiltradasRef.current.filter((v) => v.estado === "pendiente" || v.estado === "credito");
+            const col1 = comandasFiltradasRef.current.filter(
+              (v) =>
+                v.estado === "pendiente" ||
+                v.estado === "credito" ||
+                (v.estado === "preparando" && v.notas_comanda?.includes(TAG_KDS_COLA))
+            );
             enfocarProximaRef.current = col1[0] ? col1[0].id : "kds-filtro-todos";
           }
         }
@@ -429,17 +472,45 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
 
       const ventaPrevia = ventasRef.current.find((v) => v.id === id);
       const estadoPrevio = ventaPrevia?.estado || "pendiente";
+      const notasPrevias = ventaPrevia?.notas_comanda || null;
 
       // Optimistic update
-      setVentas((prev) =>
-        prev.map((v) => (v.id === id ? { ...v, estado: nuevoEstado } : v))
-      );
-
-      if (nuevoEstado === "lista") {
+      if (nuevoEstado === "preparando") {
+        const notasLimpias = limpiarTagKdsCola(notasPrevias);
+        setVentas((prev) =>
+          prev.map((v) =>
+            v.id === id
+              ? { ...v, estado: "preparando", en_cola_kds: false, notas_comanda: notasLimpias || null }
+              : v
+          )
+        );
+        if (soundEnabledRef.current) sounds.playPop();
+        setHistorialAcciones((prev) => [
+          {
+            id,
+            numeroComanda: ventaPrevia?.numero_comanda || id.slice(0, 4),
+            tipo: "a_plancha",
+            estadoPrevio: (estadoPrevio as "pendiente" | "credito" | "preparando") || "pendiente",
+            timestamp: Date.now(),
+          },
+          ...prev.slice(0, 19),
+        ]);
+      } else {
+        setVentas((prev) =>
+          prev.map((v) => (v.id === id ? { ...v, estado: "lista" } : v))
+        );
         setUltimaCompletadaId(id);
         if (soundEnabledRef.current) sounds.playCashRegister();
-      } else {
-        if (soundEnabledRef.current) sounds.playPop();
+        setHistorialAcciones((prev) => [
+          {
+            id,
+            numeroComanda: ventaPrevia?.numero_comanda || id.slice(0, 4),
+            tipo: "a_lista",
+            estadoPrevio: "preparando",
+            timestamp: Date.now(),
+          },
+          ...prev.slice(0, 19),
+        ]);
       }
 
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -447,32 +518,59 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
         const timeoutPromise = new Promise<{ ok: boolean; error?: string }>((resolve) => {
           timer = setTimeout(() => resolve({ ok: false, error: "TIMEOUT" }), 15000);
         });
-        const res = await Promise.race([cambiarEstadoVenta(id, nuevoEstado), timeoutPromise]);
+
+        const actionPromise =
+          nuevoEstado === "preparando"
+            ? moverComandaAPlanchaAction(id)
+            : cambiarEstadoVenta(id, "lista");
+
+        const res = await Promise.race([actionPromise, timeoutPromise]);
         if (timer) clearTimeout(timer);
 
         if (!res.ok) {
+          console.error("Error al actualizar estado en cocina:", res.error);
+          setVentas((prev) =>
+            prev.map((v) =>
+              v.id === id
+                ? {
+                    ...v,
+                    estado: estadoPrevio,
+                    notas_comanda: notasPrevias,
+                    en_cola_kds: ventaPrevia?.en_cola_kds,
+                  }
+                : v
+            )
+          );
+          if (nuevoEstado === "lista") {
+            setUltimaCompletadaId((prev) => (prev === id ? null : prev));
+          }
           if (res.error === "TIMEOUT") {
             mostrarFeedback("error", "Demora en conexión con el servidor. Se reconciliará automáticamente.");
           } else {
-            console.error("Error al actualizar estado en cocina:", res.error);
-            setVentas((prev) =>
-              prev.map((v) => (v.id === id ? { ...v, estado: estadoPrevio } : v))
-            );
-            if (nuevoEstado === "lista") {
-              setUltimaCompletadaId((prev) => (prev === id ? null : prev));
-            }
             mostrarFeedback("error", res.error || "No se pudo actualizar la comanda");
           }
+          return false;
         }
+        return true;
       } catch {
         if (timer) clearTimeout(timer);
         setVentas((prev) =>
-          prev.map((v) => (v.id === id ? { ...v, estado: estadoPrevio } : v))
+          prev.map((v) =>
+            v.id === id
+              ? {
+                  ...v,
+                  estado: estadoPrevio,
+                  notas_comanda: notasPrevias,
+                  en_cola_kds: ventaPrevia?.en_cola_kds,
+                }
+              : v
+          )
         );
         if (nuevoEstado === "lista") {
           setUltimaCompletadaId((prev) => (prev === id ? null : prev));
         }
         mostrarFeedback("error", "Error de red al actualizar comanda");
+        return false;
       } finally {
         const next = { ...procesandoIdsRef.current };
         delete next[id];
@@ -483,16 +581,113 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
     [mostrarFeedback]
   );
 
-  // 5. Reversión / Deshacer (G4) - Solo revierte de 'lista' a 'preparando'
-  const deshacerComanda = useCallback(
-    async (id: string) => {
+  // 5. Devolver comanda de Plancha a Cola (Por Entrar) sin alterar triggers de inventario
+  const devolverComandaACola = useCallback(
+    async (id: string): Promise<boolean> => {
       const now = Date.now();
       const nextProcesando = { ...procesandoIdsRef.current };
       for (const [k, ts] of Object.entries(nextProcesando)) {
         if (now - ts > 20000) delete nextProcesando[k];
       }
       if (nextProcesando[id]) {
-        return;
+        return false;
+      }
+      nextProcesando[id] = now;
+      procesandoIdsRef.current = nextProcesando;
+      setProcesandoIds(nextProcesando);
+
+      const comandaActual = ventasRef.current.find((v) => v.id === id);
+      if (!comandaActual) {
+        const next = { ...procesandoIdsRef.current };
+        delete next[id];
+        procesandoIdsRef.current = next;
+        setProcesandoIds(next);
+        return false;
+      }
+
+      const notasPrevias = comandaActual.notas_comanda || "";
+      const enColaPrevia = comandaActual.en_cola_kds;
+      const notasConTag = notasPrevias ? `${notasPrevias} ${TAG_KDS_COLA}`.trim() : TAG_KDS_COLA;
+
+      // Optimistic update
+      setVentas((prev) =>
+        prev.map((v) =>
+          v.id === id
+            ? { ...v, en_cola_kds: true, notas_comanda: notasConTag }
+            : v
+        )
+      );
+      if (soundEnabledRef.current) sounds.playPop();
+
+      setHistorialAcciones((prev) => [
+        {
+          id,
+          numeroComanda: comandaActual.numero_comanda || id.slice(0, 4),
+          tipo: "a_cola",
+          estadoPrevio: "preparando",
+          timestamp: Date.now(),
+        },
+        ...prev.slice(0, 19),
+      ]);
+
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const timeoutPromise = new Promise<{ ok: boolean; error?: string }>((resolve) => {
+          timer = setTimeout(() => resolve({ ok: false, error: "TIMEOUT" }), 15000);
+        });
+        const res = await Promise.race([devolverComandaAColaAction(id), timeoutPromise]);
+        if (timer) clearTimeout(timer);
+
+        if (!res.ok) {
+          console.error("Error al devolver comanda:", res.error);
+          setVentas((prev) =>
+            prev.map((v) =>
+              v.id === id
+                ? { ...v, notas_comanda: notasPrevias || null, en_cola_kds: enColaPrevia }
+                : v
+            )
+          );
+          if (res.error === "TIMEOUT") {
+            mostrarFeedback("error", "Demora en conexión al devolver comanda. Se reconciliará en breve.");
+          } else {
+            mostrarFeedback("error", res.error || "No se pudo devolver la comanda");
+          }
+          return false;
+        } else {
+          mostrarFeedback("exito", `Comanda #${comandaActual.numero_comanda} devuelta a Por Entrar`);
+        }
+        return true;
+      } catch {
+        if (timer) clearTimeout(timer);
+        setVentas((prev) =>
+          prev.map((v) =>
+            v.id === id
+              ? { ...v, notas_comanda: notasPrevias || null, en_cola_kds: enColaPrevia }
+              : v
+          )
+        );
+        mostrarFeedback("error", "Error de red al devolver comanda");
+        return false;
+      } finally {
+        const next = { ...procesandoIdsRef.current };
+        delete next[id];
+        procesandoIdsRef.current = next;
+        setProcesandoIds(next);
+      }
+    },
+    [mostrarFeedback]
+  );
+
+  // 6. Reversión / Deshacer (G4) - Revierte de 'lista' a 'preparando' y limpia estado de cola
+  const deshacerComanda = useCallback(
+    async (id: string): Promise<boolean> => {
+      const now = Date.now();
+      const nextProcesando = { ...procesandoIdsRef.current };
+      for (const [k, ts] of Object.entries(nextProcesando)) {
+        if (now - ts > 20000) delete nextProcesando[k];
+      }
+      if (nextProcesando[id]) {
+        return false;
       }
       nextProcesando[id] = now;
       procesandoIdsRef.current = nextProcesando;
@@ -504,11 +699,17 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
         delete next[id];
         procesandoIdsRef.current = next;
         setProcesandoIds(next);
-        return;
+        return false;
       }
 
+      const notasLimpias = limpiarTagKdsCola(comandaActual.notas_comanda);
+
       setVentas((prev) =>
-        prev.map((v) => (v.id === id ? { ...v, estado: "preparando" } : v))
+        prev.map((v) =>
+          v.id === id
+            ? { ...v, estado: "preparando", en_cola_kds: false, notas_comanda: notasLimpias || null }
+            : v
+        )
       );
       if (ultimaCompletadaIdRef.current === id) setUltimaCompletadaId(null);
       if (soundEnabledRef.current) sounds.playPop();
@@ -522,23 +723,34 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
         if (timer) clearTimeout(timer);
 
         if (!res.ok) {
+          setVentas((prev) =>
+            prev.map((v) =>
+              v.id === id
+                ? { ...v, estado: "lista", en_cola_kds: comandaActual.en_cola_kds, notas_comanda: comandaActual.notas_comanda }
+                : v
+            )
+          );
           if (res.error === "TIMEOUT") {
             mostrarFeedback("error", "Demora en conexión al revertir. Se reconciliará en breve.");
           } else {
-            setVentas((prev) =>
-              prev.map((v) => (v.id === id ? { ...v, estado: "lista" } : v))
-            );
             mostrarFeedback("error", res.error || "No se pudo deshacer el estado de la comanda");
           }
+          return false;
         } else {
           mostrarFeedback("exito", `Comanda #${comandaActual.numero_comanda} devuelta a Plancha`);
         }
+        return true;
       } catch {
         if (timer) clearTimeout(timer);
         setVentas((prev) =>
-          prev.map((v) => (v.id === id ? { ...v, estado: "lista" } : v))
+          prev.map((v) =>
+            v.id === id
+              ? { ...v, estado: "lista", en_cola_kds: comandaActual.en_cola_kds, notas_comanda: comandaActual.notas_comanda }
+              : v
+          )
         );
         mostrarFeedback("error", "Error de red al deshacer comanda");
+        return false;
       } finally {
         const next = { ...procesandoIdsRef.current };
         delete next[id];
@@ -549,7 +761,34 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
     [mostrarFeedback]
   );
 
-  // 6. Filtrado y Agrupación de Comandas
+  // 7. Deshacer última acción (Unificado: devuelve a cola o devuelve a plancha) con pop exacto
+  const deshacerUltimaAccion = useCallback(async () => {
+    const historial = historialAccionesRef.current;
+    if (historial.length > 0) {
+      const ultima = historial[0];
+      let exito = false;
+      if (ultima.tipo === "a_plancha") {
+        exito = await devolverComandaACola(ultima.id);
+      } else if (ultima.tipo === "a_cola") {
+        exito = await avanzarComanda(ultima.id, "preparando");
+      } else {
+        exito = await deshacerComanda(ultima.id);
+      }
+      // M5: Desencolar siempre la acción intentada para prevenir bloqueo zombie en caso de error
+      setHistorialAcciones((prev) => prev.filter((item) => item !== ultima));
+    } else if (ultimaCompletadaIdRef.current) {
+      const exito = await deshacerComanda(ultimaCompletadaIdRef.current);
+      if (exito) {
+        setUltimaCompletadaId(null);
+      }
+    } else if (comandasRecienListasRef.current.length > 0) {
+      await deshacerComanda(comandasRecienListasRef.current[0].id);
+    } else {
+      mostrarFeedback("error", "No hay acciones recientes para deshacer");
+    }
+  }, [devolverComandaACola, avanzarComanda, deshacerComanda, mostrarFeedback]);
+
+  // 8. Filtrado y Agrupación de Comandas
   const comandasFiltradas = useMemo(() => {
     return ventas.filter((v) => {
       if (v.estado === "cancelada" || v.estado === "completada") return false;
@@ -562,6 +801,55 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
   useEffect(() => {
     comandasFiltradasRef.current = comandasFiltradas;
   }, [comandasFiltradas]);
+
+  const comandasNuevas = useMemo(
+    () =>
+      comandasFiltradas.filter(
+        (v) =>
+          v.estado === "pendiente" ||
+          v.estado === "credito" ||
+          v.en_cola_kds === true ||
+          (v.estado === "preparando" && v.notas_comanda?.includes(TAG_KDS_COLA))
+      ),
+    [comandasFiltradas]
+  );
+
+  const comandasEnPlancha = useMemo(
+    () =>
+      comandasFiltradas.filter(
+        (v) =>
+          v.estado === "preparando" &&
+          !v.en_cola_kds &&
+          !v.notas_comanda?.includes(TAG_KDS_COLA)
+      ),
+    [comandasFiltradas]
+  );
+
+  // Selección derivada pura sin setState dentro de useEffect (M-01)
+  const columnaActivaEfectiva = useMemo(() => {
+    const lista = columnaActiva === "nuevas" ? comandasNuevas : comandasEnPlancha;
+    if (lista.length > 0) return columnaActiva;
+    const otra = columnaActiva === "nuevas" ? comandasEnPlancha : comandasNuevas;
+    if (otra.length > 0) return columnaActiva === "nuevas" ? "plancha" : "nuevas";
+    return columnaActiva;
+  }, [columnaActiva, comandasNuevas, comandasEnPlancha]);
+
+  const comandaSeleccionadaEfectivaId = useMemo(() => {
+    const lista = columnaActivaEfectiva === "nuevas" ? comandasNuevas : comandasEnPlancha;
+    if (lista.length === 0) return null;
+    if (comandaSeleccionadaId && lista.some((c) => c.id === comandaSeleccionadaId)) {
+      return comandaSeleccionadaId;
+    }
+    return lista[0].id;
+  }, [columnaActivaEfectiva, comandasNuevas, comandasEnPlancha, comandaSeleccionadaId]);
+
+  useEffect(() => {
+    columnaActivaRef.current = columnaActivaEfectiva;
+  }, [columnaActivaEfectiva]);
+
+  useEffect(() => {
+    comandaSeleccionadaIdRef.current = comandaSeleccionadaEfectivaId;
+  }, [comandaSeleccionadaEfectivaId]);
 
   // Alternar Pantalla Completa
   const toggleFullScreen = useCallback(() => {
@@ -583,7 +871,7 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
     comandasRecienListasRef.current = comandasRecienListas;
   }, [comandasRecienListas]);
 
-  // Callbacks memoizados estables para evitar re-renderizado innecesario de TarjetaComanda (N7)
+  // Callbacks memoizados estables para TarjetaComanda
   const handleTirarAPlancha = useCallback(
     (id: string) => {
       avanzarComanda(id, "preparando");
@@ -598,10 +886,16 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
     [avanzarComanda]
   );
 
-  // Auto-desenfocar botones del KDS tras interacción de ratón/toque sin romper navegación por Tab (R1/MEDIO-01)
+  const handleDevolverACola = useCallback(
+    (id: string) => {
+      devolverComandaACola(id);
+    },
+    [devolverComandaACola]
+  );
+
+  // Auto-desenfocar botones del KDS tras interacción de ratón/toque sin romper navegación por Tab (WCAG 2.4.7)
   useEffect(() => {
     const handleAutoBlurButton = (e: MouseEvent | TouchEvent) => {
-      // Un click activado por teclado tiene detail === 0: desenfocarlo rompe la navegación accesible (WCAG 2.4.7)
       if (typeof (e as MouseEvent).detail === "number" && (e as MouseEvent).detail === 0) return;
       const btn = (e.target as HTMLElement)?.closest(".kds-wrapper button");
       if (btn) {
@@ -614,55 +908,154 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
     return () => window.removeEventListener("click", handleAutoBlurButton);
   }, []);
 
-  // 7. Atajos de Teclado Físicos (Excluye inputs, delega en botones KDS y descarta modificadores H3)
+  // 9. Atajos de Teclado Físicos (Opción C Híbrida: slots 1-9, flechas, Enter, Espacio, Backspace, Z, F)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignorar combinaciones con teclas modificadoras y repeticiones continuas de tecla sostenida (H3)
+      // WCAG 2.1.1: No interceptar eventos cuando el foco está en elementos de entrada de texto
+      if ((e.target as HTMLElement)?.closest("input, textarea, select")) {
+        return;
+      }
+      if ((e.target as HTMLElement)?.closest("button, a")) {
+        if (e.code === "Enter" || e.code === "Space") return;
+        (document.activeElement as HTMLElement)?.blur();
+      }
+
+      // Ignorar combinaciones con teclas modificadoras y repeticiones de tecla sostenida (H3)
       if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat) {
         return;
       }
 
-      if (["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName)) {
-        return;
-      }
+      const colActual = columnaActivaRef.current;
+      const nuevas = comandasFiltradasRef.current.filter(
+        (v) =>
+          v.estado === "pendiente" ||
+          v.estado === "credito" ||
+          v.en_cola_kds === true ||
+          (v.estado === "preparando" && v.notas_comanda?.includes(TAG_KDS_COLA))
+      );
+      const enPlancha = comandasFiltradasRef.current.filter(
+        (v) =>
+          v.estado === "preparando" &&
+          !v.en_cola_kds &&
+          !v.notas_comanda?.includes(TAG_KDS_COLA)
+      );
 
-      // G-01 & MEDIO-1: Si el foco está en CUALQUIER elemento interactivo (botones de cocina, topbar, enlaces),
-      // DELEGAR en el comportamiento nativo (Enter/Espacio -> click) y no interferir con la navegación (WCAG 2.1.1)
-      if ((e.target as HTMLElement)?.closest("button, a, input, textarea, select")) {
-        return;
-      }
-
-      // Espacio: Pasa la comanda más vieja visible en 'pendiente' o 'credito' a 'preparando'
-      if (e.code === "Space") {
-        const pendientes = comandasFiltradasRef.current.filter((v) => v.estado === "pendiente" || v.estado === "credito");
-        if (pendientes.length > 0) {
+      // 1. Teclas 1 a 9: Marcar directamente comanda en plancha por su número de slot
+      if (e.key >= "1" && e.key <= "9") {
+        const slotIdx = parseInt(e.key, 10) - 1;
+        if (enPlancha[slotIdx]) {
           e.preventDefault();
-          avanzarComanda(pendientes[0].id, "preparando");
+          avanzarComanda(enPlancha[slotIdx].id, "lista");
         }
+        return;
       }
 
-      // Enter: Pasa la comanda más vieja visible en 'preparando' a 'lista'
-      if (e.code === "Enter") {
-        const enPlancha = comandasFiltradasRef.current.filter((v) => v.estado === "preparando");
+      // 2. Flechas de navegación entre columnas y comandas
+      if (e.code === "ArrowRight") {
+        e.preventDefault();
+        setColumnaActiva("plancha");
         if (enPlancha.length > 0) {
-          e.preventDefault();
-          avanzarComanda(enPlancha[0].id, "lista");
+          const nextId = enPlancha.some((c) => c.id === comandaSeleccionadaIdRef.current)
+            ? comandaSeleccionadaIdRef.current!
+            : enPlancha[0].id;
+          setComandaSeleccionadaId(nextId);
+          const el = document.querySelector(`[data-card-id="${nextId}"]`);
+          el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
         }
+        return;
       }
 
-      // Tecla Z: Deshacer última lista (con fallback a la primera visible del drawer si F5)
+      if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        setColumnaActiva("nuevas");
+        if (nuevas.length > 0) {
+          const nextId = nuevas.some((c) => c.id === comandaSeleccionadaIdRef.current)
+            ? comandaSeleccionadaIdRef.current!
+            : nuevas[0].id;
+          setComandaSeleccionadaId(nextId);
+          const el = document.querySelector(`[data-card-id="${nextId}"]`);
+          el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        return;
+      }
+
+      if (e.code === "ArrowDown") {
+        e.preventDefault();
+        const lista = colActual === "nuevas" ? nuevas : enPlancha;
+        if (lista.length > 0) {
+          const curId = comandaSeleccionadaIdRef.current;
+          const idx = lista.findIndex((c) => c.id === curId);
+          const nextIdx = idx === -1 ? 0 : Math.min(idx + 1, lista.length - 1);
+          const nextId = lista[nextIdx].id;
+          setComandaSeleccionadaId(nextId);
+          const el = document.querySelector(`[data-card-id="${nextId}"]`);
+          el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        return;
+      }
+
+      if (e.code === "ArrowUp") {
+        e.preventDefault();
+        const lista = colActual === "nuevas" ? nuevas : enPlancha;
+        if (lista.length > 0) {
+          const curId = comandaSeleccionadaIdRef.current;
+          const idx = lista.findIndex((c) => c.id === curId);
+          const nextIdx = idx === -1 ? 0 : Math.max(idx - 1, 0);
+          const nextId = lista[nextIdx].id;
+          setComandaSeleccionadaId(nextId);
+          const el = document.querySelector(`[data-card-id="${nextId}"]`);
+          el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+        return;
+      }
+
+      // 3. Enter: Pasa la comanda seleccionada (o la primera visible)
+      if (e.code === "Enter") {
+        e.preventDefault();
+        if (colActual === "nuevas") {
+          const curId = comandaSeleccionadaIdRef.current;
+          const target = (curId ? nuevas.find((c) => c.id === curId) : null) || nuevas[0];
+          if (target) avanzarComanda(target.id, "preparando");
+        } else {
+          const curId = comandaSeleccionadaIdRef.current;
+          const target = (curId ? enPlancha.find((c) => c.id === curId) : null) || enPlancha[0];
+          if (target) avanzarComanda(target.id, "lista");
+        }
+        return;
+      }
+
+      // 4. Espacio: Pasa la comanda en nuevas a plancha
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (colActual !== "nuevas") return;
+        const curId = comandaSeleccionadaIdRef.current;
+        const target = (curId ? nuevas.find((c) => c.id === curId) : null) || nuevas[0];
+        if (target) {
+          avanzarComanda(target.id, "preparando");
+        }
+        return;
+      }
+
+      // 5. Backspace o Tecla D: Devolver comanda en plancha a cola
+      if (e.code === "Backspace" || e.code === "KeyD") {
+        e.preventDefault();
+        if (colActual !== "plancha") return;
+        const curId = comandaSeleccionadaIdRef.current;
+        const target = (curId ? enPlancha.find((c) => c.id === curId) : null) || enPlancha[0];
+        if (target) {
+          devolverComandaACola(target.id);
+        }
+        return;
+      }
+
+      // 6. Tecla Z: Deshacer última acción (volver a cola o volver a plancha)
       if (e.code === "KeyZ") {
         e.preventDefault();
-        if (ultimaCompletadaIdRef.current) {
-          deshacerComanda(ultimaCompletadaIdRef.current);
-        } else if (comandasRecienListasRef.current.length > 0) {
-          deshacerComanda(comandasRecienListasRef.current[0].id);
-        } else {
-          mostrarFeedback("error", "No hay comandas recientes en lista para deshacer");
-        }
+        deshacerUltimaAccion();
+        return;
       }
 
-      // Tecla F: Pantalla Completa
+      // 7. Tecla F: Pantalla Completa
       if (e.code === "KeyF") {
         e.preventDefault();
         toggleFullScreen();
@@ -671,17 +1064,7 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [avanzarComanda, deshacerComanda, toggleFullScreen, mostrarFeedback]);
-
-  const comandasNuevas = useMemo(
-    () => comandasFiltradas.filter((v) => v.estado === "pendiente" || v.estado === "credito"),
-    [comandasFiltradas]
-  );
-
-  const comandasEnPlancha = useMemo(
-    () => comandasFiltradas.filter((v) => v.estado === "preparando"),
-    [comandasFiltradas]
-  );
+  }, [avanzarComanda, devolverComandaACola, deshacerUltimaAccion, toggleFullScreen]);
 
   // 8. Resumen de Budare en Vivo (Cálculo exacto: arepas individuales y combos de arepas según filtroTipo activo)
   const metricasBudare = useMemo(() => {
@@ -962,9 +1345,14 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
                   key={comanda.id}
                   comanda={comanda}
                   esPrimera={idx === 0}
+                  esSeleccionada={columnaActivaEfectiva === "nuevas" && comanda.id === comandaSeleccionadaEfectivaId}
                   mounted={isClient}
                   tick={tiempoTick}
                   onAvanzar={handleTirarAPlancha}
+                  onSeleccionar={() => {
+                    setColumnaActiva("nuevas");
+                    setComandaSeleccionadaId(comanda.id);
+                  }}
                   labelBoton="Tirar a Plancha"
                   atajo="Espacio"
                   botonModificador="kds-btn-plancha"
@@ -1000,9 +1388,16 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
                   key={comanda.id}
                   comanda={comanda}
                   esPrimera={idx === 0}
+                  esSeleccionada={columnaActivaEfectiva === "plancha" && comanda.id === comandaSeleccionadaEfectivaId}
+                  slotNumero={idx < 9 ? idx + 1 : undefined}
                   mounted={isClient}
                   tick={tiempoTick}
                   onAvanzar={handleMarcarLista}
+                  onDevolverACola={handleDevolverACola}
+                  onSeleccionar={() => {
+                    setColumnaActiva("plancha");
+                    setComandaSeleccionadaId(comanda.id);
+                  }}
                   labelBoton="Marcar Lista"
                   atajo="Enter"
                   botonModificador="kds-btn-lista"
@@ -1044,8 +1439,11 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
 
         {/* Leyenda de Atajos de Teclado */}
         <div className="kds-shortcuts-legend">
-          <span><kbd>Espacio</kbd> A Plancha</span>
+          <span><kbd>1-9</kbd> Lista directa</span>
+          <span><kbd>↑↓←→</kbd> Navegar</span>
           <span><kbd>Enter</kbd> Marcar Lista</span>
+          <span><kbd>Espacio</kbd> A Plancha</span>
+          <span><kbd>⌫</kbd> A Cola</span>
           <span><kbd>Z</kbd> Deshacer</span>
           <span><kbd>F</kbd> Pantalla Completa</span>
         </div>
@@ -1081,9 +1479,13 @@ export default function CocinaClient({ initialVentas, initialError }: CocinaClie
 interface TarjetaComandaProps {
   comanda: Venta;
   esPrimera: boolean;
+  esSeleccionada?: boolean;
+  slotNumero?: number;
   mounted: boolean;
   tick: number;
   onAvanzar: (id: string) => void;
+  onDevolverACola?: (id: string) => void;
+  onSeleccionar?: () => void;
   labelBoton: string;
   atajo?: string;
   botonModificador: string;
@@ -1093,9 +1495,13 @@ interface TarjetaComandaProps {
 const TarjetaComanda = memo(function TarjetaComanda({
   comanda,
   esPrimera,
+  esSeleccionada,
+  slotNumero,
   mounted,
   tick,
   onAvanzar,
+  onDevolverACola,
+  onSeleccionar,
   labelBoton,
   atajo,
   botonModificador,
@@ -1112,11 +1518,30 @@ const TarjetaComanda = memo(function TarjetaComanda({
     comanda.metodo_pago === "credito" ||
     /\[ABONO CRÉDITO/i.test(comanda.notas_comanda || "");
 
+  const notasVisibles = useMemo(() => {
+    return limpiarTagKdsCola(comanda.notas_comanda);
+  }, [comanda.notas_comanda]);
+
   return (
-    <div data-card-id={comanda.id} className={`kds-card ${esPrimera ? "kds-card-primera" : ""}`}>
-      {/* Cabecera: # Comanda, Badges de Entrega, Crédito y Cronómetro */}
+    <div
+      data-card-id={comanda.id}
+      tabIndex={0}
+      onClick={onSeleccionar}
+      onKeyDown={(e) => {
+        if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+          onSeleccionar?.();
+        }
+      }}
+      className={`kds-card ${esPrimera ? "kds-card-primera" : ""} ${esSeleccionada ? "kds-card-seleccionada" : ""}`}
+    >
+      {/* Cabecera: Slot # (si existe), # Comanda, Badges de Entrega, Crédito y Cronómetro */}
       <div className="kds-card-topbar">
         <div className="kds-card-topbar-left">
+          {slotNumero !== undefined && (
+            <span className="kds-slot-badge" title={`Atajo numérico directo: presiona [${slotNumero}]`}>
+              {slotNumero}
+            </span>
+          )}
           <span className="kds-comanda-id">#{comanda.numero_comanda}</span>
 
           {esDelivery ? (
@@ -1210,27 +1635,51 @@ const TarjetaComanda = memo(function TarjetaComanda({
       </div>
 
       {/* Nota General de Cocina / Alergias */}
-      {comanda.notas_comanda && (
+      {notasVisibles && (
         <div className="kds-alerta-comanda">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          <span>{comanda.notas_comanda}</span>
+          <span>{notasVisibles}</span>
         </div>
       )}
 
-      {/* Botón de Acción Principal */}
+      {/* Botones de Acción */}
       <div className="kds-action-btn-wrap">
+        {onDevolverACola && (
+          <button
+            type="button"
+            id={`kds-btn-cola-${comanda.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDevolverACola(comanda.id);
+            }}
+            disabled={deshabilitado}
+            className="kds-btn-devolver"
+            title="Devolver comanda a Por Entrar (Backspace o D)"
+          >
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2m-15-7l4-4m-4 4l4 4" />
+            </svg>
+            <span>A Cola</span>
+          </button>
+        )}
+
         <button
           id={`kds-btn-${comanda.id}`}
-          onClick={() => onAvanzar(comanda.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAvanzar(comanda.id);
+          }}
           disabled={deshabilitado}
           className={`kds-btn-action ${botonModificador}`}
         >
           <span>{deshabilitado ? "Guardando..." : labelBoton}</span>
-          {esPrimera && atajo && (
+          {slotNumero !== undefined ? (
+            <kbd className="kds-kbd-badge">{slotNumero === 1 ? "1 / Enter" : `${slotNumero}`}</kbd>
+          ) : esPrimera && atajo ? (
             <kbd className="kds-kbd-badge">{atajo}</kbd>
-          )}
+          ) : null}
         </button>
       </div>
     </div>
