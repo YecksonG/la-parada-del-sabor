@@ -21,8 +21,8 @@ export const revalidate = 0;
 const DEFAULT_ENTIDADES: FinanzasEntidad[] = [
   { id: "parada", nombre: "La Parada del Sabor", tipo: "negocio", color: "#f59e0b", activo: true, creado_el: new Date().toISOString() },
   { id: "tetas", nombre: "Tetas Rellenas", tipo: "negocio", color: "#ec4899", activo: true, creado_el: new Date().toISOString() },
-  { id: "yg", nombre: "YG (Personal)", tipo: "personal", color: "#3b82f6", activo: true, creado_el: new Date().toISOString() },
-  { id: "esposa", nombre: "Esposa (Personal)", tipo: "personal", color: "#8b5cf6", activo: true, creado_el: new Date().toISOString() },
+  { id: "yg", nombre: "Yeckson (Personal)", tipo: "personal", color: "#3b82f6", activo: true, creado_el: new Date().toISOString() },
+  { id: "esposa", nombre: "Grecia (Personal)", tipo: "personal", color: "#8b5cf6", activo: true, creado_el: new Date().toISOString() },
   { id: "hogar", nombre: "Fondo Común Hogar", tipo: "comun", color: "#10b981", activo: true, creado_el: new Date().toISOString() },
 ];
 

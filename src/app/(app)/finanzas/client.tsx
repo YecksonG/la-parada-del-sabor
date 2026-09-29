@@ -18,6 +18,7 @@ import {
   abonarPrestamoAction,
 } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import { PagoFraccionItem } from "@/lib/pago-mixto";
 
 // =============================================================================
 // ICONOS SVG MINIMALISTAS (CERO EMOJIS EN INTERFAZ — REGLA 5 AGENTS.MD)
@@ -182,6 +183,10 @@ export default function FinanzasClient({
   );
   const [cantidadVentaTeta, setCantidadVentaTeta] = useState<number>(1);
   const [metodoPagoTeta, setMetodoPagoTeta] = useState<string>("efectivo_usd");
+  const [clienteCreditoTeta, setClienteCreditoTeta] = useState<string>("");
+  const [mixtoMontoUsd, setMixtoMontoUsd] = useState<string>("");
+  const [mixtoMetodoUsd, setMixtoMetodoUsd] = useState<"efectivo_usd" | "zelle" | "binance">("efectivo_usd");
+  const [mixtoMetodoBs, setMixtoMetodoBs] = useState<"pago_movil" | "efectivo_bs" | "punto" | "transferencia">("pago_movil");
   const [notasVentaTeta, setNotasVentaTeta] = useState<string>("");
 
   // Estados para Abastecimiento con precarga del sabor actual
@@ -353,6 +358,33 @@ export default function FinanzasClient({
       mostrarMensaje("err", "Selecciona un sabor de teta.");
       return;
     }
+
+    let desgloseMixto: PagoFraccionItem[] | undefined;
+    if (metodoPagoTeta === "pago_mixto") {
+      const s = tetasInventario.find((i) => i.id === saborSeleccionadoId);
+      const precio = Number(s?.precio_venta_unitario_usd) || 1.0;
+      const totalUsd = precio * cantidadVentaTeta;
+      const usdIngresado = Math.min(totalUsd, Math.max(0, parseFloat(mixtoMontoUsd) || 0));
+      const restUsd = Math.max(0, Number((totalUsd - usdIngresado).toFixed(2)));
+      const restBs = Number((restUsd * tasaBcv).toFixed(2));
+
+      desgloseMixto = [];
+      if (usdIngresado > 0) {
+        desgloseMixto.push({
+          metodo: mixtoMetodoUsd as any,
+          monto_usd: usdIngresado,
+          monto_bs: 0,
+        });
+      }
+      if (restUsd > 0) {
+        desgloseMixto.push({
+          metodo: mixtoMetodoBs as any,
+          monto_usd: restUsd,
+          monto_bs: restBs,
+        });
+      }
+    }
+
     startTransition(async () => {
       try {
         const res = await registrarVentaTetaAction({
@@ -361,6 +393,8 @@ export default function FinanzasClient({
           metodo_pago: metodoPagoTeta,
           tasa_bcv: tasaBcv,
           notas: notasVentaTeta,
+          cliente_credito: metodoPagoTeta === "credito" ? clienteCreditoTeta : undefined,
+          desglose_mixto: desgloseMixto,
         });
 
         if (res.ok) {
@@ -369,6 +403,8 @@ export default function FinanzasClient({
           setModalQuickLogger(false);
           setNotasVentaTeta("");
           setCantidadVentaTeta(1);
+          setClienteCreditoTeta("");
+          setMixtoMontoUsd("");
         } else {
           mostrarMensaje("err", res.error || "Error al registrar la venta.");
         }
@@ -906,12 +942,12 @@ export default function FinanzasClient({
               </div>
             </div>
 
-            {/* Motor 3: Esposa (Personal / Side Hustles) */}
+            {/* Motor 3: Grecia (Personal / Side Hustles) */}
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: 22, boxShadow: "var(--shadow-sm)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <div>
                   <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: "#8b5cf6" }}>
-                    Espacio Esposa
+                    Espacio Grecia
                   </h3>
                   <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Sueldos, Emprendimiento & Gastos</span>
                 </div>
@@ -945,12 +981,12 @@ export default function FinanzasClient({
               })()}
             </div>
 
-            {/* Motor 4: YG (Personal / Proyectos) */}
+            {/* Motor 4: Yeckson (Personal / Proyectos) */}
             <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, padding: 22, boxShadow: "var(--shadow-sm)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <div>
                   <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: "#3b82f6" }}>
-                    Espacio YG
+                    Espacio Yeckson
                   </h3>
                   <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Freelance, Proyectos & Gastos</span>
                 </div>
@@ -1236,14 +1272,14 @@ export default function FinanzasClient({
                 onClick={() => setSubfiltroPersonal("esposa")}
                 className={`view-mode-btn ${subfiltroPersonal === "esposa" ? "active" : ""}`}
               >
-                Esposa (Personal)
+                Grecia (Personal)
               </button>
               <button
                 type="button"
                 onClick={() => setSubfiltroPersonal("yg")}
                 className={`view-mode-btn ${subfiltroPersonal === "yg" ? "active" : ""}`}
               >
-                YG (Personal)
+                Yeckson (Personal)
               </button>
               <button
                 type="button"
@@ -1283,9 +1319,9 @@ export default function FinanzasClient({
                     const nombreEntidad =
                       m.entidad?.nombre ||
                       (m.entidad_id === "esposa"
-                        ? "Esposa"
+                        ? "Grecia"
                         : m.entidad_id === "yg"
-                        ? "YG"
+                        ? "Yeckson"
                         : m.entidad_id === "hogar"
                         ? "Fondo Hogar"
                         : m.entidad_id === "parada"
@@ -1741,22 +1777,128 @@ export default function FinanzasClient({
 
               <div>
                 <label htmlFor="metodoPagoVentaSelect" style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>
-                  Método de Pago
+                  Método de Pago (Idéntico a /POS)
                 </label>
                 <select
                   id="metodoPagoVentaSelect"
                   value={metodoPagoTeta}
                   onChange={(e) => setMetodoPagoTeta(e.target.value)}
                   className="form-input"
-                  style={{ width: "100%" }}
+                  style={{ width: "100%", fontWeight: 700 }}
                 >
                   <option value="efectivo_usd">Efectivo Divisa ($ USD)</option>
                   <option value="pago_movil">Pago Móvil (Bs)</option>
                   <option value="efectivo_bs">Efectivo Bolívares (Bs)</option>
                   <option value="punto">Punto de Venta (Bs)</option>
-                  <option value="transferencia">Transferencia Bancaria</option>
+                  <option value="transferencia">Transferencia Bancaria (Bs)</option>
+                  <option value="zelle">Zelle ($ USD)</option>
+                  <option value="binance">Binance (USDT)</option>
+                  <option value="pesos_cop">Pesos Colombianos (COP)</option>
+                  <option value="pago_mixto">Pago Mixto / Fraccionado (Multimoneda)</option>
+                  <option value="credito">Crédito / Por Cobrar (Fiado)</option>
                 </select>
               </div>
+
+              {/* Panel condicional si es Venta a Crédito / Fiada */}
+              {metodoPagoTeta === "credito" && (
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(245,158,11,0.1)", border: "1px solid #f59e0b" }}>
+                  <label htmlFor="clienteCreditoInput" style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6, color: "#d97706" }}>
+                    Nombre del Cliente / Vecino (Crédito)
+                  </label>
+                  <input
+                    id="clienteCreditoInput"
+                    type="text"
+                    placeholder="Ej: Sra. Carmen, Vecino Carlos..."
+                    value={clienteCreditoTeta}
+                    onChange={(e) => setClienteCreditoTeta(e.target.value)}
+                    className="form-input"
+                    style={{ width: "100%", fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, display: "block" }}>
+                    Quedará registrado como cuenta por cobrar pendiente en el historial.
+                  </span>
+                </div>
+              )}
+
+              {/* Panel condicional si es Pago Mixto / Fraccionado */}
+              {metodoPagoTeta === "pago_mixto" && (() => {
+                const s = tetasInventario.find((i) => i.id === saborSeleccionadoId);
+                const precio = Number(s?.precio_venta_unitario_usd) || 1.0;
+                const totUsd = precio * cantidadVentaTeta;
+                const usdIngresado = Math.min(totUsd, Math.max(0, parseFloat(mixtoMontoUsd) || 0));
+                const restUsd = Math.max(0, Number((totUsd - usdIngresado).toFixed(2)));
+                const restBs = Number((restUsd * tasaBcv).toFixed(2));
+
+                return (
+                  <div style={{ padding: 14, borderRadius: 14, background: "var(--bg-subtle, #f3f4f6)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800 }}>
+                      Desglose Fraccionado (Total: ${totUsd.toFixed(2)} USD)
+                    </div>
+
+                    {/* Fracción 1: USD */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>
+                          Monto en USD ($)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.10"
+                          max={totUsd}
+                          placeholder="0.00"
+                          value={mixtoMontoUsd}
+                          onChange={(e) => setMixtoMontoUsd(e.target.value)}
+                          className="form-input"
+                          style={{ width: "100%", fontWeight: 800 }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>
+                          Canal USD
+                        </label>
+                        <select
+                          value={mixtoMetodoUsd}
+                          onChange={(e) => setMixtoMetodoUsd(e.target.value as any)}
+                          className="form-input"
+                          style={{ width: "100%", fontSize: 12 }}
+                        >
+                          <option value="efectivo_usd">Efectivo USD</option>
+                          <option value="zelle">Zelle USD</option>
+                          <option value="binance">Binance USDT</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Fracción 2: Restante en Bolívares */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>
+                          Restante en Bs
+                        </label>
+                        <div style={{ padding: "8px 12px", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 10, fontWeight: 800, fontSize: 14 }}>
+                          Bs. {restBs.toFixed(2)} (${restUsd.toFixed(2)})
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>
+                          Canal Bs
+                        </label>
+                        <select
+                          value={mixtoMetodoBs}
+                          onChange={(e) => setMixtoMetodoBs(e.target.value as any)}
+                          className="form-input"
+                          style={{ width: "100%", fontSize: 12 }}
+                        >
+                          <option value="pago_movil">Pago Móvil</option>
+                          <option value="punto">Punto de Venta</option>
+                          <option value="transferencia">Transferencia</option>
+                          <option value="efectivo_bs">Efectivo Bs</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div>
                 <label htmlFor="notasVentaInput" style={{ fontSize: 13, fontWeight: 700, display: "block", marginBottom: 6 }}>
@@ -2099,7 +2241,7 @@ export default function FinanzasClient({
                     className={`view-mode-btn ${movEntidadId === "esposa" ? "active" : ""}`}
                     style={{ flex: 1 }}
                   >
-                    Esposa
+                    Grecia
                   </button>
                   <button
                     type="button"
@@ -2107,7 +2249,7 @@ export default function FinanzasClient({
                     className={`view-mode-btn ${movEntidadId === "yg" ? "active" : ""}`}
                     style={{ flex: 1 }}
                   >
-                    YG
+                    Yeckson
                   </button>
                   <button
                     type="button"

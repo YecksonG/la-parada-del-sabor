@@ -9,6 +9,8 @@ import { FinanzasEntidadId } from "@/types/database";
 // 1. TETAS RELLENAS (VENTAS & STOCK)
 // =============================================================================
 
+import { generarTagPagoMixto, PagoFraccionItem } from "@/lib/pago-mixto";
+
 export type RegistrarVentaTetaPayload = {
   sabor_id: string;
   cantidad: number;
@@ -16,6 +18,8 @@ export type RegistrarVentaTetaPayload = {
   tasa_bcv: number;
   notas?: string;
   registrado_por?: string;
+  desglose_mixto?: PagoFraccionItem[];
+  cliente_credito?: string;
 };
 
 export async function registrarVentaTetaAction(payload: RegistrarVentaTetaPayload) {
@@ -68,6 +72,18 @@ export async function registrarVentaTetaAction(payload: RegistrarVentaTetaPayloa
   const totalUsd = Number((precioUnitario * payload.cantidad).toFixed(2));
   const totalBs = Number((totalUsd * tasaBcv).toFixed(2));
 
+  // Procesamiento de notas para Pago Mixto / Fraccionado o Crédito
+  const partesNotas: string[] = [];
+  if (payload.metodo_pago === "pago_mixto" && payload.desglose_mixto && payload.desglose_mixto.length > 0) {
+    partesNotas.push(generarTagPagoMixto(payload.desglose_mixto, tasaBcv));
+  } else if (payload.metodo_pago === "credito") {
+    partesNotas.push(`[CRÉDITO PENDIENTE: ${payload.cliente_credito?.trim() || "Cliente directo"}]`);
+  }
+  if (payload.notas?.trim()) {
+    partesNotas.push(payload.notas.trim());
+  }
+  const notasFinales = partesNotas.length > 0 ? partesNotas.join(" • ") : null;
+
   const { error: insertErr } = await supabase.from("tetas_ventas").insert({
     sabor_id: sabor.id,
     sabor_nombre: sabor.sabor,
@@ -79,7 +95,7 @@ export async function registrarVentaTetaAction(payload: RegistrarVentaTetaPayloa
     tasa_bcv: tasaBcv,
     metodo_pago: payload.metodo_pago || "efectivo_usd",
     registrado_por: payload.registrado_por || auth.user?.email?.split("@")[0] || "Operador",
-    notas: payload.notas?.trim() || null,
+    notas: notasFinales,
   });
 
   if (insertErr) {
