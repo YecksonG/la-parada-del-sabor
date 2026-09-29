@@ -304,6 +304,12 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
           desc: "Entrada de stock, servicios, nómina y cuentas",
         },
         {
+          href: "/finanzas",
+          label: "Hub Financiero & Tetas",
+          icon: <IconCurrency />,
+          desc: "Consolidado familiar, tetas, balance y préstamos",
+        },
+        {
           href: "/tasas",
           label: "Tasas Cambiarias",
           icon: <IconCurrency />,
@@ -539,6 +545,9 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
                 <div className="dropdown-divider"></div>
                 <Link href="/dashboard" className="nav-link" style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: "8px" }}>
                   <IconChart /> Ver Dashboard
+                </Link>
+                <Link href="/finanzas" className="nav-link" style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <IconCurrency /> Hub Financiero
                 </Link>
                 <Link href="/caja" className="nav-link" style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: "8px" }}>
                   <IconCash /> Control de Caja

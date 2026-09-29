@@ -365,3 +365,102 @@ export type Gasto = {
   cuenta?: CuentaNegocio;
 };
 
+// =============================================================================
+// HUB FINANCIERO FAMILIAR, TETAS RELLENAS Y PRÉSTAMOS
+// =============================================================================
+
+export type FinanzasEntidadId = "parada" | "tetas" | "yg" | "esposa" | "hogar" | (string & {});
+
+export type FinanzasEntidad = {
+  id: FinanzasEntidadId;
+  nombre: string;
+  tipo: "negocio" | "personal" | "comun";
+  color: string;
+  activo: boolean;
+  creado_el: string;
+};
+
+export type TetasInventario = {
+  id: string;
+  sabor: string;
+  stock_unidades: number;
+  costo_compra_unitario_usd: number;
+  precio_venta_unitario_usd: number;
+  activo: boolean;
+  actualizado_el?: string;
+  creado_el?: string;
+};
+
+export type TetasVenta = {
+  id: string;
+  fecha: string;
+  sabor_id: string | null;
+  sabor_nombre: string;
+  cantidad: number;
+  precio_unitario_usd: number;
+  costo_unitario_usd: number;
+  total_usd: number;
+  total_bs: number;
+  tasa_bcv: number;
+  metodo_pago: string;
+  registrado_por?: string | null;
+  notas?: string | null;
+  creado_el: string;
+  sabor?: TetasInventario;
+};
+
+export type FinanzasMovimiento = {
+  id: string;
+  fecha: string;
+  entidad_id: FinanzasEntidadId;
+  tipo: "ingreso" | "gasto";
+  categoria: string;
+  descripcion: string;
+  monto_usd: number;
+  monto_bs: number;
+  tasa_bcv: number;
+  metodo_pago: string;
+  recurrente: boolean;
+  frecuencia?: "quincenal" | "mensual" | "semanal" | null;
+  notas?: string | null;
+  creado_por?: string | null;
+  creado_el: string;
+  entidad?: FinanzasEntidad;
+};
+
+export type FinanzasPrestamo = {
+  id: string;
+  fecha: string;
+  origen_tipo: "entidad_interna" | "tercero_familiar";
+  origen_entidad_id?: string | null;
+  origen_nombre: string;
+  destino_tipo: "entidad_interna" | "tercero_familiar";
+  destino_entidad_id?: string | null;
+  destino_nombre: string;
+  monto_original_usd: number;
+  monto_original_bs: number;
+  saldo_pendiente_usd: number;
+  tasa_bcv: number;
+  concepto: string;
+  estado: "activo" | "pagado" | "anulado";
+  notas?: string | null;
+  creado_por?: string | null;
+  creado_el: string;
+  actualizado_el?: string;
+  abonos?: FinanzasPrestamoAbono[];
+};
+
+export type FinanzasPrestamoAbono = {
+  id: string;
+  prestamo_id: string;
+  fecha: string;
+  monto_usd: number;
+  monto_bs: number;
+  tasa_bcv: number;
+  metodo_pago: string;
+  notas?: string | null;
+  registrado_por?: string | null;
+  creado_el: string;
+};
+
+
