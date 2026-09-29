@@ -1786,15 +1786,13 @@ export default function FinanzasClient({
                   className="form-input"
                   style={{ width: "100%", fontWeight: 700 }}
                 >
-                  <option value="efectivo_usd">Efectivo Divisa ($ USD)</option>
                   <option value="pago_movil">Pago Móvil (Bs)</option>
+                  <option value="efectivo_usd">Efectivo Divisa ($ USD)</option>
                   <option value="efectivo_bs">Efectivo Bolívares (Bs)</option>
-                  <option value="punto">Punto de Venta (Bs)</option>
                   <option value="transferencia">Transferencia Bancaria (Bs)</option>
+                  <option value="binance">Binance Pay (USDT)</option>
                   <option value="zelle">Zelle ($ USD)</option>
-                  <option value="binance">Binance (USDT)</option>
-                  <option value="pesos_cop">Pesos Colombianos (COP)</option>
-                  <option value="pago_mixto">Pago Mixto / Fraccionado (Multimoneda)</option>
+                  <option value="pago_mixto">Pago Mixto / Fraccionado</option>
                   <option value="credito">Crédito / Por Cobrar (Fiado)</option>
                 </select>
               </div>
@@ -1889,10 +1887,9 @@ export default function FinanzasClient({
                           className="form-input"
                           style={{ width: "100%", fontSize: 12 }}
                         >
-                          <option value="pago_movil">Pago Móvil</option>
-                          <option value="punto">Punto de Venta</option>
-                          <option value="transferencia">Transferencia</option>
-                          <option value="efectivo_bs">Efectivo Bs</option>
+                          <option value="pago_movil">Pago Móvil (Bs)</option>
+                          <option value="efectivo_bs">Efectivo (Bs)</option>
+                          <option value="transferencia">Transferencia Bancaria (Bs)</option>
                         </select>
                       </div>
                     </div>
@@ -2364,8 +2361,9 @@ export default function FinanzasClient({
                   <option value="pago_movil">Pago Móvil (Bs)</option>
                   <option value="efectivo_usd">Efectivo ($ USD)</option>
                   <option value="efectivo_bs">Efectivo Bolívares (Bs)</option>
-                  <option value="transferencia">Transferencia Bancaria</option>
-                  <option value="punto">Punto de Venta (Bs)</option>
+                  <option value="transferencia">Transferencia Bancaria (Bs)</option>
+                  <option value="binance">Binance Pay (USDT)</option>
+                  <option value="zelle">Zelle ($ USD)</option>
                 </select>
               </div>
 
