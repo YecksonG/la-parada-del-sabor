@@ -869,9 +869,6 @@ export default function DashboardClient({
                 type="button"
                 onClick={() => {
                   setPeriodo(p.id as PeriodoDashboard);
-                  if (p.id === "todo") {
-                    setModalGraficasHistoricas(true);
-                  }
                 }}
                 className={`delivery-btn ${periodo === p.id ? "delivery-btn-active" : ""}`}
                 style={{ padding: "8px 14px" }}

@@ -14,6 +14,7 @@ import {
   type ItemCompraPayload,
 } from "./actions";
 import { createClient } from "@/lib/supabase/client";
+import { toFechaCaracasString } from "@/lib/date-vzla";
 
 interface GastosClientProps {
   gastosIniciales: Gasto[];
@@ -137,6 +138,7 @@ interface CompraItemRow {
   const [compraItems, setCompraItems] = useState<CompraItemRow[]>([
     { id: "init-1", insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "", no_inventariable: false }
   ]);
+  const [compraFecha, setCompraFecha] = useState<string>(toFechaCaracasString(new Date()));
   const [compraProveedorId, setCompraProveedorId] = useState("");
   const [compraTotalBs, setCompraTotalBs] = useState("");
   const [compraFactura, setCompraFactura] = useState("");
@@ -183,6 +185,7 @@ interface CompraItemRow {
   // Abrir Modal Ingreso de Insumos (Stock 2 en 1)
   const abrirModalIngresoInsumo = () => {
     setErrorMsg("");
+    setCompraFecha(toFechaCaracasString(new Date()));
     setCompraItems([
       { id: crypto.randomUUID(), insumo_id: insumos[0]?.id || "", cantidad: "1", unidadId: "kilo", totalUsd: "", no_inventariable: false }
     ]);
@@ -401,6 +404,7 @@ interface CompraItemRow {
     try {
       const { registrarCompraMultiInsumo } = await import("./actions");
       const res = await registrarCompraMultiInsumo({
+        fecha: compraFecha,
         proveedor_id: compraProveedorId || undefined,
         total_usd: Number(totalUsdCompra.toFixed(2)),
         total_bs: parseFloat(compraTotalBs) || Number((totalUsdCompra * tasaBcv).toFixed(2)),
@@ -852,20 +856,13 @@ interface CompraItemRow {
               <h2 style={{ fontSize: 17, fontWeight: 900, color: "var(--text)" }}>Historial de Entradas a la Despensa</h2>
               <p className="recetas-subtitle">Cada compra ingresada aquí suma stock automáticamente y recalcula el costo ponderado por gramo/ml.</p>
             </div>
-            <button
-              type="button"
-              onClick={abrirModalIngresoInsumo}
-              className="btn-primary-action"
-            >
-              <span>+</span> Registrar Nuevo Ingreso
-            </button>
           </div>
 
           <div style={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden", boxShadow: "var(--shadow-md)" }}>
             {compras.length === 0 ? (
               <div className="recetas-empty-box" style={{ border: "none" }}>
                 <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay registros de compras directas</strong>
-                <p className="recetas-subtitle">Usa el botón "+ Registrar Nuevo Ingreso" para recibir bultos o kilos de insumos.</p>
+                <p className="recetas-subtitle">Usa el botón "+ Registrar Ingreso de Insumos" para recibir bultos o kilos de insumos.</p>
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
@@ -1366,20 +1363,32 @@ interface CompraItemRow {
             </div>
 
             <form onSubmit={handleGuardarIngresoInsumo} className="recipe-form">
-              <div className="form-field" style={{ marginBottom: 12 }}>
-                <label>Proveedor (Opcional)</label>
-                <select
-                  value={compraProveedorId}
-                  onChange={(e) => setCompraProveedorId(e.target.value)}
-                  className="form-input"
-                >
-                  <option value="">-- Compra Local / Sin Registro --</option>
-                  {listaProveedores.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
+              <div className="form-grid-2" style={{ marginBottom: 12 }}>
+                <div className="form-field">
+                  <label>Fecha de Entrada / Factura *</label>
+                  <input
+                    type="date"
+                    required
+                    value={compraFecha}
+                    onChange={(e) => setCompraFecha(e.target.value)}
+                    className="form-input"
+                  />
+                </div>
+                <div className="form-field">
+                  <label>Proveedor (Opcional)</label>
+                  <select
+                    value={compraProveedorId}
+                    onChange={(e) => setCompraProveedorId(e.target.value)}
+                    className="form-input"
+                  >
+                    <option value="">-- Compra Local / Sin Registro --</option>
+                    {listaProveedores.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10, background: "var(--bg-subtle)", padding: 10, borderRadius: 12, marginBottom: 16 }}>

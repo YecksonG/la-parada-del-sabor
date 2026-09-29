@@ -46,13 +46,17 @@ export default async function DashboardPage() {
       .order("orden", { ascending: true }),
   ]);
 
-  const ventas = ventasRes.data || [];
-  const clientes = clientesRes.data || [];
-  const insumos = insumosRes.data || [];
-  const productos = productosRes.data || [];
+  if (gastosRes.error) {
+    console.error("Error consultando gastos en DashboardPage:", gastosRes.error);
+  }
+
+  const ventas = (ventasRes.data as Venta[]) || [];
+  const clientes = (clientesRes.data as Cliente[]) || [];
+  const insumos = (insumosRes.data as Insumo[]) || [];
+  const productos = (productosRes.data as Producto[]) || [];
   const tasaReciente = tasaRes.data;
-  const historialCajas = sesionesRes.data || [];
-  const gastos = gastosRes.data || [];
+  const historialCajas = (sesionesRes.data as SesionCaja[]) || [];
+  const gastos = (gastosRes.data as Gasto[]) || [];
 
   const zonasDelivery: ZonaDelivery[] = zonasRes.data && zonasRes.data.length > 0 ? zonasRes.data : [
     { id: "zona-1", nombre: "Nivel 1", descripcion: "Punta Cardón, Bicentenario, Puerta Maraven, España", precio_usd: 1.50, tiempo_estimado_min: 20, orden: 1, activo: true, creado_el: new Date().toISOString() },

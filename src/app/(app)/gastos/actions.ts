@@ -341,6 +341,7 @@ export type GastoNoInventariableItem = {
 };
 
 export type RegistrarCompraMultiInsumoPayload = {
+  fecha?: string;
   proveedor_id?: string;
   tasa_bcv: number;
   total_usd: number;
@@ -367,6 +368,18 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
   if (!auth.ok) return { ok: false, error: auth.error };
 
   const ctaOrigen = payload.cuenta_origen || "efectivo_usd";
+  let fechaEfectiva = toFechaCaracasString(new Date());
+  if (payload.fecha) {
+    const fechaTrim = payload.fecha.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaTrim) || isNaN(Date.parse(fechaTrim))) {
+      return { ok: false, error: "Formato de fecha inválido. Debe ser YYYY-MM-DD." };
+    }
+    const hoyCaracas = toFechaCaracasString(new Date());
+    if (fechaTrim > hoyCaracas) {
+      return { ok: false, error: "La fecha de entrada no puede ser posterior a hoy." };
+    }
+    fechaEfectiva = fechaTrim;
+  }
 
   // Cálculo e invariante server-side: nunca confiar ciegamente en payload.total_usd del cliente
   const sumaItemsUsd = (payload.items || []).reduce((acc, it) => acc + (Number(it.total_usd) || 0), 0);
@@ -393,6 +406,7 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
   const { data: compra, error: compraError } = await supabase
     .from("compras")
     .insert({
+      fecha: fechaEfectiva,
       proveedor_id: payload.proveedor_id || null,
       tasa_bcv: payload.tasa_bcv,
       total_usd: totalUsdEfectivo,
@@ -456,7 +470,8 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
 
   // 3. Asentar también en la tabla de Gastos
   let sesion_caja_id: string | null = null;
-  if (["efectivo_usd", "efectivo_bs", "caja_chica"].includes(ctaOrigen)) {
+  const esFechaHoy = fechaEfectiva === toFechaCaracasString(new Date());
+  if (esFechaHoy && ["efectivo_usd", "efectivo_bs", "caja_chica"].includes(ctaOrigen)) {
     const { data: sesionActiva } = await supabase
       .from("sesiones_caja")
       .select("id")
@@ -480,7 +495,7 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
   }
 
   const { error: gastoError } = await supabase.from("gastos").insert({
-    fecha: toFechaCaracasString(new Date()),
+    fecha: fechaEfectiva,
     categoria: "proveedores",
     subcategoria: "Insumos / Despensa",
     descripcion: descrip,
