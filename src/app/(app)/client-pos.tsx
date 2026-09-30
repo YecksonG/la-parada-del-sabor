@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import { Producto, Categoria, ExtraModificador, Cliente, PedidoPendiente, ZonaDelivery } from "@/types/database";
 import {
@@ -831,8 +832,30 @@ ${estadoPago}`;
               ))}
             </div>
 
-            {/* Botón de Pedidos Web Entrantes */}
+            {/* Botón de Acceso Rápido a Tetas Cream y Pedidos Web */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link
+                href="/tetas"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 12px",
+                  borderRadius: 10,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  background: "#4a051c",
+                  color: "#ffffff",
+                  textDecoration: "none",
+                  boxShadow: "0 2px 6px rgba(74,5,28,0.25)",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a5 5 0 0 0-5 5v1a4 4 0 0 0 0 8h10a4 4 0 0 0 0-8V7a5 5 0 0 0-5-5z" />
+                  <path d="M8 16l4 6 4-6" />
+                </svg>
+                Tetas Cream (2x$1.50)
+              </Link>
               <button
                 type="button"
                 onClick={() => {

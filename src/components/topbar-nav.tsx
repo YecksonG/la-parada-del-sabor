@@ -214,6 +214,15 @@ function IconBellOff() {
   );
 }
 
+function IconIceCream() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", verticalAlign: "middle" }} aria-hidden="true">
+      <path d="M12 2a5 5 0 0 0-5 5v1a4 4 0 0 0 0 8h10a4 4 0 0 0 0-8V7a5 5 0 0 0-5-5z" />
+      <path d="M8 16l4 6 4-6" />
+    </svg>
+  );
+}
+
 export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
   const pathname = usePathname();
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -231,6 +240,7 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
     { href: "/ventas", label: "Comandas", icon: <IconClipboard /> },
     { href: "/cocina", label: "Cocina KDS", icon: <IconPlancha /> },
     { href: "/caja", label: "Caja", icon: <IconCash /> },
+    { href: "/tetas", label: "Tetas Cream", icon: <IconIceCream /> },
   ];
 
   // Categorías de Gestión Agrupadas
@@ -264,6 +274,12 @@ export default function TopbarNav({ nombre, bcvTasa }: TopbarNavProps) {
           label: "Despensa & Stock",
           icon: <IconBox />,
           desc: "Stock, inventario y alertas mínimas",
+        },
+        {
+          href: "/tetas",
+          label: "Tetas Cream",
+          icon: <IconIceCream />,
+          desc: "Freezer, sabores artesanales y despacho",
         },
       ],
     },

@@ -364,3 +364,53 @@ export type Gasto = {
   proveedor?: Proveedor;
   cuenta?: CuentaNegocio;
 };
+
+// =============================================================================
+// MÓDULO TETAS CREAM (HELADOS RELLENOS ARTESANALES)
+// =============================================================================
+
+export type TetasCategoria =
+  | "linea_yogurt"
+  | "yogurt_combinado"
+  | "combinadas"
+  | "con_chocolate"
+  | "clasicas";
+
+export const CATEGORIAS_TETAS: { id: TetasCategoria | "todas"; label: string }[] = [
+  { id: "todas", label: "Todos los Sabores" },
+  { id: "con_chocolate", label: "Con Chocolate & Especiales" },
+  { id: "linea_yogurt", label: "Línea Yogurt" },
+  { id: "yogurt_combinado", label: "Yogurt Combinado" },
+  { id: "combinadas", label: "Combinadas" },
+  { id: "clasicas", label: "Clásicas" },
+];
+
+export type TetasInventario = {
+  id: string;
+  sabor: string;
+  categoria: TetasCategoria;
+  stock_unidades: number;
+  costo_compra_unitario_usd: number;
+  precio_venta_unitario_usd: number;
+  activo: boolean;
+  actualizado_el: string;
+  creado_el: string;
+};
+
+export type TetasVenta = {
+  id: string;
+  fecha: string;
+  sabor_id: string;
+  sabor_nombre: string;
+  cantidad: number;
+  precio_unitario_usd: number;
+  costo_unitario_usd: number;
+  total_usd: number;
+  total_bs: number;
+  tasa_bcv: number;
+  metodo_pago: string;
+  registrado_por: string | null;
+  notas: string | null;
+  creado_el: string;
+};
+
