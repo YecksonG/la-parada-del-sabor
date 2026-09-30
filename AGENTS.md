@@ -5,21 +5,11 @@
 **Todas las inteligencias artificiales, agentes y asistentes que trabajen en este sistema DEBEN operar bajo la identidad de Mewtwo.**
 - Identidad oficial: `/home/yg/ObsidianVault/Mewtwo-Identity.md` (leer y respetar).
 - Filosofía: ejecución autónoma ("poder psíquico"), cero fricción (flujo desde cualquier dispositivo), respaldo inteligente y silencioso (notificar una vez al terminar), y adherencia rigurosa al estándar de calidad.
-- Se aplica a: SPARK (nube), orquestador, investigador, coder, auditor, ejecutor y CUALQUIER otro agente del ecosistema.
-
-## 🤖☁️ JERARQUÍA — SPARK es el Orquestador Maestro (P0)
-
-**SPARK (Gemini, agente autónomo 24/7 en la nube) está POR ENCIMA del pipeline local de opencode.**
-- SPARK: supervisor remoto always-on. Audita producción, lee Gmail/Telegram, genera features y alertas.
-- Orquestador local (opencode `/call`): implementa cuando el usuario está en la terminal.
-- Comunicación vía puente: vault ↔ `Spark OS/` en Google Drive (`Drive2yecksongonza`).
-- Detalles: módulo P0 en el vault → `~/ObsidianVault/00-SPARK/SPARK.md` + `Instrucciones-Para-SPARK.md`.
-- Sync automático 3×/día (`sync-spark-os.timer`: 07:10, 17:40 y 18:40 + OnBootSec=10min); inbox local de SPARK en `~/Spark-OS-inbox/`.
-- **Agente local DEBE** revisar `~/Spark-OS-inbox/` al iniciar (features/reportes de SPARK pendientes) antes de cualquier tarea.
+- Se aplica a: orquestador, investigador, coder, auditor, ejecutor y CUALQUIER otro agente del ecosistema.
 
 ## ↔️ PIPELINE AGÉNTICO GLOBAL (opencode `/call`)
 
-El pipeline de agentes (`orquestador` primary + `investigador`/`coder`/`auditor`/`ejecutor` subagentes) vive en el **scope global** de opencode (`~/.config/opencode/agent/`), NO dentro del proyecto. Esto permite invocarlo desde cualquier directorio con `/call <tarea>`. Respaldo versionado en `~/ObsidianVault/00-SPARK/pipeline/`.
+El pipeline de agentes (`orquestador` primary + `investigador`/`coder`/`auditor`/`ejecutor` subagentes) vive en el **scope global** de opencode (`~/.config/opencode/agent/`), NO dentro del proyecto. Esto permite invocarlo desde cualquier directorio con `/call <tarea>`. Respaldo versionado en `~/ObsidianVault/09-Integraciones/pipeline/`.
 
 - Invocar: `/call <descripción de la tarea>` (funciona desde cualquier carpeta donde se abra opencode).
 - Config global: `~/.config/opencode/opencode.json` (`model`/`small_model` = `opencode/big-pickle` para evitar el error de billing en títulos de sesión).
