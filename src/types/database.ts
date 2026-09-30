@@ -409,6 +409,7 @@ export type TetasVenta = {
   total_bs: number;
   tasa_bcv: number;
   metodo_pago: string;
+  estado?: string;
   registrado_por: string | null;
   notas: string | null;
   creado_el: string;
