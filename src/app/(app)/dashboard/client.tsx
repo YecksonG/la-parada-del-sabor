@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto, ZonaDelivery } from "@/types/database";
-import { esMismaFechaEnCaracas, toFechaCaracasString, esMismoMesEnCaracas } from "@/lib/date-vzla";
+import { Venta, Cliente, Insumo, Producto, SesionCaja, VentaItem, VentaItemExtra, RecetaIngrediente, ExtraModificador, Gasto, ZonaDelivery, TetasVenta } from "@/types/database";
+import { esMismaFechaEnCaracas, toFechaCaracasString, esMismoMesEnCaracas, esMismaSemanaEnCaracas } from "@/lib/date-vzla";
 import { parsearPagoMixtoDeNotas, parsearAbonosCreditoDeNotas, calcularSaldoPendienteComanda } from "@/lib/pago-mixto";
 import { registrarDeliveryEmpresa } from "./delivery-actions";
 import { useRouter } from "next/navigation";
@@ -68,6 +68,7 @@ interface DashboardClientProps {
   productos: Producto[];
   historialCajas?: SesionCaja[];
   gastos?: Gasto[];
+  tetasVentas?: TetasVenta[];
   zonasDelivery?: ZonaDelivery[];
   tasaBcv: number;
 }
@@ -79,6 +80,7 @@ export default function DashboardClient({
   productos,
   historialCajas = [],
   gastos = [],
+  tetasVentas = [],
   zonasDelivery = [],
   tasaBcv,
 }: DashboardClientProps) {
@@ -105,16 +107,13 @@ export default function DashboardClient({
 
   // Filtrar ventas por periodo
   const ventasFiltradas = useMemo(() => {
-    const ahora = new Date();
     return ventas.filter((v) => {
       if (v.estado === "cancelada" || v.estado === "pendiente") return false;
-      const fechaVenta = new Date(v.fecha);
       if (periodo === "hoy") {
         return esMismaFechaEnCaracas(v.fecha);
       }
       if (periodo === "semana") {
-        const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return fechaVenta >= hace7Dias;
+        return esMismaSemanaEnCaracas(v.fecha);
       }
       if (periodo === "mes") {
         return esMismoMesEnCaracas(v.fecha);
@@ -125,23 +124,40 @@ export default function DashboardClient({
 
   // Filtrar gastos por periodo
   const gastosFiltrados = useMemo(() => {
-    const ahora = new Date();
     return gastos.filter((g) => {
       if (g.estado === "anulado") return false;
-      const fechaGasto = new Date(g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`);
+      const fechaGasto = g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`;
       if (periodo === "hoy") {
-        return esMismaFechaEnCaracas(g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`);
+        return esMismaFechaEnCaracas(fechaGasto);
       }
       if (periodo === "semana") {
-        const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return fechaGasto >= hace7Dias;
+        return esMismaSemanaEnCaracas(fechaGasto);
       }
       if (periodo === "mes") {
-        return esMismoMesEnCaracas(g.fecha.includes("T") ? g.fecha : `${g.fecha}T12:00:00`);
+        return esMismoMesEnCaracas(fechaGasto);
       }
       return true;
     });
   }, [gastos, periodo]);
+
+  // Filtrar ventas de tetas por periodo
+  const tetasFiltradas = useMemo(() => {
+    return tetasVentas.filter((t) => {
+      // Ignorar ventas anuladas (requiere la migración SQL)
+      if (t.estado === "anulada") return false;
+
+      if (periodo === "hoy") {
+        return esMismaFechaEnCaracas(t.fecha);
+      }
+      if (periodo === "semana") {
+        return esMismaSemanaEnCaracas(t.fecha);
+      }
+      if (periodo === "mes") {
+        return esMismoMesEnCaracas(t.fecha);
+      }
+      return true;
+    });
+  }, [tetasVentas, periodo]);
 
   // Agrupaciones temporales continuas (Semana a Semana y Mes a Mes)
   const seriesContinuas = useMemo(() => {
@@ -273,6 +289,55 @@ export default function DashboardClient({
       mesesMap[mesKey].gastosUsd = (mesesMap[mesKey].gastosUsd || 0) + montoGasto;
     });
 
+    tetasVentas.forEach((t) => {
+      const fecha = new Date(t.fecha);
+      const montoVenta = Number(t.total_usd) || 0;
+      const costoVenta = (Number(t.costo_unitario_usd) || 0) * (Number(t.cantidad) || 0);
+
+      // 1. Agrupar por Semana
+      const inicioSemana = new Date(fecha);
+      const day = inicioSemana.getDay();
+      const diff = inicioSemana.getDate() - day + (day === 0 ? -6 : 1);
+      inicioSemana.setDate(diff);
+      inicioSemana.setHours(0, 0, 0, 0);
+      const semanaKey = inicioSemana.toISOString().split("T")[0];
+      const semanaLabel = `Sem ${inicioSemana.getDate()}/${inicioSemana.getMonth() + 1}`;
+
+      if (!semanasMap[semanaKey]) {
+        semanasMap[semanaKey] = {
+          label: semanaLabel,
+          ventasUsd: 0,
+          costosUsd: 0,
+          gastosUsd: 0,
+          comandas: 0,
+          fechaInicio: inicioSemana.getTime(),
+        };
+      }
+      semanasMap[semanaKey].ventasUsd += montoVenta;
+      semanasMap[semanaKey].costosUsd += costoVenta;
+      semanasMap[semanaKey].comandas += 1;
+
+      // 2. Agrupar por Mes
+      const mesKey = `${fecha.getFullYear()}-${(fecha.getMonth() + 1).toString().padStart(2, "0")}`;
+      const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      const mesLabel = `${mesesNombres[fecha.getMonth()]} ${fecha.getFullYear()}`;
+      const inicioMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1).getTime();
+
+      if (!mesesMap[mesKey]) {
+        mesesMap[mesKey] = {
+          label: mesLabel,
+          ventasUsd: 0,
+          costosUsd: 0,
+          gastosUsd: 0,
+          comandas: 0,
+          fechaInicio: inicioMes,
+        };
+      }
+      mesesMap[mesKey].ventasUsd += montoVenta;
+      mesesMap[mesKey].costosUsd += costoVenta;
+      mesesMap[mesKey].comandas += 1;
+    });
+
     const listaSemanas = Object.values(semanasMap).sort((a, b) => a.fechaInicio - b.fechaInicio);
     const listaMeses = Object.values(mesesMap).sort((a, b) => a.fechaInicio - b.fechaInicio);
 
@@ -280,17 +345,24 @@ export default function DashboardClient({
       semanas: listaSemanas,
       meses: listaMeses,
     };
-  }, [ventas, productos, insumos, gastos]);
+  }, [ventas, productos, insumos, gastos, tetasVentas]);
 
   // Cálculos Financieros
   const finanzas = useMemo(() => {
-    const totalFacturadoUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+    let totalFacturadoUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+    totalFacturadoUsd += tetasFiltradas.reduce((acc, t) => acc + (Number(t.total_usd) || 0), 0);
+
     // Cálculo individual por comanda según su tasa y bolívares históricos
-    const totalFacturadoBs = ventasFiltradas.reduce((acc, v) => {
+    let totalFacturadoBs = ventasFiltradas.reduce((acc, v) => {
       const bsHistorico = Number(v.total_bs);
       if (!isNaN(bsHistorico) && bsHistorico > 0) return acc + bsHistorico;
       const tasaHistorica = Number(v.tasa_bcv) || tasaBcv;
       return acc + ((Number(v.total_usd) || 0) * tasaHistorica);
+    }, 0);
+    totalFacturadoBs += tetasFiltradas.reduce((acc, t) => {
+      const tasaHistorica = Number(t.tasa_bcv) || tasaBcv;
+      const bsHistorico = Number(t.total_bs) || (Number(t.total_usd) * tasaHistorica);
+      return acc + bsHistorico;
     }, 0);
 
     // Calcular costo real de insumos vendidos en el periodo (COGS recetas)
@@ -345,6 +417,17 @@ export default function DashboardClient({
           }
         });
       });
+    });
+
+    // Sumar costos de los Helados (Tetas Cream)
+    tetasFiltradas.forEach((t) => {
+      costoInsumosUsd += (Number(t.costo_unitario_usd) || 0) * (Number(t.cantidad) || 0);
+      
+      const nombreIns = "Tetas Cream";
+      if (!consumoInsumosGramos[nombreIns]) {
+        consumoInsumosGramos[nombreIns] = { gramos: 0, unidad: "unds" };
+      }
+      consumoInsumosGramos[nombreIns].gramos += Number(t.cantidad) || 0;
     });
 
     const totalDeliveryUsd = ventasFiltradas.reduce(
@@ -436,7 +519,7 @@ export default function DashboardClient({
       totalComandas: ventasFiltradas.length,
       ticketPromedio: ventasFiltradas.length > 0 ? totalFacturadoUsd / ventasFiltradas.length : 0,
     };
-  }, [ventasFiltradas, tasaBcv, productos, insumos, gastosFiltrados]);
+  }, [ventasFiltradas, tasaBcv, productos, insumos, gastosFiltrados, tetasFiltradas]);
 
   // Auditoría y Conciliación Semanal de Delivery con la Empresa Aliada
   const metricasDeliverySemanales = useMemo(() => {
@@ -860,7 +943,7 @@ export default function DashboardClient({
           <div className="delivery-type-selector" style={{ width: "auto" }}>
             {[
               { id: "hoy", label: "Hoy" },
-              { id: "semana", label: "Últimos 7 días" },
+              { id: "semana", label: "Esta Semana" },
               { id: "mes", label: "Este Mes" },
               { id: "todo", label: "Histórico Total" },
             ].map((p) => (

@@ -71,3 +71,40 @@ export function esMismoMesEnCaracas(
   const referencia = ref ?? fechaHoyEnCaracas();
   return fechaVenta.anio === referencia.anio && fechaVenta.mes === referencia.mes;
 }
+
+/**
+ * Compara si una venta/fecha coincide con la semana actual en Caracas (Lunes a Domingo).
+ */
+export function esMismaSemanaEnCaracas(fechaISO: string | Date, ref?: { anio: string; mes: string; dia: string }): boolean {
+  // Hardening defensivo
+  const d = fechaISO instanceof Date ? fechaISO : new Date(fechaISO);
+  if (isNaN(d.getTime())) return false;
+
+  // Primero, obtenemos la fecha actual en la zona de Caracas
+  const ahora = new Date();
+  const options = { timeZone: "America/Caracas", year: "numeric", month: "numeric", day: "numeric" } as const;
+  
+  // Extraemos la fecha de referencia en Caracas como un objeto Date local
+  // Si pasan un 'ref' customizado, podríamos parsearlo, pero usualmente 'ahora' es correcto.
+  // Por consistencia mantenemos 'ahora'.
+  const hoyStr = new Intl.DateTimeFormat("en-US", options).format(ahora);
+  const hoyCaracas = new Date(hoyStr); // local time equivalent to Caracas midnight
+  hoyCaracas.setHours(0, 0, 0, 0);
+
+  // Determinar inicio de semana (Lunes) y fin de semana (Domingo) en Caracas
+  const day = hoyCaracas.getDay(); // 0 = Domingo, 1 = Lunes
+  const diffToMonday = hoyCaracas.getDate() - day + (day === 0 ? -6 : 1);
+  const inicioSemana = new Date(hoyCaracas);
+  inicioSemana.setDate(diffToMonday);
+  
+  const finSemana = new Date(inicioSemana);
+  finSemana.setDate(inicioSemana.getDate() + 6);
+  finSemana.setHours(23, 59, 59, 999);
+
+  // Extraemos la fecha de la venta en Caracas
+  const ventaStr = new Intl.DateTimeFormat("en-US", options).format(d);
+  const ventaCaracas = new Date(ventaStr);
+  ventaCaracas.setHours(12, 0, 0, 0); // Al mediodía para evitar problemas de bordes
+  
+  return ventaCaracas.getTime() >= inicioSemana.getTime() && ventaCaracas.getTime() <= finSemana.getTime();
+}

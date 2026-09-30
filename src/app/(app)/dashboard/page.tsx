@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import DashboardClient from "./client";
-import { Venta, Cliente, Insumo, Producto, SesionCaja, Gasto, ZonaDelivery } from "@/types/database";
+import { Venta, Cliente, Insumo, Producto, SesionCaja, Gasto, ZonaDelivery, TetasVenta } from "@/types/database";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
   // 1. Ejecutar consultas en paralelo para máxima velocidad
-  const [ventasRes, clientesRes, insumosRes, productosRes, tasaRes, sesionesRes, gastosRes, zonasRes] = await Promise.all([
+  const [ventasRes, clientesRes, insumosRes, productosRes, tasaRes, sesionesRes, gastosRes, zonasRes, tetasVentasRes] = await Promise.all([
     supabase
       .from("ventas")
       .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
@@ -44,10 +44,17 @@ export default async function DashboardPage() {
       .select("*")
       .eq("activo", true)
       .order("orden", { ascending: true }),
+    supabase
+      .from("tetas_ventas")
+      .select("*")
+      .order("fecha", { ascending: false }),
   ]);
 
   if (gastosRes.error) {
     console.error("Error consultando gastos en DashboardPage:", gastosRes.error);
+  }
+  if (tetasVentasRes.error) {
+    console.error("Error consultando tetas en DashboardPage:", tetasVentasRes.error);
   }
 
   const ventas = (ventasRes.data as Venta[]) || [];
@@ -57,6 +64,7 @@ export default async function DashboardPage() {
   const tasaReciente = tasaRes.data;
   const historialCajas = (sesionesRes.data as SesionCaja[]) || [];
   const gastos = (gastosRes.data as Gasto[]) || [];
+  const tetasVentas = (tetasVentasRes.data as TetasVenta[]) || [];
 
   const zonasDelivery: ZonaDelivery[] = zonasRes.data && zonasRes.data.length > 0 ? zonasRes.data : [
     { id: "zona-1", nombre: "Nivel 1", descripcion: "Punta Cardón, Bicentenario, Puerta Maraven, España", precio_usd: 1.50, tiempo_estimado_min: 20, orden: 1, activo: true, creado_el: new Date().toISOString() },
@@ -78,8 +86,10 @@ export default async function DashboardPage() {
       productos={(productos as Producto[]) || []}
       historialCajas={(historialCajas as SesionCaja[]) || []}
       gastos={(gastos as Gasto[]) || []}
+      tetasVentas={tetasVentas}
       zonasDelivery={zonasDelivery}
       tasaBcv={Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 0}
     />
+
   );
 }
