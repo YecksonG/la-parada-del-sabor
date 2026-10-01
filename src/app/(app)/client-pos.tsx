@@ -427,7 +427,7 @@ export default function PosClient({
     return carrito.reduce((acc, item) => {
       const subtotalItem = item.precio_unitario_usd * item.cantidad;
       const subtotalExtras = (item.extras || []).reduce(
-        (eAcc, ext) => eAcc + ext.precio_unitario_usd * ext.cantidad,
+        (eAcc, ext) => eAcc + ext.precio_unitario_usd * (ext.cantidad * item.cantidad),
         0
       );
       return acc + subtotalItem + subtotalExtras;

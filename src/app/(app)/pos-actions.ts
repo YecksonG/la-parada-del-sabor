@@ -228,11 +228,15 @@ export async function registrarVentaPos(payload: RegistrarVentaPayload) {
         const precioExt = extraPriceMap.has(ext.extra_id)
           ? extraPriceMap.get(ext.extra_id)!
           : Number(ext.precio_unitario_usd) || 0;
-        const subtotalExtraUsd = Number((precioExt * ext.cantidad).toFixed(2));
+        
+        // Multiplicar la cantidad del extra por la cantidad del combo/producto padre
+        const cantidadTotalExtra = ext.cantidad * item.cantidad;
+        const subtotalExtraUsd = Number((precioExt * cantidadTotalExtra).toFixed(2));
+        
         return {
           venta_item_id: ventaItem.id,
           extra_id: ext.extra_id,
-          cantidad: ext.cantidad,
+          cantidad: cantidadTotalExtra,
           precio_extra_usd: precioExt,
           precio_extra_bs: Number((precioExt * tasaBCV).toFixed(2)),
           precio_unitario_usd: precioExt,
