@@ -66,6 +66,7 @@ export type Cliente = {
   total_pedidos: number;
   creado_el: string;
   actualizado_el?: string | null;
+  etiquetas?: string[];
 };
 
 export type Proveedor = {
@@ -413,5 +414,7 @@ export type TetasVenta = {
   registrado_por: string | null;
   notas: string | null;
   creado_el: string;
+  cliente_id?: string | null;
+  cliente?: Cliente | null;
 };
 

@@ -18,6 +18,7 @@ export type RegistrarVentaMultiTetasPayload = {
   tasa_bcv: number;
   notas?: string;
   desglose_mixto?: PagoFraccionItem[];
+  cliente_id?: string | null;
   cliente_credito?: string;
 };
 
@@ -136,6 +137,7 @@ export async function registrarVentaMultiTetasAction(payload: RegistrarVentaMult
         total_bs: subtotalBsItem,
         tasa_bcv: tasaBcv,
         metodo_pago: payload.metodo_pago || "efectivo_usd",
+        cliente_id: payload.cliente_id || null,
         registrado_por: operadorSeguro,
         notas: notasFinales,
       };

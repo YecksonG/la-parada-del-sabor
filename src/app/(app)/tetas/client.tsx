@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
-import { TetasInventario, TetasVenta, TetasCategoria, CATEGORIAS_TETAS } from "@/types/database";
+import { useState, useMemo, useTransition, useEffect } from "react";
+import { TetasInventario, TetasVenta, TetasCategoria, CATEGORIAS_TETAS, Cliente } from "@/types/database";
 import TetaVisual from "@/components/teta-visual";
 import { calcularTotalTetasUsd } from "@/lib/tetas-precios";
+import { crearClienteRapido } from "../pos-actions";
 import {
   registrarVentaMultiTetasAction,
   abastecerStockTetasAction,
@@ -19,6 +20,7 @@ interface ItemBandeja {
 interface TetasClientProps {
   inventario: TetasInventario[];
   ventas: TetasVenta[];
+  clientesIniciales: Cliente[];
   tasaBcv: number;
   metricas: {
     ventasMesUsd: number;
@@ -32,6 +34,7 @@ interface TetasClientProps {
 export default function TetasClient({
   inventario,
   ventas,
+  clientesIniciales,
   tasaBcv,
   metricas,
   operador,
@@ -55,6 +58,47 @@ export default function TetasClient({
   const [mixtoUsdMonto, setMixtoUsdMonto] = useState("");
   const [mixtoUsdMetodo, setMixtoUsdMetodo] = useState<MetodoPagoFraccion>("efectivo_usd");
   const [mixtoBsMetodo, setMixtoBsMetodo] = useState<MetodoPagoFraccion>("pago_movil");
+
+  // Estados Cliente
+  const [listaClientes, setListaClientes] = useState<Cliente[]>(clientesIniciales);
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string | null>(null);
+  const [modalSeleccionarCliente, setModalSeleccionarCliente] = useState(false);
+  const [busquedaClienteModal, setBusquedaClienteModal] = useState("");
+  const [modalNuevoCliente, setModalNuevoCliente] = useState(false);
+  const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevoTelefono, setNuevoTelefono] = useState("");
+  const [guardandoCliente, setGuardandoCliente] = useState(false);
+
+  useEffect(() => {
+    setListaClientes(clientesIniciales);
+  }, [clientesIniciales]);
+
+  const clientesFiltradosModal = useMemo(() => {
+    if (!busquedaClienteModal.trim()) return listaClientes;
+    const q = busquedaClienteModal.toLowerCase().trim();
+    return listaClientes.filter(
+      (c) =>
+        c.nombre.toLowerCase().includes(q) ||
+        c.telefono?.includes(q)
+    );
+  }, [listaClientes, busquedaClienteModal]);
+
+  const handleCrearClienteRapido = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nuevoNombre.trim()) return;
+    setGuardandoCliente(true);
+    const res = await crearClienteRapido(nuevoNombre, nuevoTelefono, "");
+    setGuardandoCliente(false);
+    if (res.ok && res.cliente) {
+      setListaClientes((prev) => [res.cliente!, ...prev]);
+      setClienteSeleccionadoId(res.cliente.id);
+      setModalNuevoCliente(false);
+      setNuevoNombre("");
+      setNuevoTelefono("");
+    } else {
+      alert(res.error || "No se pudo registrar el cliente.");
+    }
+  };
 
   // Estados Abastecer Freezer
   const [abastecerSaborId, setAbastecerSaborId] = useState<string>(inventario[0]?.id || "");
@@ -192,7 +236,8 @@ export default function TetasClient({
         items: bandeja.map((b) => ({ sabor_id: b.saborId, cantidad: b.cantidad })),
         metodo_pago: metodoPago,
         tasa_bcv: tasaBcv,
-        cliente_credito: clienteCredito,
+        cliente_id: clienteSeleccionadoId,
+        cliente_credito: clienteCredito, // Mantenemos este por si acaso (legacy text input)
         notas: notasVenta,
         desglose_mixto,
       });
@@ -932,6 +977,47 @@ export default function TetasClient({
 
               {/* MÉTODO DE PAGO */}
               <div>
+              {/* SELECTOR DE CLIENTE (POS) */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
+                  Cliente / Comprador
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBusquedaClienteModal("");
+                    setModalSeleccionarCliente(true);
+                  }}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 10px",
+                    background: clienteSeleccionadoId ? "rgba(249, 115, 22, 0.08)" : "var(--bg-subtle)",
+                    border: clienteSeleccionadoId ? "1px solid var(--primary)" : "1px solid var(--border)",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                    <span style={{ fontSize: 18 }}>{clienteSeleccionadoId ? "👑" : "👤"}</span>
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <strong style={{ fontSize: 13, color: "var(--text)", display: "block" }}>
+                        {clienteSeleccionadoId ? listaClientes.find(c => c.id === clienteSeleccionadoId)?.nombre : "Mostrador / Casual"}
+                      </strong>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        {clienteSeleccionadoId ? (listaClientes.find(c => c.id === clienteSeleccionadoId)?.telefono || "Sin teléfono") : "Venta rápida sin registrar"}
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, flexShrink: 0 }}>
+                    {clienteSeleccionadoId ? "Cambiar ⇄" : "Buscar 🔍"}
+                  </span>
+                </button>
+              </div>
                 <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>
                   Método de Pago
                 </label>
@@ -1320,6 +1406,7 @@ export default function TetasClient({
                     <th style={{ padding: "10px 16px", textAlign: "right" }}>Total ($ USD)</th>
                     <th style={{ padding: "10px 16px", textAlign: "right" }}>Total (Bs)</th>
                     <th style={{ padding: "10px 16px" }}>Método de Pago</th>
+                    <th style={{ padding: "10px 16px" }}>Cliente</th>
                     <th style={{ padding: "10px 16px" }}>Despachado Por</th>
                   </tr>
                 </thead>
@@ -1357,6 +1444,9 @@ export default function TetasClient({
                           {v.metodo_pago.replace("_", " ")}
                         </span>
                       </td>
+                      <td style={{ padding: "10px 16px", color: "var(--text)" }}>
+                        {v.cliente?.nombre || (v.notas?.includes("[CRÉDITO PENDIENTE") ? "Crédito" : <span style={{ color: "var(--text-muted)", fontSize: 11 }}>Mostrador</span>)}
+                      </td>
                       <td style={{ padding: "10px 16px", color: "var(--text-muted)" }}>
                         {v.registrado_por || "Admin"}
                       </td>
@@ -1369,5 +1459,156 @@ export default function TetasClient({
         </div>
       </div>
     </div>
+      {modalSeleccionarCliente && (
+        <div className="modal-overlay" onClick={() => setModalSeleccionarCliente(false)}>
+          <div
+            className="modal-recipe-card"
+            style={{ maxWidth: 480, maxHeight: "88vh", overflowY: "auto" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-recipe-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 24 }}>👥</span>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 18 }}>Seleccionar Cliente</h2>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--text-muted)" }}>
+                    Asigna un cliente a la orden de tetas
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalSeleccionarCliente(false)}
+                className="btn-modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, margin: "14px 0 10px" }}>
+              <div className="search-input-wrapper" style={{ flex: 1 }}>
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o teléfono..."
+                  value={busquedaClienteModal}
+                  onChange={(e) => setBusquedaClienteModal(e.target.value)}
+                  className="pos-search-input"
+                  style={{ fontSize: 13 }}
+                  autoFocus
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalSeleccionarCliente(false);
+                  setModalNuevoCliente(true);
+                }}
+                style={{
+                  background: "var(--primary)",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "0 14px",
+                  fontSize: 13,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                + Nuevo
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setClienteSeleccionadoId(null);
+                setModalSeleccionarCliente(false);
+              }}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: !clienteSeleccionadoId ? "2px solid var(--primary)" : "1px solid var(--border)",
+                background: !clienteSeleccionadoId ? "rgba(249, 115, 22, 0.1)" : "var(--bg-subtle)",
+                color: "var(--text)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                cursor: "pointer",
+                marginBottom: 10,
+                textAlign: "left",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>👤</span>
+                <div>
+                  <strong style={{ display: "block", fontSize: 13 }}>Cliente Mostrador / Casual</strong>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>Venta rápida sin registrar cliente</span>
+                </div>
+              </div>
+            </button>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 320, overflowY: "auto" }}>
+              {clientesFiltradosModal.map((c) => {
+                const isSelected = clienteSeleccionadoId === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setClienteSeleccionadoId(c.id);
+                      setModalSeleccionarCliente(false);
+                    }}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border)",
+                      background: isSelected ? "rgba(249, 115, 22, 0.1)" : "var(--surface)",
+                      color: "var(--text)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div>
+                      <strong style={{ display: "block", fontSize: 13 }}>{c.nombre}</strong>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{c.telefono || "Sin teléfono"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalNuevoCliente && (
+        <div className="modal-overlay" onClick={() => setModalNuevoCliente(false)}>
+          <div className="modal-recipe-card" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-recipe-header">
+              <h2 style={{ fontSize: 18, margin: 0 }}>Nuevo Cliente</h2>
+              <button type="button" onClick={() => setModalNuevoCliente(false)} className="btn-modal-close">✕</button>
+            </div>
+            <form onSubmit={handleCrearClienteRapido} style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Nombre y Apellido *</label>
+                <input type="text" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required autoFocus className="pos-search-input" style={{ width: "100%" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Teléfono (Opcional)</label>
+                <input type="text" value={nuevoTelefono} onChange={(e) => setNuevoTelefono(e.target.value)} className="pos-search-input" style={{ width: "100%" }} />
+              </div>
+              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                <button type="button" onClick={() => setModalNuevoCliente(false)} className="btn-cancel" style={{ flex: 1 }}>Cancelar</button>
+                <button type="submit" disabled={guardandoCliente || !nuevoNombre.trim()} className="btn-submit-recipe" style={{ flex: 1 }}>{guardandoCliente ? "Guardando..." : "Guardar Cliente"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
   );
 }

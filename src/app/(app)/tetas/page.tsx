@@ -26,11 +26,12 @@ export default async function TetasPage() {
   const mes = String(ahora.getMonth() + 1).padStart(2, "0");
   const primerDiaMes = `${anio}-${mes}-01T00:00:00.000-04:00`;
 
-  const [inventarioRes, ventasRes, ventasMesRes, tasaRes] = await Promise.all([
+  const [inventarioRes, ventasRes, ventasMesRes, tasaRes, clientesRes] = await Promise.all([
     supabase.from("tetas_inventario").select("*").eq("activo", true).order("sabor", { ascending: true }),
-    supabase.from("tetas_ventas").select("*").order("fecha", { ascending: false }).limit(80),
+    supabase.from("tetas_ventas").select("*, cliente:clientes(*)").order("fecha", { ascending: false }).limit(80),
     supabase.from("tetas_ventas").select("total_usd, costo_unitario_usd, cantidad").gte("fecha", primerDiaMes),
     supabase.from("tasas_cambio").select("bcv_usd_bs, tasa_usd_bs").order("fecha", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("clientes").select("*").order("nombre", { ascending: true })
   ]);
 
   const inventario: TetasInventario[] = (inventarioRes.data as TetasInventario[]) || [];
@@ -48,6 +49,7 @@ export default async function TetasPage() {
     <TetasClient
       inventario={inventario}
       ventas={ventas}
+      clientesIniciales={clientesRes.data || []}
       tasaBcv={tasaBcv}
       metricas={{
         ventasMesUsd,

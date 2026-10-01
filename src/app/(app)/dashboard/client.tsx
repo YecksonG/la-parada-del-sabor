@@ -537,7 +537,9 @@ export default function DashboardClient({
       topPlatos,
       topInsumos,
       totalComandas: ventasFiltradas.length,
-      ticketPromedio: ventasFiltradas.length > 0 ? totalFacturadoUsd / ventasFiltradas.length : 0,
+      ticketPromedio: ventasFiltradas.length > 0 
+        ? ventasFiltradas.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0) / ventasFiltradas.length 
+        : 0,
     };
   }, [ventasFiltradas, tasaBcv, productos, insumos, gastosFiltrados, tetasFiltradas, comprasFiltradas]);
 
