@@ -132,7 +132,7 @@ export async function registrarVentaMultiTetasAction(payload: RegistrarVentaMult
         sabor_nombre: s.sabor,
         cantidad: it.cantidad,
         precio_unitario_usd: Number((subtotalUsdItem / it.cantidad).toFixed(2)),
-        costo_unitario_usd: Number(s.costo_compra_unitario_usd) || 0.35,
+        costo_unitario_usd: Number(s.costo_compra_unitario_usd) || 0.40,
         total_usd: subtotalUsdItem,
         total_bs: subtotalBsItem,
         tasa_bcv: tasaBcv,
