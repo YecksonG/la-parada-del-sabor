@@ -22,12 +22,7 @@ interface TetasClientProps {
   ventas: TetasVenta[];
   clientesIniciales: Cliente[];
   tasaBcv: number;
-  metricas: {
-    ventasMesUsd: number;
-    costoMesUsd: number;
-    utilidadMesUsd: number;
-    unidadesMes: number;
-  };
+  ventasMetricas: any[];
   operador: string;
 }
 
@@ -36,10 +31,32 @@ export default function TetasClient({
   ventas,
   clientesIniciales,
   tasaBcv,
-  metricas,
+  ventasMetricas,
   operador,
 }: TetasClientProps) {
-  const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
+    const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
+  const [periodoMetricas, setPeriodoMetricas] = useState<"semana" | "mes" | "historico">("mes");
+
+  const metricasCalculadas = useMemo(() => {
+    const ahora = new Date();
+    let fechaFiltro: Date | null = null;
+    if (periodoMetricas === "mes") {
+      fechaFiltro = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    } else if (periodoMetricas === "semana") {
+      const day = ahora.getDay() || 7;
+      fechaFiltro = new Date(ahora);
+      fechaFiltro.setDate(ahora.getDate() - day + 1);
+      fechaFiltro.setHours(0, 0, 0, 0);
+    }
+    const ventasFiltradas = ventasMetricas.filter(v => {
+      if (!fechaFiltro) return true;
+      return new Date(v.fecha) >= fechaFiltro;
+    });
+    const ventasUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
+    const costoUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.costo_unitario_usd || 0) * Number(v.cantidad || 0)), 0);
+    const unidades = ventasFiltradas.reduce((acc, v) => acc + (Number(v.cantidad) || 0), 0);
+    return { ventasUsd, costoUsd, utilidadUsd: ventasUsd - costoUsd, unidades };
+  }, [ventasMetricas, periodoMetricas]);
   const [busqueda, setBusqueda] = useState("");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
@@ -462,9 +479,26 @@ export default function TetasClient({
       )}
 
       {/* TARJETAS DE MÉTRICAS */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
+        <h3 style={{ margin: 0, fontSize: 14, color: "var(--text)" }}>Rendimiento</h3>
+        <div style={{ display: "flex", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <button 
+            onClick={() => setPeriodoMetricas("semana")} 
+            style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, border: "none", background: periodoMetricas === "semana" ? "var(--primary)" : "transparent", color: periodoMetricas === "semana" ? "#fff" : "var(--text-muted)", cursor: "pointer" }}
+          >SEMANA</button>
+          <button 
+            onClick={() => setPeriodoMetricas("mes")} 
+            style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, border: "none", borderLeft: "1px solid var(--border)", borderRight: "1px solid var(--border)", background: periodoMetricas === "mes" ? "var(--primary)" : "transparent", color: periodoMetricas === "mes" ? "#fff" : "var(--text-muted)", cursor: "pointer" }}
+          >MES</button>
+          <button 
+            onClick={() => setPeriodoMetricas("historico")} 
+            style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, border: "none", background: periodoMetricas === "historico" ? "var(--primary)" : "transparent", color: periodoMetricas === "historico" ? "#fff" : "var(--text-muted)", cursor: "pointer" }}
+          >HISTÓRICO</button>
+        </div>
+      </div>
       <div
         style={{
-          marginTop: 20,
+          marginTop: 12,
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 14,
@@ -480,10 +514,10 @@ export default function TetasClient({
           }}
         >
           <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
-            Tetas Despachadas (Mes)
+            Tetas Despachadas
           </span>
           <div style={{ fontSize: 26, fontWeight: 900, color: "var(--text)", marginTop: 4 }}>
-            {metricas.unidadesMes}
+            {metricasCalculadas.unidades}
           </div>
           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Unidades físicas salidas</span>
         </div>
@@ -501,10 +535,10 @@ export default function TetasClient({
             Ventas Brutas
           </span>
           <div style={{ fontSize: 26, fontWeight: 900, color: "var(--primary-dark)", marginTop: 4 }}>
-            ${metricas.ventasMesUsd.toFixed(2)}
+            ${metricasCalculadas.ventasUsd.toFixed(2)}
           </div>
           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            ~{(metricas.ventasMesUsd * tasaBcv).toLocaleString("es-VE", { maximumFractionDigits: 2 })} Bs
+            ~{(metricasCalculadas.ventasUsd * tasaBcv).toLocaleString("es-VE", { maximumFractionDigits: 2 })} Bs
           </span>
         </div>
 
@@ -521,7 +555,7 @@ export default function TetasClient({
             Costo Materia Prima
           </span>
           <div style={{ fontSize: 26, fontWeight: 900, color: "var(--chart-costos)", marginTop: 4 }}>
-            ${metricas.costoMesUsd.toFixed(2)}
+            ${metricasCalculadas.costoUsd.toFixed(2)}
           </div>
           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Leche, frutas y rellenos</span>
         </div>
@@ -539,7 +573,7 @@ export default function TetasClient({
             Utilidad Estimada
           </span>
           <div style={{ fontSize: 26, fontWeight: 900, color: "var(--green-text)", marginTop: 4 }}>
-            ${metricas.utilidadMesUsd.toFixed(2)}
+            ${metricasCalculadas.utilidadUsd.toFixed(2)}
           </div>
           <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Margen neto de freezer</span>
         </div>

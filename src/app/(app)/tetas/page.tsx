@@ -26,10 +26,10 @@ export default async function TetasPage() {
   const mes = String(ahora.getMonth() + 1).padStart(2, "0");
   const primerDiaMes = `${anio}-${mes}-01T00:00:00.000-04:00`;
 
-  const [inventarioRes, ventasRes, ventasMesRes, tasaRes, clientesRes] = await Promise.all([
+  const [inventarioRes, ventasRes, ventasMetricasRes, tasaRes, clientesRes] = await Promise.all([
     supabase.from("tetas_inventario").select("*").eq("activo", true).order("sabor", { ascending: true }),
     supabase.from("tetas_ventas").select("*, cliente:clientes(*)").order("fecha", { ascending: false }).limit(80),
-    supabase.from("tetas_ventas").select("total_usd, costo_unitario_usd, cantidad").gte("fecha", primerDiaMes),
+    supabase.from("tetas_ventas").select("fecha, total_usd, costo_unitario_usd, cantidad"),
     supabase.from("tasas_cambio").select("bcv_usd_bs, tasa_usd_bs").order("fecha", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("clientes").select("*").order("nombre", { ascending: true })
   ]);
@@ -39,24 +39,13 @@ export default async function TetasPage() {
 
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 60.0;
 
-  // Métricas del mes
-  const ventasMesUsd = (ventasMesRes.data || []).reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
-  const costoMesUsd = (ventasMesRes.data || []).reduce((acc, v) => acc + (Number(v.costo_unitario_usd || 0) * Number(v.cantidad || 0)), 0);
-  const unidadesMes = (ventasMesRes.data || []).reduce((acc, v) => acc + (Number(v.cantidad) || 0), 0);
-  const utilidadMesUsd = Number((ventasMesUsd - costoMesUsd).toFixed(2));
-
   return (
     <TetasClient
       inventario={inventario}
       ventas={ventas}
       clientesIniciales={clientesRes.data || []}
       tasaBcv={tasaBcv}
-      metricas={{
-        ventasMesUsd,
-        costoMesUsd,
-        utilidadMesUsd,
-        unidadesMes,
-      }}
+      ventasMetricas={ventasMetricasRes.data || []}
       operador={auth.user.email?.split("@")[0] || "admin"}
     />
   );
