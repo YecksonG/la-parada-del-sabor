@@ -9,7 +9,8 @@ export default async function TasasPage() {
     .from("tasas_cambio")
     .select("*")
     .order("fecha", { ascending: false })
-    .limit(30);
+    .limit(365);
+
 
   return <TasasClient tasas={(tasas as TasaCambio[]) || []} />;
 }

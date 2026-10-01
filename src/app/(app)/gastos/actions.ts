@@ -66,17 +66,20 @@ export async function crearGasto(payload: PayloadGasto) {
     return { ok: false, error: "Identificador de cuenta no válido." };
   }
 
-  // Obtener tasa activa si no se proporciona
+  // Obtener tasa activa correspondiente a la fecha del gasto si no se proporciona
   let tasa = payload.tasa_bcv;
   if (!tasa || typeof tasa !== "number" || !Number.isFinite(tasa) || tasa <= 0) {
+    const fechaRef = payload.fecha ? payload.fecha.split("T")[0] : toFechaCaracasString(new Date());
     const { data: tasaData } = await supabase
       .from("tasas_cambio")
       .select("bcv_usd_bs, tasa_usd_bs")
+      .lte("fecha", fechaRef)
       .order("fecha", { ascending: false })
       .limit(1)
       .maybeSingle();
     tasa = Number(tasaData?.tasa_usd_bs || tasaData?.bcv_usd_bs) || 60.0;
   }
+
 
   const monto_bs =
     typeof payload.monto_bs === "number" && Number.isFinite(payload.monto_bs) && payload.monto_bs > 0
@@ -190,16 +193,20 @@ export async function actualizarGasto(id: string, payload: Partial<PayloadGasto>
     if (payload.monto_bs === undefined) {
       let tasa = payload.tasa_bcv;
       if (!tasa) {
+        const fechaRef = payload.fecha ? payload.fecha.split("T")[0] : toFechaCaracasString(new Date());
         const { data: tasaData } = await supabase
           .from("tasas_cambio")
-          .select("bcv_usd_bs")
+          .select("tasa_usd_bs, bcv_usd_bs")
+          .lte("fecha", fechaRef)
           .order("fecha", { ascending: false })
           .limit(1)
           .maybeSingle();
-        tasa = Number(tasaData?.bcv_usd_bs) || 1.0;
+        tasa = Number(tasaData?.tasa_usd_bs || tasaData?.bcv_usd_bs) || 60.0;
       }
       updateData.monto_bs = Number((payload.monto_usd * tasa).toFixed(2));
     }
+
+
   }
 
   const { data, error } = await supabase
@@ -389,9 +396,21 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     ? payload.total_usd
     : totalUsdCalculado;
 
+  let tasaCompra = payload.tasa_bcv;
+  if (!tasaCompra || typeof tasaCompra !== "number" || !Number.isFinite(tasaCompra) || tasaCompra <= 0) {
+    const { data: tasaData } = await supabase
+      .from("tasas_cambio")
+      .select("bcv_usd_bs, tasa_usd_bs")
+      .lte("fecha", fechaEfectiva)
+      .order("fecha", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    tasaCompra = Number(tasaData?.tasa_usd_bs || tasaData?.bcv_usd_bs) || 60.0;
+  }
+
   const totalBs = payload.total_bs && payload.total_bs > 0
     ? payload.total_bs
-    : Number((totalUsdEfectivo * payload.tasa_bcv).toFixed(2));
+    : Number((totalUsdEfectivo * tasaCompra).toFixed(2));
 
   let notasCompra = payload.notas || "";
   if (tieneNoInv) {
@@ -408,9 +427,10 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     .insert({
       fecha: fechaEfectiva,
       proveedor_id: payload.proveedor_id || null,
-      tasa_bcv: payload.tasa_bcv,
+      tasa_bcv: tasaCompra,
       total_usd: totalUsdEfectivo,
       total_bs: totalBs,
+
       metodo_pago: ctaOrigen,
       comprobante: payload.numero_factura || null,
       notas: notasCompra || null,
@@ -503,8 +523,9 @@ export async function registrarCompraMultiInsumo(payload: RegistrarCompraMultiIn
     proveedor_id: payload.proveedor_id || null,
     monto_usd: totalUsdEfectivo,
     monto_bs: totalBs,
-    tasa_bcv: payload.tasa_bcv,
+    tasa_bcv: tasaCompra,
     cuenta_origen: ctaOrigen,
+
     cuenta_id: payload.cuenta_id || null,
     numero_factura: payload.numero_factura?.trim() || null,
     comprobante_url: payload.comprobante_url || null,

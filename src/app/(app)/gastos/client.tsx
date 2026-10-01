@@ -15,6 +15,8 @@ import {
 } from "./actions";
 import { createClient } from "@/lib/supabase/client";
 import { toFechaCaracasString } from "@/lib/date-vzla";
+import { buscarTasaPorFecha } from "@/lib/tasas-api";
+import { TasaCambio } from "@/types/database";
 
 interface GastosClientProps {
   gastosIniciales: Gasto[];
@@ -22,7 +24,9 @@ interface GastosClientProps {
   insumos: Insumo[];
   proveedores: Proveedor[];
   tasaBcv: number;
+  tasasHistoricas?: TasaCambio[];
 }
+
 
 const CATEGORIAS_CONFIG: Record<CategoriaGasto, { label: string; icon: string; color: string }> = {
   servicios: { label: "Servicios Operativos", icon: "⚡", color: "#3b82f6" },
@@ -86,6 +90,7 @@ export default function GastosClient({
   insumos,
   proveedores,
   tasaBcv,
+  tasasHistoricas = [],
 }: GastosClientProps) {
   const [tabActiva, setTabActiva] = useState<"gastos" | "compras">("gastos");
   const [gastos, setGastos] = useState<Gasto[]>(gastosIniciales);
@@ -110,7 +115,7 @@ export default function GastosClient({
   const [comprasExpandidas, setComprasExpandidas] = useState<Set<string>>(new Set());
 
   // Estado Formulario Gasto General
-  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
+  const [fecha, setFecha] = useState(toFechaCaracasString(new Date()));
   const [categoria, setCategoria] = useState<CategoriaGasto>("servicios");
   const [subcategoria, setSubcategoria] = useState("Gas Comercial / Cilindros");
   const [descripcion, setDescripcion] = useState("");
@@ -144,11 +149,24 @@ interface CompraItemRow {
   const [compraFactura, setCompraFactura] = useState("");
   const [compraNotas, setCompraNotas] = useState("");
 
+  // Tasa correspondiente a la fecha del gasto seleccionado (respetando precedencia oficial)
+  const tasaFechaGasto = useMemo(() => {
+    const t = buscarTasaPorFecha(fecha, tasasHistoricas);
+    return Number(t?.tasa_usd_bs || t?.bcv_usd_bs) || tasaBcv;
+  }, [fecha, tasasHistoricas, tasaBcv]);
+
+  // Tasa correspondiente a la fecha de la compra seleccionada (respetando precedencia oficial)
+  const tasaFechaCompra = useMemo(() => {
+    const t = buscarTasaPorFecha(compraFecha, tasasHistoricas);
+    return Number(t?.tasa_usd_bs || t?.bcv_usd_bs) || tasaBcv;
+  }, [compraFecha, tasasHistoricas, tasaBcv]);
+
   // Abrir Modal para Crear Gasto General
   const abrirModalCrearGasto = () => {
     setGastoEditando(null);
     setErrorMsg("");
-    setFecha(new Date().toISOString().split("T")[0]);
+    setFecha(toFechaCaracasString(new Date()));
+
     setCategoria("servicios");
     setSubcategoria(SUBCATEGORIAS_SUGERIDAS.servicios[0] || "");
     setDescripcion("");
@@ -207,12 +225,35 @@ interface CompraItemRow {
     }
   };
 
-  // Cálculo automático dual USD <-> Bs en Gasto
+  // Manejo de cambio de fecha con recálculo automático de tasa
+  const handleCambioFechaGasto = (nuevaFecha: string) => {
+    setFecha(nuevaFecha);
+    const t = buscarTasaPorFecha(nuevaFecha, tasasHistoricas);
+    const nuevaTasa = Number(t?.tasa_usd_bs || t?.bcv_usd_bs) || tasaBcv;
+    const numUsd = parseFloat(montoUsd);
+    if (!isNaN(numUsd) && numUsd > 0 && nuevaTasa > 0) {
+      setMontoBs((numUsd * nuevaTasa).toFixed(2));
+    }
+  };
+
+  const handleCambioFechaCompra = (nuevaFecha: string) => {
+    setCompraFecha(nuevaFecha);
+    const t = buscarTasaPorFecha(nuevaFecha, tasasHistoricas);
+    const nuevaTasa = Number(t?.tasa_usd_bs || t?.bcv_usd_bs) || tasaBcv;
+    const totalUsdItems = compraItems.reduce((acc, it) => acc + (parseFloat(it.totalUsd) || 0), 0);
+    if (totalUsdItems > 0 && nuevaTasa > 0) {
+      setCompraTotalBs((totalUsdItems * nuevaTasa).toFixed(2));
+    }
+  };
+
+
+
+  // Cálculo automático dual USD <-> Bs en Gasto usando la tasa del día seleccionado
   const handleCambioMontoUsd = (val: string) => {
     setMontoUsd(val);
     const num = parseFloat(val);
-    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
-      setMontoBs((num * tasaBcv).toFixed(2));
+    if (!isNaN(num) && num > 0 && tasaFechaGasto > 0) {
+      setMontoBs((num * tasaFechaGasto).toFixed(2));
     } else {
       setMontoBs("");
     }
@@ -221,8 +262,8 @@ interface CompraItemRow {
   const handleCambioMontoBs = (val: string) => {
     setMontoBs(val);
     const num = parseFloat(val);
-    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
-      setMontoUsd((num / tasaBcv).toFixed(2));
+    if (!isNaN(num) && num > 0 && tasaFechaGasto > 0) {
+      setMontoUsd((num / tasaFechaGasto).toFixed(2));
     }
   };
 
@@ -230,10 +271,11 @@ interface CompraItemRow {
   const handleCambioCompraBs = (val: string) => {
     setCompraTotalBs(val);
     const num = parseFloat(val);
-    if (!isNaN(num) && num > 0 && tasaBcv > 0) {
+    if (!isNaN(num) && num > 0 && tasaFechaCompra > 0) {
       // setCompraTotalUsd disabled
     }
   };
+
 
   // Subir comprobante a Storage
   const handleSubirComprobante = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,9 +352,10 @@ interface CompraItemRow {
       beneficiario,
       proveedor_id: proveedorId || undefined,
       monto_usd: usd,
-      monto_bs: parseFloat(montoBs) || Number((usd * tasaBcv).toFixed(2)),
-      tasa_bcv: tasaBcv,
+      monto_bs: parseFloat(montoBs) || Number((usd * tasaFechaGasto).toFixed(2)),
+      tasa_bcv: tasaFechaGasto,
       cuenta_origen: metodoPagoGasto || "efectivo_usd",
+
       metodo_pago: metodoPagoGasto,
       numero_factura: numeroFactura,
       comprobante_url: comprobanteUrl,
@@ -407,9 +450,10 @@ interface CompraItemRow {
         fecha: compraFecha,
         proveedor_id: compraProveedorId || undefined,
         total_usd: Number(totalUsdCompra.toFixed(2)),
-        total_bs: parseFloat(compraTotalBs) || Number((totalUsdCompra * tasaBcv).toFixed(2)),
-        tasa_bcv: tasaBcv,
+        total_bs: parseFloat(compraTotalBs) || Number((totalUsdCompra * tasaFechaCompra).toFixed(2)),
+        tasa_bcv: tasaFechaCompra,
         cuenta_origen: "efectivo_usd",
+
         numero_factura: compraFactura,
         comprobante_url: comprobanteUrl || undefined,
         notas: compraNotas,
@@ -994,7 +1038,7 @@ interface CompraItemRow {
                     type="date"
                     required
                     value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
+                    onChange={(e) => handleCambioFechaGasto(e.target.value)}
                     className="form-input"
                   />
                 </div>
@@ -1079,9 +1123,10 @@ interface CompraItemRow {
                     className="form-input"
                     style={{ fontSize: 15, fontWeight: 800 }}
                   />
-                  <span style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2, fontWeight: 600 }}>Tasa: {tasaBcv.toFixed(2)} Bs/USD</span>
+                  <span style={{ fontSize: 11, color: "var(--primary-dark)", marginTop: 2, fontWeight: 700 }}>Tasa BCV ({fecha}): {tasaFechaGasto.toFixed(2)} Bs/USD</span>
                 </div>
               </div>
+
 
               <div className="form-field">
                 <label>Método de Pago *</label>
@@ -1370,9 +1415,10 @@ interface CompraItemRow {
                     type="date"
                     required
                     value={compraFecha}
-                    onChange={(e) => setCompraFecha(e.target.value)}
+                    onChange={(e) => handleCambioFechaCompra(e.target.value)}
                     className="form-input"
                   />
+
                 </div>
                 <div className="form-field">
                   <label>Proveedor (Opcional)</label>
@@ -1551,8 +1597,8 @@ interface CompraItemRow {
 
               <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", alignItems: "center", borderTop: "1px solid var(--border-subtle)", paddingTop: 12, marginBottom: 16 }}>
                  <div className="form-field" style={{ margin: 0, textAlign: "right" }}>
-                   <label style={{ margin: 0, fontSize: 11 }}>Total General en Bs (Opcional)</label>
-                   <input type="number" step="0.01" placeholder={(compraItems.reduce((acc, it) => acc + (parseFloat(it.totalUsd) || 0), 0) * tasaBcv).toFixed(2)} value={compraTotalBs} onChange={(e) => setCompraTotalBs(e.target.value)} className="form-input" style={{ padding: "8px", width: 140, marginLeft: "auto" }} />
+                   <label style={{ margin: 0, fontSize: 11, color: "var(--primary-dark)", fontWeight: 700 }}>Total General en Bs (Tasa {compraFecha}: {tasaFechaCompra.toFixed(2)} Bs)</label>
+                   <input type="number" step="0.01" placeholder={(compraItems.reduce((acc, it) => acc + (parseFloat(it.totalUsd) || 0), 0) * tasaFechaCompra).toFixed(2)} value={compraTotalBs} onChange={(e) => setCompraTotalBs(e.target.value)} className="form-input" style={{ padding: "8px", width: 140, marginLeft: "auto" }} />
                  </div>
               </div>
 

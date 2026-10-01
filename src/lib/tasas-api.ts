@@ -45,3 +45,32 @@ export async function obtenerTasasDelDia(): Promise<TasasDelDia | null> {
 
   return { bcv, usdt, eur, promedio, fecha: fechaStr };
 }
+
+import type { TasaCambio } from "@/types/database";
+
+/**
+ * Busca en una lista de tasas_cambio la tasa correspondiente a una fecha (YYYY-MM-DD).
+ * Si no existe tasa exacta para ese día (ej. fin de semana o feriado), toma la tasa más reciente anterior o igual a esa fecha.
+ */
+export function buscarTasaPorFecha(fecha: string, listaTasas: TasaCambio[]): TasaCambio | null {
+  if (!fecha || !listaTasas || listaTasas.length === 0) return null;
+  const fechaLimpia = fecha.split("T")[0];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaLimpia)) return null;
+
+
+  // 1. Coincidencia exacta
+  const exacta = listaTasas.find((t) => t.fecha === fechaLimpia);
+  if (exacta) return exacta;
+
+  // 2. Tasa más reciente anterior o igual a la fecha solicitada
+  const anteriores = listaTasas
+    .filter((t) => t.fecha <= fechaLimpia)
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+
+  if (anteriores.length > 0) return anteriores[0];
+
+  // 3. Si la fecha es anterior a todo nuestro registro, devolver la más antigua disponible
+  const masAntigua = [...listaTasas].sort((a, b) => a.fecha.localeCompare(b.fecha))[0];
+  return masAntigua || null;
+}
+

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { TasaCambio, TasaActivaTipo } from "@/types/database";
 import { autoSincronizarTasas, fijarTasaActivaFacturacion } from "./actions";
 import { sounds } from "@/lib/sound-effects";
+import { buscarTasaPorFecha } from "@/lib/tasas-api";
 
 interface TasasClientProps {
   tasas: TasaCambio[];
@@ -36,6 +37,20 @@ export default function TasasClient({ tasas }: TasasClientProps) {
   const [sincronizando, setSincronizando] = useState(false);
   const [copiado, setCopiado] = useState<string | null>(null);
 
+  // Fecha seleccionada para la Calculadora de Mostrador
+  const [fechaCalculadora, setFechaCalculadora] = useState<string>(
+    tasaActual.fecha || new Date().toISOString().split("T")[0]
+  );
+
+  const tasaCalculadora = useMemo(() => {
+    return buscarTasaPorFecha(fechaCalculadora, tasas) || tasaActual;
+  }, [fechaCalculadora, tasas, tasaActual]);
+
+  const bcvCalc = Number(tasaCalculadora.bcv_usd_bs || tasaCalculadora.tasa_usd_bs) || bcv;
+  const usdtCalc = Number(tasaCalculadora.usdt_bs || tasaCalculadora.tasa_usd_bs) || usdt;
+  const eurCalc = Number(tasaCalculadora.eur_bs) || eur;
+  const promedioCalc = Number(tasaCalculadora.promedio_bs || tasaCalculadora.tasa_usd_bs) || promedio;
+
   const handleSeleccionarTasaActiva = async (tipo: TasaActivaTipo, valorPers?: number) => {
     sounds.playPop();
     setCambiandoTasa(true);
@@ -60,13 +75,14 @@ export default function TasasClient({ tasas }: TasasClientProps) {
   const [calcResetOnNext, setCalcResetOnNext] = useState<boolean>(false);
   const [calcMoneda, setCalcMoneda] = useState<"USD" | "Bs">("USD");
 
-  // Orden exacto de Radiadores Dabajuro
+  // Lista de Tasas calculadas según la fecha seleccionada
   const listaTasas = [
-    { id: "bcv", label: "BCV oficial", tag: "🟢 BCV", tasa: bcv, color: "#10b981" },
-    { id: "usdt", label: "USDT", tag: "🟡 USDT", tasa: usdt, color: "#f59e0b" },
-    { id: "eur", label: "EUR", tag: "🇪🇺 EUR", tasa: eur, color: "#6366f1" },
-    { id: "promedio", label: "Promedio", tag: "⚡ Promedio", tasa: promedio, color: "#ec4899" },
+    { id: "bcv", label: "BCV oficial", tag: "🟢 BCV", tasa: bcvCalc, color: "#10b981" },
+    { id: "usdt", label: "USDT", tag: "🟡 USDT", tasa: usdtCalc, color: "#f59e0b" },
+    { id: "eur", label: "EUR", tag: "🇪🇺 EUR", tasa: eurCalc, color: "#6366f1" },
+    { id: "promedio", label: "Promedio", tag: "⚡ Promedio", tasa: promedioCalc, color: "#ec4899" },
   ];
+
 
   // Presets
   const presets = [1, 3.5, 5, 10, 20, 50, 100];
@@ -453,6 +469,79 @@ export default function TasasClient({ tasas }: TasasClientProps) {
             </div>
           </div>
 
+          {/* Selector de Fecha / Calendario para la Calculadora */}
+          <div
+            style={{
+              background: "var(--bg-subtle)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              padding: "10px 14px",
+              marginBottom: 14,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: "var(--text)" }}>Tasa por Fecha:</span>
+                <input
+                  type="date"
+                  value={fechaCalculadora}
+                  max={tasas[0]?.fecha || new Date().toISOString().split("T")[0]}
+                  onChange={(e) => {
+                    sounds.playPop();
+                    setFechaCalculadora(e.target.value);
+                  }}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-card)",
+                    color: "var(--text)",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                />
+              </div>
+
+              {fechaCalculadora !== (tasas[0]?.fecha || new Date().toISOString().split("T")[0]) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playPop();
+                    setFechaCalculadora(tasas[0]?.fecha || new Date().toISOString().split("T")[0]);
+                  }}
+                  style={{
+                    background: "rgba(239, 68, 68, 0.12)",
+                    color: "#dc2626",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
+                    borderRadius: 6,
+                    padding: "4px 10px",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  Volver a Tasa de Hoy
+                </button>
+              ) : (
+                <span style={{ fontSize: 11, fontWeight: 800, color: "var(--green)", display: "flex", alignItems: "center", gap: 4 }}>
+                  ● Tasa Actual de Hoy
+                </span>
+              )}
+            </div>
+
+            {fechaCalculadora !== (tasas[0]?.fecha || new Date().toISOString().split("T")[0]) && (
+              <div style={{ fontSize: 11.5, color: "var(--primary-dark)", fontWeight: 700 }}>
+                Calculando con tasa del <strong>{tasaCalculadora.fecha}</strong> • BCV: <strong>Bs. {bcvCalc.toFixed(2)}</strong>
+              </div>
+            )}
+          </div>
+
+
+
           {/* Pantalla LCD / LED */}
           <div className="calc-lcd-screen">
             <div className="lcd-header-line">
@@ -563,9 +652,9 @@ export default function TasasClient({ tasas }: TasasClientProps) {
             <span className="badge-popular">🤖 100% Automático</span>
           </div>
 
-          <div style={{ overflowX: "auto", marginTop: 8 }}>
+          <div style={{ overflowX: "auto", maxHeight: "520px", overflowY: "auto", marginTop: 8 }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
+              <thead style={{ position: "sticky", top: 0, background: "var(--bg-card)", zIndex: 1 }}>
                 <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left", color: "var(--text-muted)" }}>
                   <th style={{ padding: "8px 4px" }}>Fecha</th>
                   <th style={{ padding: "8px 4px" }}>BCV</th>
@@ -575,26 +664,69 @@ export default function TasasClient({ tasas }: TasasClientProps) {
                 </tr>
               </thead>
               <tbody>
-                {tasas.map((t) => (
-                  <tr key={t.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                    <td style={{ padding: "10px 4px", fontWeight: 700 }}>📅 {t.fecha}</td>
-                    <td style={{ padding: "10px 4px", color: "var(--green)", fontWeight: 800 }}>
-                      Bs {Number(t.bcv_usd_bs || t.tasa_usd_bs).toFixed(2)}
-                    </td>
-                    <td style={{ padding: "10px 4px", color: "var(--primary-dark)", fontWeight: 800 }}>
-                      Bs {Number(t.usdt_bs || t.tasa_usd_bs).toFixed(2)}
-                    </td>
-                    <td style={{ padding: "10px 4px", color: "#6366f1", fontWeight: 800 }}>
-                      Bs {Number(t.eur_bs || 0).toFixed(2)}
-                    </td>
-                    <td style={{ padding: "10px 4px", fontWeight: 900 }}>
-                      Bs {Number(t.promedio_bs || t.tasa_usd_bs).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
+                {tasas.map((t) => {
+                  const estaActivaEnCalc = fechaCalculadora === t.fecha;
+                  return (
+                    <tr
+                      key={t.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        sounds.playPop();
+                        setFechaCalculadora(t.fecha);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          sounds.playPop();
+                          setFechaCalculadora(t.fecha);
+                        }
+                      }}
+                      style={{
+                        borderBottom: "1px solid var(--border-subtle)",
+                        cursor: "pointer",
+                        background: estaActivaEnCalc ? "rgba(16, 185, 129, 0.12)" : undefined,
+                        transition: "background 0.15s ease",
+                      }}
+                      title="Haz clic para cargar esta tasa en la calculadora"
+                    >
+                      <td style={{ padding: "10px 4px", fontWeight: 700 }}>
+                        {t.fecha}
+                        {estaActivaEnCalc && (
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              fontSize: 10,
+                              background: "var(--green)",
+                              color: "#fff",
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              fontWeight: 900,
+                            }}
+                          >
+                            EN CALC
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: "10px 4px", color: "var(--green)", fontWeight: 800 }}>
+                        Bs {Number(t.bcv_usd_bs || t.tasa_usd_bs).toFixed(2)}
+                      </td>
+                      <td style={{ padding: "10px 4px", color: "var(--primary-dark)", fontWeight: 800 }}>
+                        Bs {Number(t.usdt_bs || t.tasa_usd_bs).toFixed(2)}
+                      </td>
+                      <td style={{ padding: "10px 4px", color: "#6366f1", fontWeight: 800 }}>
+                        Bs {Number(t.eur_bs || 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: "10px 4px", fontWeight: 900 }}>
+                        Bs {Number(t.promedio_bs || t.tasa_usd_bs).toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
         </div>
       </div>
     </main>

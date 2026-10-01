@@ -10,7 +10,7 @@ export const metadata = {
 export default async function GastosPage() {
   const supabase = await createClient();
 
-  const [gastosRes, comprasRes, insumosRes, provRes, tasaRes] = await Promise.all([
+  const [gastosRes, comprasRes, insumosRes, provRes, tasaRes, tasasHistoricasRes] = await Promise.all([
     supabase
       .from("gastos")
       .select("*, proveedor:proveedores(*)")
@@ -37,6 +37,11 @@ export default async function GastosPage() {
       .order("fecha", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("tasas_cambio")
+      .select("*")
+      .order("fecha", { ascending: false })
+      .limit(365),
   ]);
 
   const gastos = (gastosRes.data as Gasto[]) || [];
@@ -44,6 +49,7 @@ export default async function GastosPage() {
   const insumos = (insumosRes.data as Insumo[]) || [];
   const proveedores = (provRes.data as Proveedor[]) || [];
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs) || 60.0;
+  const tasasHistoricas = (tasasHistoricasRes.data as any[]) || [];
 
   return (
     <GastosClient
@@ -52,6 +58,8 @@ export default async function GastosPage() {
       insumos={insumos}
       proveedores={proveedores}
       tasaBcv={tasaBcv}
+      tasasHistoricas={tasasHistoricas}
     />
   );
+
 }
