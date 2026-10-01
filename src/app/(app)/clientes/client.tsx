@@ -17,7 +17,10 @@ import {
   limpiarTodosLosAbonosDeNotas,
 } from "@/lib/pago-mixto";
 
+import { TetasVenta } from "@/types/database";
+
 interface ClientesClientProps {
+  ventasTetas?: TetasVenta[];
   clientes: Cliente[];
   ventas?: Venta[];
   tasaBcv?: number;
@@ -69,7 +72,7 @@ function getMetodoBadge(metodo?: MetodoPago | string | null) {
   }
 }
 
-export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }: ClientesClientProps) {
+export default function ClientesClient({ clientes, ventas = [], ventasTetas = [], tasaBcv = 832 }: ClientesClientProps) {
   const [listaClientes, setListaClientes] = useState<Cliente[]>(clientes);
   const [listaVentas, setListaVentas] = useState<Venta[]>(ventas);
   const [pestañaPrincipal, setPestañaPrincipal] = useState<"directorio" | "credito">("directorio");
@@ -128,10 +131,23 @@ export default function ClientesClient({ clientes, ventas = [], tasaBcv = 832 }:
   // Cuentas por Cobrar / Crédito Logic
   // ----------------------------------------------------
   const comandasCredito = useMemo(() => {
-    return listaVentas.filter(
-      (v) => v.estado === "credito" || v.metodo_pago === "credito"
-    );
-  }, [listaVentas]);
+    const fromCocina = listaVentas.filter((v) => v.estado === "credito" || v.metodo_pago === "credito");
+    const fromTetas = ventasTetas.filter((v) => v.estado === "credito" || v.metodo_pago === "credito").map(t => ({
+      ...t,
+      notas_comanda: t.notas, // Mapeo de nota para compatibilidad
+      numero_comanda: null, // Sin numero de comanda
+      origen_pedido: "pos",
+      items: [{
+        id: "teta-" + t.id,
+        producto: { nombre: "Tetas Cream - " + t.sabor_nombre, precio_usd: t.precio_unitario_usd },
+        cantidad: t.cantidad,
+        precio_unitario_usd: t.precio_unitario_usd,
+        total_usd: t.total_usd
+      }] // Fake item para render UI
+    } as unknown as Venta));
+
+    return [...fromCocina, ...fromTetas].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }, [listaVentas, ventasTetas]);
 
   const deudoresMap = useMemo(() => {
     const map = new Map<string, { cliente: Cliente; totalDeudaUsd: number; comandas: Venta[] }>();

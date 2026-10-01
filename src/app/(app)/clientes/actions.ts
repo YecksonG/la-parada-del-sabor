@@ -121,12 +121,32 @@ export async function registrarPagoComandaCredito(payload: RegistrarPagoCreditoP
   const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  // 1. Obtener la comanda actual
-  const { data: venta, error: errorFetch } = await supabase
+  // 1. Obtener la comanda actual (intentar en ventas normales y en tetas)
+  let tablaVenta = "ventas";
+  let { data: venta, error: errorFetch } = await supabase
     .from("ventas")
     .select("id, total_usd, total_bs, tasa_bcv, notas_comanda, metodo_pago, estado")
     .eq("id", payload.venta_id)
     .single();
+
+  if (errorFetch || !venta) {
+    // Intentar buscar en tetas
+    const { data: ventaTeta, error: errorFetchTeta } = await supabase
+      .from("tetas_ventas")
+      .select("id, total_usd, total_bs, tasa_bcv, notas, metodo_pago")
+      .eq("id", payload.venta_id)
+      .single();
+      
+    if (!errorFetchTeta && ventaTeta) {
+      tablaVenta = "tetas_ventas";
+      venta = {
+        ...ventaTeta,
+        notas_comanda: ventaTeta.notas,
+        estado: "completada" // tetas no manejan estado operativo como cocina
+      };
+      errorFetch = null;
+    }
+  }
 
   if (errorFetch || !venta) {
     return { ok: false, error: "No se encontró la comanda a procesar." };
@@ -153,9 +173,19 @@ export async function registrarPagoComandaCredito(payload: RegistrarPagoCreditoP
     }
   }
 
+  // Ajustar campos de actualización dependiendo de la tabla
+  let fieldsToUpdate = updateFields;
+  if (tablaVenta === "tetas_ventas") {
+    fieldsToUpdate = {
+      notas: updateFields.notas_comanda,
+      metodo_pago: updateFields.metodo_pago
+    };
+    if (updateFields.estado) delete fieldsToUpdate.estado;
+  }
+
   const { error: updateError } = await supabase
-    .from("ventas")
-    .update(updateFields)
+    .from(tablaVenta)
+    .update(fieldsToUpdate)
     .eq("id", payload.venta_id);
 
   if (updateError) {
@@ -185,11 +215,26 @@ export async function eliminarAbonoComandaCredito(payload: {
   const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const { data: venta, error: errorFetch } = await supabase
+  let tablaVenta = "ventas";
+  let { data: venta, error: errorFetch } = await supabase
     .from("ventas")
     .select("id, total_usd, notas_comanda, metodo_pago, estado")
     .eq("id", payload.venta_id)
     .single();
+
+  if (errorFetch || !venta) {
+    const { data: ventaTeta, error: errorFetchTeta } = await supabase
+      .from("tetas_ventas")
+      .select("id, total_usd, notas, metodo_pago")
+      .eq("id", payload.venta_id)
+      .single();
+    
+    if (!errorFetchTeta && ventaTeta) {
+      tablaVenta = "tetas_ventas";
+      venta = { ...ventaTeta, notas_comanda: ventaTeta.notas, estado: "completada" };
+      errorFetch = null;
+    }
+  }
 
   if (errorFetch || !venta) {
     return { ok: false, error: "No se encontró la comanda a modificar." };
@@ -214,9 +259,16 @@ export async function eliminarAbonoComandaCredito(payload: {
     updateFields.metodo_pago = "credito";
   }
 
+  let fieldsToUpdate = updateFields;
+  if (tablaVenta === "tetas_ventas") {
+    fieldsToUpdate = { notas: updateFields.notas_comanda };
+    if (updateFields.estado) delete fieldsToUpdate.estado;
+    if (updateFields.metodo_pago) fieldsToUpdate.metodo_pago = updateFields.metodo_pago;
+  }
+
   const { error: updateError } = await supabase
-    .from("ventas")
-    .update(updateFields)
+    .from(tablaVenta)
+    .update(fieldsToUpdate)
     .eq("id", payload.venta_id);
 
   if (updateError) {
@@ -245,11 +297,26 @@ export async function limpiarTodosAbonosComandaCredito(payload: {
   const auth = await requireAuth();
   if (!auth.ok) return { ok: false, error: auth.error };
 
-  const { data: venta, error: errorFetch } = await supabase
+  let tablaVenta = "ventas";
+  let { data: venta, error: errorFetch } = await supabase
     .from("ventas")
     .select("id, total_usd, notas_comanda, metodo_pago, estado")
     .eq("id", payload.venta_id)
     .single();
+
+  if (errorFetch || !venta) {
+    const { data: ventaTeta, error: errorFetchTeta } = await supabase
+      .from("tetas_ventas")
+      .select("id, total_usd, notas, metodo_pago")
+      .eq("id", payload.venta_id)
+      .single();
+    
+    if (!errorFetchTeta && ventaTeta) {
+      tablaVenta = "tetas_ventas";
+      venta = { ...ventaTeta, notas_comanda: ventaTeta.notas, estado: "completada" };
+      errorFetch = null;
+    }
+  }
 
   if (errorFetch || !venta) {
     return { ok: false, error: "No se encontró la comanda a modificar." };
@@ -270,9 +337,16 @@ export async function limpiarTodosAbonosComandaCredito(payload: {
     updateFields.metodo_pago = "credito";
   }
 
+  let fieldsToUpdate = updateFields;
+  if (tablaVenta === "tetas_ventas") {
+    fieldsToUpdate = { notas: updateFields.notas_comanda };
+    if (updateFields.estado) delete fieldsToUpdate.estado;
+    if (updateFields.metodo_pago) fieldsToUpdate.metodo_pago = updateFields.metodo_pago;
+  }
+
   const { error: updateError } = await supabase
-    .from("ventas")
-    .update(updateFields)
+    .from(tablaVenta)
+    .update(fieldsToUpdate)
     .eq("id", payload.venta_id);
 
   if (updateError) {

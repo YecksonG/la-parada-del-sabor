@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import ClientesClient from "./client";
-import { Cliente, Venta } from "@/types/database";
+import { Cliente, Venta, TetasVenta } from "@/types/database";
 
 export default async function ClientesPage() {
   const supabase = await createClient();
 
-  const [clientesRes, ventasRes, tasaRes] = await Promise.all([
+  const [clientesRes, ventasRes, ventasTetasRes, tasaRes] = await Promise.all([
     supabase
       .from("clientes")
       .select("*")
@@ -13,6 +13,11 @@ export default async function ClientesPage() {
     supabase
       .from("ventas")
       .select("*, items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
+      .not("cliente_id", "is", null)
+      .order("fecha", { ascending: false }),
+    supabase
+      .from("tetas_ventas")
+      .select("*")
       .not("cliente_id", "is", null)
       .order("fecha", { ascending: false }),
     supabase
@@ -25,12 +30,14 @@ export default async function ClientesPage() {
 
   const clientes = clientesRes.data || [];
   const ventas = ventasRes.data || [];
+  const ventasTetas = ventasTetasRes.data || [];
   const tasaBcv = Number(tasaRes.data?.tasa_usd_bs || tasaRes.data?.bcv_usd_bs || 832);
 
   return (
     <ClientesClient
       clientes={(clientes as Cliente[]) || []}
       ventas={(ventas as Venta[]) || []}
+      ventasTetas={(ventasTetas as TetasVenta[]) || []}
       tasaBcv={tasaBcv}
     />
   );
