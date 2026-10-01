@@ -38,29 +38,9 @@ export default function TetasClient({
   metricasAgrupadas,
   operador,
 }: TetasClientProps) {
-    const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
+  const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
   const [periodoMetricas, setPeriodoMetricas] = useState<"semana" | "mes" | "historico">("mes");
-
-  const metricasCalculadas = useMemo(() => {
-    const ahora = new Date();
-    let fechaFiltro: Date | null = null;
-    if (periodoMetricas === "mes") {
-      fechaFiltro = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-    } else if (periodoMetricas === "semana") {
-      const day = ahora.getDay() || 7;
-      fechaFiltro = new Date(ahora);
-      fechaFiltro.setDate(ahora.getDate() - day + 1);
-      fechaFiltro.setHours(0, 0, 0, 0);
-    }
-    const ventasFiltradas = ventasMetricas.filter(v => {
-      if (!fechaFiltro) return true;
-      return new Date(v.fecha) >= fechaFiltro;
-    });
-    const ventasUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);
-    const costoUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.costo_unitario_usd || 0) * Number(v.cantidad || 0)), 0);
-    const unidades = ventasFiltradas.reduce((acc, v) => acc + (Number(v.cantidad) || 0), 0);
-    return { ventasUsd, costoUsd, utilidadUsd: ventasUsd - costoUsd, unidades };
-  }, [metricasAgrupadas, periodoMetricas]);
+  const metricasCalculadas = metricasAgrupadas[periodoMetricas];
   const [busqueda, setBusqueda] = useState("");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
