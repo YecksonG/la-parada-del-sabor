@@ -130,6 +130,25 @@ export default function ClientesClient({ clientes, ventas = [], ventasTetas = []
   // ----------------------------------------------------
   // Cuentas por Cobrar / Crédito Logic
   // ----------------------------------------------------
+  const ventasHistoricasUnificadas = useMemo(() => {
+    const fromCocina = listaVentas || [];
+    const fromTetas = (ventasTetas || []).map(t => ({
+      ...t,
+      notas_comanda: t.notas,
+      numero_comanda: null,
+      origen_pedido: "pos",
+      estado: (t as any).estado || (t.metodo_pago === "credito" ? "credito" : "completada"),
+      items: [{
+        id: "teta-" + t.id,
+        producto: { nombre: "Tetas Cream - " + t.sabor_nombre, precio_usd: t.precio_unitario_usd },
+        cantidad: t.cantidad,
+        precio_unitario_usd: t.precio_unitario_usd,
+        total_usd: t.total_usd
+      }]
+    } as unknown as Venta));
+    return [...fromCocina, ...fromTetas].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }, [listaVentas, ventasTetas]);
+
   const comandasCredito = useMemo(() => {
     const fromCocina = listaVentas.filter((v) => v.estado === "credito" || v.metodo_pago === "credito");
     const fromTetas = ventasTetas.filter((v) => v.estado === "credito" || v.metodo_pago === "credito").map(t => ({
@@ -1137,7 +1156,7 @@ export default function ClientesClient({ clientes, ventas = [], ventasTetas = []
 
       {/* Modal de Perfil & Historial de Ventas del Cliente */}
       {modalHistorial && clienteHistorial && (() => {
-        const ventasCliente = ventas.filter((v) => v.cliente_id === clienteHistorial.id);
+        const ventasCliente = ventasHistoricasUnificadas.filter((v) => v.cliente_id === clienteHistorial.id);
         const totalGastadoUsd = ventasCliente
           .filter((v) => v.estado !== "cancelada")
           .reduce((acc, v) => acc + (Number(v.total_usd) || 0), 0);

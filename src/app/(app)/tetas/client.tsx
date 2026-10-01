@@ -102,11 +102,13 @@ export default function TetasClient({
   };
 
   // Estados Abastecer Freezer
+  const [abastecerBusqueda, setAbastecerBusqueda] = useState("");
+  const [listaAbastecimiento, setListaAbastecimiento] = useState<Array<{sabor_id: string; cantidad: number; costo: number}>>([]);
+  // old states kept for fallback or removed if not needed, we'll just redefine.
+  const [abastecerRegistrarGasto, setAbastecerRegistrarGasto] = useState(true);
   const [abastecerSaborId, setAbastecerSaborId] = useState<string>(inventario[0]?.id || "");
   const [abastecerCantidad, setAbastecerCantidad] = useState("10");
   const [abastecerCosto, setAbastecerCosto] = useState("0.35");
-  const [abastecerRegistrarGasto, setAbastecerRegistrarGasto] = useState(true);
-
   // Estados Nuevo Sabor
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoCategoria, setNuevoCategoria] = useState<TetasCategoria>("con_chocolate");
@@ -259,25 +261,43 @@ export default function TetasClient({
   // SUBMIT ABASTECER FREEZER
   const handleAbastecer = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cant = parseInt(abastecerCantidad);
-    if (!cant || cant <= 0) {
-      showNotify("Cantidad inválida", true);
+    if (listaAbastecimiento.length === 0) {
+      showNotify("Debes agregar al menos un sabor a la lista", true);
       return;
     }
 
     startTransition(async () => {
-      const res = await abastecerStockTetasAction({
-        sabor_id: abastecerSaborId,
-        cantidad: cant,
-        costo_compra_unitario_usd: parseFloat(abastecerCosto) || 0.35,
-        registrar_gasto: abastecerRegistrarGasto,
-      });
+      let errores = 0;
+      let totalIngresado = 0;
+      for (const item of listaAbastecimiento) {
+        const res = await abastecerStockTetasAction({
+          sabor_id: item.sabor_id,
+          cantidad: item.cantidad,
+          costo_compra_unitario_usd: item.costo,
+          registrar_gasto: abastecerRegistrarGasto,
+        });
+        if (!res.ok) errores++;
+        else totalIngresado += item.cantidad;
+      }
 
-      if (!res.ok) {
-        showNotify(res.error || "Error al abastecer freezer.", true);
+      if (errores > 0) {
+        showNotify("Hubo algunos errores al abastecer. Se procesaron los exitosos.", true);
       } else {
-        showNotify(`Stock abastecido: +${cant} unidades ingresadas al freezer.`);
+        showNotify(`¡Freezer abastecido! +${totalIngresado} tetas ingresadas.`);
         setModalAbastecer(false);
+        setListaAbastecimiento([]);
+        setAbastecerBusqueda("");
+      }
+    });
+  };
+
+  const handleToggleSaborAbastecer = (saborId: string, costoPredeterminado: number) => {
+    setListaAbastecimiento(prev => {
+      const existe = prev.find(i => i.sabor_id === saborId);
+      if (existe) {
+        return prev.filter(i => i.sabor_id !== saborId);
+      } else {
+        return [...prev, { sabor_id: saborId, cantidad: 10, costo: costoPredeterminado || 0.40 }];
       }
     });
   };
@@ -1200,77 +1220,133 @@ export default function TetasClient({
               boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
             }}
           >
-            <h2 style={{ fontSize: 18, fontWeight: 900, margin: "0 0 16px", color: "var(--text)" }}>Abastecer Stock en Freezer</h2>
-            <form onSubmit={handleAbastecer} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 900, margin: "0 0 16px", color: "var(--text)" }}>Abastecer Freezer 🧊</h2>
+            <form onSubmit={handleAbastecer} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              
+              {/* Buscador de Sabores */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>
-                  Sabor a Recargar
-                </label>
-                <select
-                  value={abastecerSaborId}
-                  onChange={(e) => setAbastecerSaborId(e.target.value)}
-                  style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text)", fontSize: 13, fontWeight: 700 }}
-                >
-                  {inventario.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.sabor} (Stock actual: {s.stock_unidades})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>
-                  Cantidad Producida (Unidades)
-                </label>
                 <input
-                  type="number"
-                  min="1"
-                  value={abastecerCantidad}
-                  onChange={(e) => setAbastecerCantidad(e.target.value)}
-                  style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text)", fontSize: 13 }}
+                  type="text"
+                  placeholder="🔍 Buscar sabor por nombre..."
+                  value={abastecerBusqueda}
+                  onChange={(e) => setAbastecerBusqueda(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg-subtle)", color: "var(--text)", fontSize: 14, fontWeight: 600 }}
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>
-                  Costo Unitario de Producción ($ USD)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={abastecerCosto}
-                  onChange={(e) => setAbastecerCosto(e.target.value)}
-                  style={{ width: "100%", padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-card)", color: "var(--text)", fontSize: 13 }}
-                />
+              {/* Lista filtrada para seleccionar */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, maxHeight: 180, overflowY: "auto", paddingRight: 4 }}>
+                {inventario
+                  .filter(s => s.sabor.toLowerCase().includes(abastecerBusqueda.toLowerCase()))
+                  .map(s => {
+                    const estaSeleccionado = listaAbastecimiento.some(i => i.sabor_id === s.id);
+                    return (
+                      <button
+                        type="button"
+                        key={s.id}
+                        onClick={() => handleToggleSaborAbastecer(s.id, Number(s.costo_compra_unitario_usd) || 0.40)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 12px",
+                          borderRadius: 10,
+                          border: estaSeleccionado ? "2px solid var(--primary)" : "1px solid var(--border)",
+                          background: estaSeleccionado ? "var(--primary-light)" : "var(--bg-card)",
+                          color: estaSeleccionado ? "var(--primary-dark)" : "var(--text)",
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          textAlign: "left"
+                        }}
+                      >
+                        <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.sabor}</span>
+                        {estaSeleccionado ? "✅" : `(${s.stock_unidades})`}
+                      </button>
+                    )
+                  })}
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              {/* Lista de Sabores Seleccionados para Ajustar Cantidad */}
+              {listaAbastecimiento.length > 0 && (
+                <div style={{ background: "var(--bg-subtle)", padding: 12, borderRadius: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                  <h3 style={{ fontSize: 13, margin: 0, color: "var(--text-muted)", textTransform: "uppercase" }}>Cantidades a Ingresar</h3>
+                  {listaAbastecimiento.map(item => {
+                    const s = saboresMap.get(item.sabor_id);
+                    return (
+                      <div key={item.sabor_id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, background: "var(--bg-card)", padding: "8px 12px", borderRadius: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: "var(--text)" }}>{s?.sabor}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 10, color: "var(--text-muted)", fontWeight: 700 }}>CANTIDAD:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.cantidad}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value) || 0;
+                              setListaAbastecimiento(prev => prev.map(i => i.sabor_id === item.sabor_id ? { ...i, cantidad: val } : i));
+                            }}
+                            style={{ width: 60, padding: "6px 8px", borderRadius: 6, border: "1px solid var(--border)", background: "var(--bg-subtle)", color: "var(--text)", fontSize: 14, fontWeight: 900, textAlign: "center" }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 8 }}>
                 <input
                   type="checkbox"
-                  id="chkGasto"
                   checked={abastecerRegistrarGasto}
                   onChange={(e) => setAbastecerRegistrarGasto(e.target.checked)}
+                  style={{ width: 18, height: 18, accentColor: "var(--primary)" }}
                 />
-                <label htmlFor="chkGasto" style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>
-                  Registrar costo total en gastos del negocio
-                </label>
-              </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                  Registrar este abastecimiento como Gasto / Egreso Automático
+                </span>
+              </label>
 
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
                 <button
                   type="button"
-                  onClick={() => setModalAbastecer(false)}
-                  style={{ flex: 1, padding: 8, borderRadius: 8, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", fontWeight: 700, cursor: "pointer" }}
+                  onClick={() => {
+                    setModalAbastecer(false);
+                    setListaAbastecimiento([]);
+                    setAbastecerBusqueda("");
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "var(--bg-subtle)",
+                    color: "var(--text)",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending}
-                  style={{ flex: 1, padding: 8, borderRadius: 8, border: "none", background: "var(--primary)", color: "#ffffff", fontWeight: 800, cursor: "pointer" }}
+                  disabled={isPending || listaAbastecimiento.length === 0}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: "var(--primary)",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    cursor: listaAbastecimiento.length === 0 ? "not-allowed" : "pointer",
+                    opacity: isPending || listaAbastecimiento.length === 0 ? 0.6 : 1,
+                    boxShadow: "0 4px 12px var(--primary-glow)",
+                  }}
                 >
-                  {isPending ? "Guardando..." : "Ingresar a Freezer"}
+                  {isPending ? "Ingresando..." : "Confirmar Ingreso"}
                 </button>
               </div>
             </form>
