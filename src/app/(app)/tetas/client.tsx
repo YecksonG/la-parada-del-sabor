@@ -65,7 +65,7 @@ export default function TetasClient({
   const [modalSeleccionarCliente, setModalSeleccionarCliente] = useState(false);
   const [busquedaClienteModal, setBusquedaClienteModal] = useState("");
   const [modalNuevoCliente, setModalNuevoCliente] = useState(false);
-  const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevoClienteNombre, setNuevoClienteNombre] = useState("");
   const [nuevoTelefono, setNuevoTelefono] = useState("");
   const [guardandoCliente, setGuardandoCliente] = useState(false);
 
@@ -85,15 +85,15 @@ export default function TetasClient({
 
   const handleCrearClienteRapido = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoNombre.trim()) return;
+    if (!nuevoClienteNombre.trim()) return;
     setGuardandoCliente(true);
-    const res = await crearClienteRapido(nuevoNombre, nuevoTelefono, "");
+    const res = await crearClienteRapido({ nombre: nuevoClienteNombre, telefono: nuevoTelefono, direccion_delivery: "" });
     setGuardandoCliente(false);
     if (res.ok && res.cliente) {
       setListaClientes((prev) => [res.cliente!, ...prev]);
       setClienteSeleccionadoId(res.cliente.id);
       setModalNuevoCliente(false);
-      setNuevoNombre("");
+      setNuevoClienteNombre("");
       setNuevoTelefono("");
     } else {
       alert(res.error || "No se pudo registrar el cliente.");
@@ -1458,7 +1458,7 @@ export default function TetasClient({
           )}
         </div>
       </div>
-    </div>
+
       {modalSeleccionarCliente && (
         <div className="modal-overlay" onClick={() => setModalSeleccionarCliente(false)}>
           <div
@@ -1596,7 +1596,7 @@ export default function TetasClient({
             <form onSubmit={handleCrearClienteRapido} style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 16 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Nombre y Apellido *</label>
-                <input type="text" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required autoFocus className="pos-search-input" style={{ width: "100%" }} />
+                <input type="text" value={nuevoClienteNombre} onChange={(e) => setNuevoClienteNombre(e.target.value)} required autoFocus className="pos-search-input" style={{ width: "100%" }} />
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 700, display: "block", marginBottom: 4 }}>Teléfono (Opcional)</label>
@@ -1604,11 +1604,12 @@ export default function TetasClient({
               </div>
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 <button type="button" onClick={() => setModalNuevoCliente(false)} className="btn-cancel" style={{ flex: 1 }}>Cancelar</button>
-                <button type="submit" disabled={guardandoCliente || !nuevoNombre.trim()} className="btn-submit-recipe" style={{ flex: 1 }}>{guardandoCliente ? "Guardando..." : "Guardar Cliente"}</button>
+                <button type="submit" disabled={guardandoCliente || !nuevoClienteNombre.trim()} className="btn-submit-recipe" style={{ flex: 1 }}>{guardandoCliente ? "Guardando..." : "Guardar Cliente"}</button>
               </div>
             </form>
           </div>
         </div>
       )}
+    </div>
   );
 }
