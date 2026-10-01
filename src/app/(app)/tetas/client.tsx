@@ -22,7 +22,11 @@ interface TetasClientProps {
   ventas: TetasVenta[];
   clientesIniciales: Cliente[];
   tasaBcv: number;
-  ventasMetricas: any[];
+  metricasAgrupadas: {
+    semana: { ventasUsd: number; costoUsd: number; utilidadUsd: number; unidades: number; };
+    mes: { ventasUsd: number; costoUsd: number; utilidadUsd: number; unidades: number; };
+    historico: { ventasUsd: number; costoUsd: number; utilidadUsd: number; unidades: number; };
+  };
   operador: string;
 }
 
@@ -31,7 +35,7 @@ export default function TetasClient({
   ventas,
   clientesIniciales,
   tasaBcv,
-  ventasMetricas,
+  metricasAgrupadas,
   operador,
 }: TetasClientProps) {
     const [categoriaFiltro, setCategoriaFiltro] = useState<string>("todas");
@@ -56,7 +60,7 @@ export default function TetasClient({
     const costoUsd = ventasFiltradas.reduce((acc, v) => acc + (Number(v.costo_unitario_usd || 0) * Number(v.cantidad || 0)), 0);
     const unidades = ventasFiltradas.reduce((acc, v) => acc + (Number(v.cantidad) || 0), 0);
     return { ventasUsd, costoUsd, utilidadUsd: ventasUsd - costoUsd, unidades };
-  }, [ventasMetricas, periodoMetricas]);
+  }, [metricasAgrupadas, periodoMetricas]);
   const [busqueda, setBusqueda] = useState("");
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState("");
@@ -482,15 +486,15 @@ export default function TetasClient({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
         <h3 style={{ margin: 0, fontSize: 14, color: "var(--text)" }}>Rendimiento</h3>
         <div style={{ display: "flex", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-          <button 
+          <button type="button"
             onClick={() => setPeriodoMetricas("semana")} 
             style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, border: "none", background: periodoMetricas === "semana" ? "var(--primary)" : "transparent", color: periodoMetricas === "semana" ? "#fff" : "var(--text-muted)", cursor: "pointer" }}
           >SEMANA</button>
-          <button 
+          <button type="button"
             onClick={() => setPeriodoMetricas("mes")} 
             style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, border: "none", borderLeft: "1px solid var(--border)", borderRight: "1px solid var(--border)", background: periodoMetricas === "mes" ? "var(--primary)" : "transparent", color: periodoMetricas === "mes" ? "#fff" : "var(--text-muted)", cursor: "pointer" }}
           >MES</button>
-          <button 
+          <button type="button"
             onClick={() => setPeriodoMetricas("historico")} 
             style={{ padding: "4px 10px", fontSize: 11, fontWeight: 700, border: "none", background: periodoMetricas === "historico" ? "var(--primary)" : "transparent", color: periodoMetricas === "historico" ? "#fff" : "var(--text-muted)", cursor: "pointer" }}
           >HISTÓRICO</button>
@@ -575,7 +579,7 @@ export default function TetasClient({
           <div style={{ fontSize: 26, fontWeight: 900, color: "var(--green-text)", marginTop: 4 }}>
             ${metricasCalculadas.utilidadUsd.toFixed(2)}
           </div>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Margen neto de freezer</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Margen bruto (Materia Prima)</span>
         </div>
       </div>
 
