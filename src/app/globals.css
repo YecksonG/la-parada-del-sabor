@@ -2367,6 +2367,8 @@ a {
   border-radius: 16px;
   overflow: hidden;
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: 45vh;
 }
 
 .product-detail-bom-header {
