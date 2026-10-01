@@ -68,6 +68,7 @@ interface DashboardClientProps {
   productos: Producto[];
   historialCajas?: SesionCaja[];
   gastos?: Gasto[];
+  compras?: any[];
   tetasVentas?: TetasVenta[];
   zonasDelivery?: ZonaDelivery[];
   tasaBcv: number;
@@ -80,6 +81,7 @@ export default function DashboardClient({
   productos,
   historialCajas = [],
   gastos = [],
+  compras = [],
   tetasVentas = [],
   zonasDelivery = [],
   tasaBcv,
@@ -139,6 +141,18 @@ export default function DashboardClient({
       return true;
     });
   }, [gastos, periodo]);
+
+  // Filtrar compras por periodo
+  const comprasFiltradas = useMemo(() => {
+    return compras.filter((c) => {
+      if (c.estado === "anulada") return false;
+      const fechaCompra = c.fecha.includes("T") ? c.fecha : `${c.fecha}T12:00:00`;
+      if (periodo === "hoy") return esMismaFechaEnCaracas(fechaCompra);
+      if (periodo === "semana") return esMismaSemanaEnCaracas(fechaCompra);
+      if (periodo === "mes") return esMismoMesEnCaracas(fechaCompra);
+      return true;
+    });
+  }, [compras, periodo]);
 
   // Filtrar ventas de tetas por periodo
   const tetasFiltradas = useMemo(() => {
@@ -451,10 +465,16 @@ export default function DashboardClient({
     const totalCobradoRealUsd = Math.max(0, Number((totalFacturadoUsd - totalCreditoPendienteUsd).toFixed(2)));
 
     // Gastos del periodo y desgloses
-    const totalGastosUsd = gastosFiltrados.reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
-    const gastosProveedoresInsumosUsd = gastosFiltrados
+    // Las compras son entradas de insumos (proveedores)
+    const totalComprasUsd = comprasFiltradas.reduce((acc, c) => acc + (Number(c.total_usd) || 0), 0);
+    const totalGastosGeneralesUsd = gastosFiltrados.reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
+    const totalGastosUsd = totalComprasUsd + totalGastosGeneralesUsd;
+
+    // Históricamente, algunos gastos también eran de "proveedores". Sumamos ambos.
+    const gastosProveedoresInsumosUsd = totalComprasUsd + gastosFiltrados
       .filter((g) => g.categoria === "proveedores")
       .reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
+      
     const gastosOperativosUsd = gastosFiltrados
       .filter((g) => g.categoria !== "proveedores")
       .reduce((acc, g) => acc + (Number(g.monto_usd) || 0), 0);
@@ -503,7 +523,7 @@ export default function DashboardClient({
       ventasNetasComidaUsd,
       costoInsumosUsd,
       totalGastosUsd,
-      totalGastosCount: gastosFiltrados.length,
+      totalGastosCount: gastosFiltrados.length + comprasFiltradas.length,
       gastosProveedoresInsumosUsd,
       gastosOperativosUsd,
       gananciaNetaRealUsd,
@@ -519,7 +539,7 @@ export default function DashboardClient({
       totalComandas: ventasFiltradas.length,
       ticketPromedio: ventasFiltradas.length > 0 ? totalFacturadoUsd / ventasFiltradas.length : 0,
     };
-  }, [ventasFiltradas, tasaBcv, productos, insumos, gastosFiltrados, tetasFiltradas]);
+  }, [ventasFiltradas, tasaBcv, productos, insumos, gastosFiltrados, tetasFiltradas, comprasFiltradas]);
 
   // Auditoría y Conciliación Semanal de Delivery con la Empresa Aliada
   const metricasDeliverySemanales = useMemo(() => {

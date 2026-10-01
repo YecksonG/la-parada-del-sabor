@@ -6,7 +6,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
 
   // 1. Ejecutar consultas en paralelo para máxima velocidad
-  const [ventasRes, clientesRes, insumosRes, productosRes, tasaRes, sesionesRes, gastosRes, zonasRes, tetasVentasRes] = await Promise.all([
+  const [ventasRes, clientesRes, insumosRes, productosRes, tasaRes, sesionesRes, gastosRes, comprasRes, zonasRes, tetasVentasRes] = await Promise.all([
     supabase
       .from("ventas")
       .select("*, cliente:clientes(*), items:ventas_items(*, producto:productos(*), extras:ventas_items_extras(*, extra:extras_modificadores(*)))")
@@ -40,6 +40,11 @@ export default async function DashboardPage() {
       .neq("estado", "anulado")
       .order("fecha", { ascending: false }),
     supabase
+      .from("compras")
+      .select("*, proveedor:proveedores(*)")
+      .neq("estado", "anulada")
+      .order("fecha", { ascending: false }),
+    supabase
       .from("zonas_delivery")
       .select("*")
       .eq("activo", true)
@@ -64,6 +69,7 @@ export default async function DashboardPage() {
   const tasaReciente = tasaRes.data;
   const historialCajas = (sesionesRes.data as SesionCaja[]) || [];
   const gastos = (gastosRes.data as Gasto[]) || [];
+  const compras = (comprasRes.data as any[]) || [];
   const tetasVentas = (tetasVentasRes.data as TetasVenta[]) || [];
 
   const zonasDelivery: ZonaDelivery[] = zonasRes.data && zonasRes.data.length > 0 ? zonasRes.data : [
@@ -86,6 +92,7 @@ export default async function DashboardPage() {
       productos={(productos as Producto[]) || []}
       historialCajas={(historialCajas as SesionCaja[]) || []}
       gastos={(gastos as Gasto[]) || []}
+      compras={compras}
       tetasVentas={tetasVentas}
       zonasDelivery={zonasDelivery}
       tasaBcv={Number(tasaReciente?.tasa_usd_bs || tasaReciente?.bcv_usd_bs) || 0}
