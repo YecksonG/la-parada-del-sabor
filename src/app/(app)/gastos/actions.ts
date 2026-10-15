@@ -108,7 +108,7 @@ export async function crearGasto(payload: PayloadGasto) {
     .insert({
       fecha: payload.fecha || toFechaCaracasString(new Date()),
       categoria: payload.categoria,
-      subcategoria: payload.subcategoria?.trim() || null,
+      subcategoria: payload.subcategoria?.trim().slice(0, 100) || null,
       descripcion: payload.descripcion.trim(),
       beneficiario: payload.beneficiario?.trim() || null,
       proveedor_id: payload.proveedor_id || null,
@@ -167,7 +167,7 @@ export async function actualizarGasto(id: string, payload: Partial<PayloadGasto>
 
   if (payload.fecha) updateData.fecha = payload.fecha;
   if (payload.categoria) updateData.categoria = payload.categoria;
-  if (payload.subcategoria !== undefined) updateData.subcategoria = payload.subcategoria?.trim() || null;
+  if (payload.subcategoria !== undefined) updateData.subcategoria = payload.subcategoria?.trim().slice(0, 100) || null;
   if (payload.descripcion !== undefined) {
     if (!payload.descripcion.trim()) return { ok: false, error: "La descripción no puede estar vacía." };
     updateData.descripcion = payload.descripcion.trim();

@@ -47,8 +47,13 @@ const SUBCATEGORIAS_SUGERIDAS: Record<CategoriaGasto, string[]> = {
   mantenimiento: ["Reparación Plancha / Cocina", "Bombillos / Electricidad", "Plomería", "Artículos de Limpieza", "Fumigación"],
   marketing: ["Redes Sociales / Ads", "Diseño Gráfico / Impresiones", "Fotografía", "Volantes"],
   impuestos: ["Patente Municipal", "Seniat", "Permisos Sanitarios", "Timbres Fiscales"],
-  otros: ["Transporte / Taxis", "Papelería", "Hielo", "Misceláneos"],
+  otros: ["Amortización Préstamo / Deuda", "Transporte / Taxis", "Papelería", "Hielo", "Misceláneos"],
 };
+
+function esGastoPrestamoODeuda(sub: string | null | undefined): boolean {
+  if (!sub) return false;
+  return /amortiz|pr[eé]stamo|deuda|cr[eé]dito|cuota|pasivo|financiam/i.test(sub);
+}
 
 const UNIDADES_COMPRA = [
   // Peso (gramos)
@@ -745,7 +750,7 @@ interface CompraItemRow {
             {gastosFiltrados.length === 0 ? (
               <div className="recetas-empty-box" style={{ border: "none" }}>
                 <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay gastos registrados en este período</strong>
-                <p className="recetas-subtitle">Usa el botón "+ Registrar Gasto General" para asentar pagos.</p>
+                <p className="recetas-subtitle">Usa el botón &quot;+ Registrar Gasto General&quot; para asentar pagos.</p>
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
@@ -906,7 +911,7 @@ interface CompraItemRow {
             {compras.length === 0 ? (
               <div className="recetas-empty-box" style={{ border: "none" }}>
                 <strong style={{ fontSize: 17, color: "var(--text)" }}>No hay registros de compras directas</strong>
-                <p className="recetas-subtitle">Usa el botón "+ Registrar Ingreso de Insumos" para recibir bultos o kilos de insumos.</p>
+                <p className="recetas-subtitle">Usa el botón &quot;+ Registrar Ingreso de Insumos&quot; para recibir bultos o kilos de insumos.</p>
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
@@ -1060,8 +1065,8 @@ interface CompraItemRow {
               </div>
 
               <div className="form-field">
-                <label>Tipo de Gasto / Sugerencias:</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <label>Tipo de Gasto / Subcategoría:</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
                   {SUBCATEGORIAS_SUGERIDAS[categoria]?.map((sug) => (
                     <button
                       key={sug}
@@ -1083,6 +1088,15 @@ interface CompraItemRow {
                     </button>
                   ))}
                 </div>
+                <input
+                  type="text"
+                  maxLength={100}
+                  placeholder="Subcategoría seleccionada o personalizada..."
+                  value={subcategoria}
+                  onChange={(e) => setSubcategoria(e.target.value)}
+                  className="form-input"
+                  style={{ fontSize: 13 }}
+                />
               </div>
 
               <div className="form-field">
@@ -1090,7 +1104,11 @@ interface CompraItemRow {
                 <input
                   type="text"
                   required
-                  placeholder="Ej: Pago de gas, nómina semana 34, reparación de plancha..."
+                  placeholder={
+                    esGastoPrestamoODeuda(subcategoria)
+                      ? "Ej: Devolución cuota préstamo $50 capital de trabajo..."
+                      : "Ej: Pago de gas, nómina semana 34, reparación de plancha..."
+                  }
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   className="form-input"
@@ -1150,7 +1168,11 @@ interface CompraItemRow {
                 <label>Beneficiario / Persona Pagada</label>
                 <input
                   type="text"
-                  placeholder="Ej: Distribuidor Gas, Juan Pérez..."
+                  placeholder={
+                    esGastoPrestamoODeuda(subcategoria)
+                      ? "Ej: Nombre de la persona o familiar prestamista..."
+                      : "Ej: Distribuidor Gas, Juan Pérez..."
+                  }
                   value={beneficiario}
                   onChange={(e) => setBeneficiario(e.target.value)}
                   className="form-input"
