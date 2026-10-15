@@ -21,6 +21,7 @@ interface FacturaParsedItem {
   nombre_extraido: string;
   cantidad: number;
   unidad: string;
+  precio_unitario?: number | null;
   monto_extraido: number;
   monto_usd?: number;
   categoria_sugerida?: string;
@@ -68,6 +69,12 @@ function parseMonto(val: unknown): number | null {
   return isNaN(num) ? null : num;
 }
 
+function safeTrim(val: unknown): string {
+  if (typeof val === "string") return val.trim();
+  if (typeof val === "number" && !isNaN(val)) return String(val).trim();
+  return "";
+}
+
 function esBolivares(moneda: string | null | undefined): boolean {
   if (!moneda) return false;
   const norm = moneda
@@ -103,6 +110,65 @@ function deducirUnidadMedida(unidadStr: string | null | undefined): { unidad: "u
   }
 
   return { unidad: "und", esKiloOLitro: false };
+}
+
+function reconciliarDesfaseFacturaFiscal(items: FacturaParsedItem[]): FacturaParsedItem[] {
+  if (!items || items.length < 3) return items;
+
+  // 1. Detectar si existe desfase por impresoras fiscales que imprimen la línea de multiplicación ARRIBA del nombre:
+  // En un ticket fiscal con formato "[CANTIDAD]x[PRECIO_UNITARIO]" arriba del ítem, si el OCR leyó la cantidad del ítem i
+  // como perteneciente al ítem i (en vez de al ítem i+1 que está debajo), entonces se cumplirá sistemáticamente:
+  // - items[i].cantidad * items[i].precio_unitario ≈ items[i+1].monto_extraido
+  // - PERO items[i].cantidad * items[i].precio_unitario NO coincide con items[i].monto_extraido (evita falsos positivos en ítems con precio igual)
+  // - Y items[i].monto_extraido es significativamente distinto de items[i+1].monto_extraido
+  let shiftMatches = 0;
+  for (let i = 0; i < items.length - 1; i++) {
+    const curr = items[i];
+    const next = items[i + 1];
+    if (
+      curr.cantidad > 0 &&
+      curr.precio_unitario &&
+      curr.precio_unitario > 0 &&
+      curr.monto_extraido > 0 &&
+      next.monto_extraido > 0
+    ) {
+      const currCalc = curr.cantidad * curr.precio_unitario;
+      const matchesOwn = Math.abs(currCalc - curr.monto_extraido) / curr.monto_extraido < 0.03;
+      const matchesNext = Math.abs(currCalc - next.monto_extraido) / next.monto_extraido < 0.03;
+      const amountsDifferent = Math.abs(curr.monto_extraido - next.monto_extraido) / curr.monto_extraido > 0.05;
+
+      if (!matchesOwn && matchesNext && amountsDifferent) {
+        shiftMatches++;
+      }
+    }
+  }
+
+  // Requiere al menos 2 pares consistentes para confirmar el desfase sistemático
+  if (shiftMatches >= 2) {
+    const shiftData = items.map((it) => ({
+      cantidad: it.cantidad,
+      precio_unitario: it.precio_unitario,
+      unidad: it.unidad,
+      unidad_base: it.unidad_base,
+    }));
+
+    for (let i = items.length - 1; i >= 1; i--) {
+      items[i].cantidad = shiftData[i - 1].cantidad;
+      items[i].precio_unitario = shiftData[i - 1].precio_unitario;
+      items[i].unidad = shiftData[i - 1].unidad;
+      items[i].unidad_base = shiftData[i - 1].unidad_base;
+    }
+
+    // Para items[0]: su multiplicador original quedó fuera del inicio del ticket.
+    // Deducir su unidad de forma segura desde su propio nombre, NUNCA heredar la unidad ajena de items[1].
+    const deduction = deducirUnidadMedida(items[0].nombre_extraido);
+    items[0].unidad = deduction.esKiloOLitro ? (deduction.unidad === "g" ? "kg" : "L") : deduction.unidad;
+    items[0].unidad_base = deduction.unidad;
+    items[0].cantidad = 1;
+    items[0].precio_unitario = items[0].monto_extraido;
+  }
+
+  return items;
 }
 
 export async function extraerInsumosFactura(base64Image: string, mimeType: string, tasaBcv: number = 1) {
@@ -155,6 +221,8 @@ export async function extraerInsumosFactura(base64Image: string, mimeType: strin
     "gemini-3.1-flash-lite",
   ];
 
+  const cleanPromptText = (s: string) => (s || "").replace(/[`${}\n\r]/g, " ").replace(/\s+/g, " ").trim();
+
   const prompt = `
 Eres un asistente experto para un restaurante (La Parada del Sabor).
 Se te proporcionará la imagen de una factura o nota de entrega de compras de insumos.
@@ -165,10 +233,10 @@ Tu tarea es extraer:
 4. Los ítems comprados mapeados al catálogo del sistema. Si el ítem no existe en el catálogo, indica sus datos limpios para darlo de alta en el sistema.
 
 Proveedores conocidos en el sistema:
-${proveedores.map(p => `- ID: ${p.id} | Nombre: ${p.nombre} | RIF: ${p.rif || "N/A"}`).join('\n')}
+${proveedores.map(p => `- ID: ${p.id} | Nombre: ${cleanPromptText(p.nombre)} | RIF: ${cleanPromptText(p.rif || "N/A")}`).join('\n')}
 
 Insumos conocidos en el sistema:
-${insumos.map(i => `- ID: ${i.id} | Nombre: ${i.nombre} | Unidad Medida: ${i.unidad_medida}`).join('\n')}
+${insumos.map(i => `- ID: ${i.id} | Nombre: ${cleanPromptText(i.nombre)} | Unidad Medida: ${cleanPromptText(i.unidad_medida)}`).join('\n')}
 
 Reglas:
 1. Extrae los datos del proveedor/comercio emisor en "proveedor":
@@ -179,9 +247,19 @@ Reglas:
    - "contacto": Persona de contacto o vendedor si figura en el ticket. Si no, "".
    - "id": Si coincide claramente con alguno de la lista de proveedores conocidos, pon su ID. Si no está en la lista o es nuevo, déjalo vacío "".
 2. Extrae el número de factura o número de control en "numero_factura" (ej: "0277311", "FACT-00912"). Si no tiene, pon "".
-3. Extrae cada ítem de la factura: nombre, cantidad real comprada, unidad y precio total pagado por el ítem. ¡ATENCIÓN A LOS EMPAQUES!:
-   - Si el ítem dice "(250G)", la unidad base es "g" y la cantidad es 250 (o multiplicada por la cantidad de potes). NO pongas cantidad 1 y unidad "Kilo".
-   - Si el ítem dice "(8 UND)" o es una caja de cubitos, y en el sistema está como "Caldo (8 und)", eso es 1 paquete completo. Entonces la cantidad es 1 y la unidad es "unidad". Observa el precio para deducir si cobran 1 caja o varios cubitos sueltos.
+3. ¡REGLA CRÍTICA DE ASOCIACIÓN DE CANTIDAD / PESO EN FACTURAS FISCALES Y SUPERMERCADOS!:
+   - En formatos de factura fiscal de supermercados y cajas registradoras (como "999 Super", The Factory HKA, Bixolon, Epson, BMC, etc.), la línea con la cantidad/peso y precio unitario como:
+     "0,68xBs 6.065,99" o "4x Bs 43,33" o "1,155xBs 7.781,80" o "2x Bs 1.074,55"
+     se imprime **DIRECTAMENTE ARRIBA (ENCIMA)** del nombre del producto y su total a pagar, ¡NUNCA ABAJO!
+   - COMPROBACIÓN MATEMÁTICA OBLIGATORIA:
+     Siempre verifica la multiplicación matemática antes de asignar la cantidad a un ítem:
+     CANTIDAD * PRECIO_UNITARIO = MONTO_TOTAL_DEL_ITEM.
+     Ejemplo: si un ítem cuesta 4.124,87 y la línea arriba dice "0,68xBs 6.065,99", esa cantidad (0.68 kg) y precio unitario pertenecen a ESE ítem (0.68 * 6065.99 = 4124.87). ¡NUNCA asocies el multiplicador al ítem anterior!
+   - Si un ítem NO tiene ninguna línea de cantidad arriba de él (ej: "(UND) PAMPERO KETCHUP (397G) Bs 1.577,15"), su cantidad es exactamente 1 y su precio_unitario es igual a su monto_extraido.
+   - Extrae siempre el campo numérico "precio_unitario" de cada ítem.
+   - ¡ATENCIÓN A LOS EMPAQUES!:
+     * Si el ítem dice "(250G)", la unidad base es "g" y la cantidad es 250 (o multiplicada por la cantidad de potes). NO pongas cantidad 1 y unidad "Kilo".
+     * Si el ítem dice "(8 UND)" o es una caja de cubitos, y en el sistema está como "Caldo (8 und)", eso es 1 paquete completo. Entonces la cantidad es 1 y la unidad es "unidad". Observa el precio para deducir si cobran 1 caja o varios cubitos sueltos.
 4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada prestando atención a la unidad en la que está el insumo en el sistema.
    ¡REGLAS CRÍTICAS DE MAPEO PARA EMPAQUES Y DESECHABLES (EVITAR DUPLICADOS)!:
    - Vasos plásticos / descartables de cualquier marca o código (ej: 'VASOS HENCA', 'VASOS #77', 'VASOS DESECHABLES', etc.): Asignar OBLIGATORIAMENTE al insumo 'Vaso Plástico Desechable'. NUNCA crees un insumo nuevo si es un vaso descartable.
@@ -212,7 +290,8 @@ Reglas:
       "insumo_id": "UUID o vacío",
       "nombre_extraido": "Nombre en factura",
       "cantidad": 250,
-      "unidad": "gramo",
+      "unidad": "g",
+      "precio_unitario": 0.05,
       "monto_extraido": 12.50,
       "categoria_sugerida": "Condimentos",
       "unidad_base": "g"
@@ -269,18 +348,36 @@ Reglas:
 
     const esBs = esBolivares(parsed.moneda_detectada);
 
-    // Convertir a USD si la factura vino en Bolívares
+    // Normalizar números y reconciliar posible desfase fiscal
     if (parsed.items && Array.isArray(parsed.items)) {
       parsed.items = parsed.items.map((it) => {
         const montoExtraidoNum = parseMonto(it.monto_extraido) || 0;
+        const puNum = parseMonto(it.precio_unitario);
+        const cantNum = typeof it.cantidad === "number" && !isNaN(it.cantidad)
+          ? it.cantidad
+          : (parseMonto(it.cantidad) || 1);
+        const nomLimpio = typeof it.nombre_extraido === "string"
+          ? it.nombre_extraido.trim()
+          : String(it.nombre_extraido || "").trim();
         return {
           ...it,
+          nombre_extraido: nomLimpio,
+          cantidad: cantNum,
+          precio_unitario: puNum,
           monto_extraido: montoExtraidoNum,
-          monto_usd: (esBs && tasaEfectiva > 0)
-            ? Number((montoExtraidoNum / tasaEfectiva).toFixed(2))
-            : Number(montoExtraidoNum.toFixed(2)),
         };
       });
+
+      // Reconciliación matemática determinista para tickets fiscales (corrige desfases de multiplicadores)
+      parsed.items = reconciliarDesfaseFacturaFiscal(parsed.items);
+
+      // Convertir a USD si la factura vino en Bolívares
+      parsed.items = parsed.items.map((it) => ({
+        ...it,
+        monto_usd: (esBs && tasaEfectiva > 0)
+          ? Number((it.monto_extraido / tasaEfectiva).toFixed(2))
+          : Number(it.monto_extraido.toFixed(2)),
+      }));
 
       // Ajuste automático de centavos por errores de redondeo individual
       if (parsed.total_factura_detectado && esBs && tasaEfectiva > 0) {
@@ -302,8 +399,14 @@ Reglas:
       if (found) proveedorFinal = found;
     }
 
-    if (!proveedorFinal && parsed.proveedor?.nombre?.trim()) {
-      const nombreNorm = parsed.proveedor.nombre.trim().toLowerCase();
+    const provNombre = safeTrim(parsed.proveedor?.nombre);
+    const provRif = safeTrim(parsed.proveedor?.rif) || null;
+    const provDir = safeTrim(parsed.proveedor?.direccion) || null;
+    const provTel = safeTrim(parsed.proveedor?.telefono) || null;
+    const provContacto = safeTrim(parsed.proveedor?.contacto) || null;
+
+    if (!proveedorFinal && provNombre) {
+      const nombreNorm = provNombre.toLowerCase();
       const found = proveedores.find(
         (p) =>
           p.nombre.toLowerCase().includes(nombreNorm) ||
@@ -314,11 +417,11 @@ Reglas:
         proveedorFinal = found;
         // Solo enriquecer campos vacíos, nunca sobreescribir datos maestros ya existentes
         const updateCampos: { direccion?: string; telefono?: string } = {};
-        if (!found.direccion && parsed.proveedor.direccion?.trim()) {
-          updateCampos.direccion = parsed.proveedor.direccion.trim();
+        if (!found.direccion && provDir) {
+          updateCampos.direccion = provDir;
         }
-        if (!found.telefono && parsed.proveedor.telefono?.trim()) {
-          updateCampos.telefono = parsed.proveedor.telefono.trim();
+        if (!found.telefono && provTel) {
+          updateCampos.telefono = provTel;
         }
         if (Object.keys(updateCampos).length > 0) {
           await supabase.from("proveedores").update(updateCampos).eq("id", found.id);
@@ -329,11 +432,11 @@ Reglas:
         const { data: nuevoProv } = await supabase
           .from("proveedores")
           .insert({
-            nombre: parsed.proveedor.nombre.trim(),
-            rif: parsed.proveedor.rif?.trim() || null,
-            direccion: parsed.proveedor.direccion?.trim() || null,
-            telefono: parsed.proveedor.telefono?.trim() || null,
-            contacto: parsed.proveedor.contacto?.trim() || null,
+            nombre: provNombre,
+            rif: provRif,
+            direccion: provDir,
+            telefono: provTel,
+            contacto: provContacto,
             activo: true,
           })
           .select("*")
