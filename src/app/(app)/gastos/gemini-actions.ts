@@ -88,19 +88,19 @@ function esBolivares(moneda: string | null | undefined): boolean {
 function deducirUnidadMedida(unidadStr: string | null | undefined): { unidad: "und" | "g" | "ml"; esKiloOLitro: boolean } {
   const u = (unidadStr || "").toLowerCase().trim();
 
-  // 1. Gramos / Kilos (ej: "Saco 50kg", "caja de 25kg", "2kg", "1 kilo", "0.5 kg", "500g", "250 gr", "100 gramos")
-  if (/(^|\d|\s)(kg|kgs|kilo|kilos)($|\s)/i.test(u)) {
+  // 1. Gramos / Kilos (ej: "Saco 50kg", "caja de 25kg", "2kg", "1 kilo", "0.5 kg", "500g", "250 gr", "100 gramos", "20kg.", "kilogramos")
+  if (/(^|\d|\s)(kg|kgs|kilo|kilos|kilogramos?)($|\s|\.)/i.test(u)) {
     return { unidad: "g", esKiloOLitro: true };
   }
-  if (/(^|\d|\s)(g|gr|grs|gramo|gramos)($|\s)/i.test(u)) {
+  if (/(^|\d|\s)(g|gr|grs|gramo|gramos)($|\s|\.)/i.test(u)) {
     return { unidad: "g", esKiloOLitro: false };
   }
 
   // 2. Litros / Mililitros (ej: "1.5L", "2 litros", "1 lt", "botella 750ml", "330 cc", "500 ml")
-  if (/(^|\d|\s)(l|lt|lts|litro|litros)($|\s)/i.test(u)) {
+  if (/(^|\d|\s)(l|lt|lts|litro|litros)($|\s|\.)/i.test(u)) {
     return { unidad: "ml", esKiloOLitro: true };
   }
-  if (/(^|\d|\s)(ml|mililitro|mililitros|cc)($|\s)/i.test(u)) {
+  if (/(^|\d|\s)(ml|mililitro|mililitros|cc)($|\s|\.)/i.test(u)) {
     return { unidad: "ml", esKiloOLitro: false };
   }
 
@@ -110,6 +110,103 @@ function deducirUnidadMedida(unidadStr: string | null | undefined): { unidad: "u
   }
 
   return { unidad: "und", esKiloOLitro: false };
+}
+
+function limpiarNombreFiscal(nombre: string): string {
+  if (!nombre) return "";
+  let limpio = nombre.trim();
+  // Quitar prefijo fiscal (UND), (KG), UND, KG al inicio si está presente
+  limpio = limpio.replace(/^(\(UND\)|\(KG\)|UND|KG)\s+/i, "");
+  // Quitar sufijo fiscal de exención (E) al final
+  limpio = limpio.replace(/\s+\([Ee]\)$/i, "");
+  return limpio.replace(/\s+/g, " ").trim();
+}
+
+function parseDecimal(s: string): number {
+  return parseFloat(s.trim().replace(",", "."));
+}
+
+function parseEnteroOMiles(s: string): number {
+  const norm = s.trim();
+  // Solo enteros >= 1 con separador de miles y 3 dígitos finales (ej: 1.000 o 2,000)
+  if (/^[1-9]\d*[.,]\d{3}$/.test(norm)) {
+    return parseFloat(norm.replace(/[.,]/g, ""));
+  }
+  return parseFloat(norm.replace(",", "."));
+}
+
+interface EspecificacionTamano {
+  valorNormalizado: number;
+  tipo: "peso" | "volumen" | "unidades" | "numero";
+}
+
+function extraerEspecificacionesTamano(texto: string): EspecificacionTamano[] {
+  if (!texto) return [];
+  const t = texto.toLowerCase();
+  const resultados: EspecificacionTamano[] = [];
+
+  // Kilos (ej: 0.450kg, 1kg, 1.5kg, 10kg, 20kg, kilogramos) -> gramos
+  for (const m of t.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:kg|kgs|kilo|kilos|kilogramos?)\b/g)) {
+    const num = parseDecimal(m[1]);
+    if (!isNaN(num)) resultados.push({ valorNormalizado: Math.round(num * 1000), tipo: "peso" });
+  }
+
+  // Gramos (ej: 450g, 50g, 250gr, 500 gramos, 1.000 g)
+  for (const m of t.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:g|gr|grs|gramos?)\b/g)) {
+    const num = parseEnteroOMiles(m[1]);
+    if (!isNaN(num)) resultados.push({ valorNormalizado: Math.round(num), tipo: "peso" });
+  }
+
+  // Litros (ej: 1.5l, 1l, 2 litros) -> mililitros
+  for (const m of t.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:l|lt|lts|litros?)\b/g)) {
+    const num = parseDecimal(m[1]);
+    if (!isNaN(num)) resultados.push({ valorNormalizado: Math.round(num * 1000), tipo: "volumen" });
+  }
+
+  // Mililitros / CC (ej: 900ml, 300cc)
+  for (const m of t.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:ml|cc|centimetros?)\b/g)) {
+    const num = parseEnteroOMiles(m[1]);
+    if (!isNaN(num)) resultados.push({ valorNormalizado: Math.round(num), tipo: "volumen" });
+  }
+
+  // Unidades en empaque (ej: 8 und, 100 und, 160 und, 100 unds, 1.000 und)
+  for (const m of t.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:unds?|unidades?|u)\b/g)) {
+    const num = parseEnteroOMiles(m[1]);
+    if (!isNaN(num)) resultados.push({ valorNormalizado: num, tipo: "unidades" });
+  }
+
+  // Números puros entre paréntesis si no se extrajo nada más (ej: "(300)", "(450)")
+  if (resultados.length === 0) {
+    for (const m of t.matchAll(/\((\d+)\)/g)) {
+      const num = parseInt(m[1], 10);
+      if (!isNaN(num)) resultados.push({ valorNormalizado: num, tipo: "numero" });
+    }
+  }
+
+  return resultados;
+}
+
+function tienenDiscrepanciaTamano(textoA: string, textoB: string): boolean {
+  const listaA = extraerEspecificacionesTamano(textoA);
+  const listaB = extraerEspecificacionesTamano(textoB);
+  if (listaA.length === 0 || listaB.length === 0) return false;
+
+  // Si B (ej: catálogo multi-presentación "Bolsas 10kg / 20kg") contiene el tamaño de A, no hay discrepancia
+  for (const a of listaA) {
+    const tieneCoincidencia = listaB.some(
+      (b) =>
+        (a.tipo === b.tipo || a.tipo === "numero" || b.tipo === "numero") &&
+        a.valorNormalizado === b.valorNormalizado
+    );
+    if (tieneCoincidencia) return false;
+  }
+
+  // Si ambos tienen tamaños especificados comparables pero ninguno coincide -> Discrepancia real
+  const tiposComparables = listaA.some((a) =>
+    listaB.some((b) => a.tipo === b.tipo || a.tipo === "numero" || b.tipo === "numero")
+  );
+
+  return tiposComparables;
 }
 
 function reconciliarDesfaseFacturaFiscal(items: FacturaParsedItem[]): FacturaParsedItem[] {
@@ -260,7 +357,15 @@ Reglas:
    - ¡ATENCIÓN A LOS EMPAQUES!:
      * Si el ítem dice "(250G)", la unidad base es "g" y la cantidad es 250 (o multiplicada por la cantidad de potes). NO pongas cantidad 1 y unidad "Kilo".
      * Si el ítem dice "(8 UND)" o es una caja de cubitos, y en el sistema está como "Caldo (8 und)", eso es 1 paquete completo. Entonces la cantidad es 1 y la unidad es "unidad". Observa el precio para deducir si cobran 1 caja o varios cubitos sueltos.
-4. Mapea el ítem de la factura al insumo más parecido de la lista proporcionada prestando atención a la unidad en la que está el insumo en el sistema.
+4. Mapea el ítem de la factura al insumo de la lista proporcionada ÚNICAMENTE si es el mismo producto Y la misma presentación/tamaño:
+   ¡REGLA OBLIGATORIA DE PRESENTACIÓN, PESO Y GRAMAJE (PROHIBIDO FUSIONAR PRESENTACIONES DIFERENTES)!:
+   - Si el ítem de la factura tiene un gramaje, volumen o presentación específica (ej: 450G, 50G, 1KG, 500G, 900ML, 1L, 1.5L, 300CC, 300G, etc.) y en la lista de insumos conocidos existe un insumo con nombre similar PERO CON GRAMAJE O TAMAÑO DIFERENTE (por ejemplo: la factura dice "LA ECONOMICA ALIÑO FRASCO (450G)" y en el catálogo hay "LA ECONOMICA ALIÑO (50G)" o "MANANTIAL ALIÑO PREPARADO (300)"):
+     ESTÁ TERMINANTEMENTE PROHIBIDO ASOCIARLOS. DEBES DEJAR "insumo_id": "" (vacío).
+     Son presentaciones comerciales distintas con costos unitarios diferentes. Si los asocias erróneamente, corrompes los costos promedio y el stock del inventario.
+     Al dejar "insumo_id": "", el sistema dará de alta de inmediato el nuevo insumo con su presentación específica (ej: "LA ECONOMICA ALIÑO FRASCO (450G)").
+   - Solo debes asignar un "insumo_id" existente si:
+     a) El tamaño/gramaje coincide plenamente (ej: "PAMPERO KETCHUP (397G)" coincide con "Pampero Ketchup 397g"), O
+     b) El insumo del catálogo es materia prima a granel sin presentación fija de envase (ej: carnes, vegetales o quesos pesados en kg/g).
    ¡REGLAS CRÍTICAS DE MAPEO PARA EMPAQUES Y DESECHABLES (EVITAR DUPLICADOS)!:
    - Vasos plásticos / descartables de cualquier marca o código (ej: 'VASOS HENCA', 'VASOS #77', 'VASOS DESECHABLES', etc.): Asignar OBLIGATORIAMENTE al insumo 'Vaso Plástico Desechable'. NUNCA crees un insumo nuevo si es un vaso descartable.
    - Tapas plásticas descartables: Asignar OBLIGATORIAMENTE al insumo 'Tapas Desechables'.
@@ -268,7 +373,7 @@ Reglas:
    - Bolsas plásticas: Asignar a 'Bolsas Plásticas 10kg / 20kg'.
    - Papel antigraso / envoltorio: Asignar a 'Papel Antigraso Breakfast 50 und'.
    - Guantes: Asignar a 'Guantes de Nitrilo Negro L (100 und)'.
-   Si no hay ninguno parecido, deja el "insumo_id" en blanco "" y sugiere "categoria_sugerida" (${CATEGORIAS_INSUMO.map((c) => `'${c}'`).join(", ")}) y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
+   Si no hay ninguno que coincida en nombre y presentación, deja el "insumo_id": "" en blanco y sugiere "categoria_sugerida" (${CATEGORIAS_INSUMO.map((c) => `'${c}'`).join(", ")}) y "unidad_base" ('und', 'kg', 'L', 'g', 'ml').
 5. Para refrescos o bebidas (como Pepsi 1.5L, Pepsi 1L, Coca-Cola, maltas, etc.): si la factura indica bulto (por ejemplo "1 x 6 und", "Bulto", "Pack x 6"), indica unidad: "bulto_refresco_6u" o si viene en unidades pon la cantidad en botellas con unidad: "unidad". NUNCA asignes kilos ni bultos de peso a bebidas.
 6. Determina si la factura está cobrada en Dólares (USD) o Bolívares (BS) y ponlo en "moneda_detectada".
 7. Extrae el monto total general del ticket o factura tal cual está impreso y ponlo en "total_factura_detectado".
@@ -356,9 +461,10 @@ Reglas:
         const cantNum = typeof it.cantidad === "number" && !isNaN(it.cantidad)
           ? it.cantidad
           : (parseMonto(it.cantidad) || 1);
-        const nomLimpio = typeof it.nombre_extraido === "string"
+        const nomRaw = typeof it.nombre_extraido === "string"
           ? it.nombre_extraido.trim()
           : String(it.nombre_extraido || "").trim();
+        const nomLimpio = limpiarNombreFiscal(nomRaw);
         return {
           ...it,
           nombre_extraido: nomLimpio,
@@ -405,12 +511,12 @@ Reglas:
     const provTel = safeTrim(parsed.proveedor?.telefono) || null;
     const provContacto = safeTrim(parsed.proveedor?.contacto) || null;
 
-    if (!proveedorFinal && provNombre) {
+    if (!proveedorFinal && provNombre && provNombre.length >= 2) {
       const nombreNorm = provNombre.toLowerCase();
       const found = proveedores.find(
         (p) =>
-          p.nombre.toLowerCase().includes(nombreNorm) ||
-          nombreNorm.includes(p.nombre.toLowerCase())
+          (nombreNorm.length >= 2 && p.nombre.toLowerCase().includes(nombreNorm)) ||
+          (p.nombre.length >= 2 && nombreNorm.includes(p.nombre.toLowerCase()))
       );
 
       if (found) {
@@ -456,6 +562,14 @@ Reglas:
 
     if (parsed.items && Array.isArray(parsed.items)) {
       for (const it of parsed.items) {
+        // Validación de consistencia: si Gemini asignó un insumo que no existe o tiene discrepancia de tamaño/gramaje, invalidar el mapeo
+        if (it.insumo_id) {
+          const insumoAsignado = insumosActualizados.find((i) => i.id === it.insumo_id);
+          if (!insumoAsignado || tienenDiscrepanciaTamano(it.nombre_extraido, insumoAsignado.nombre)) {
+            it.insumo_id = "";
+          }
+        }
+
         if (!it.insumo_id && it.nombre_extraido?.trim()) {
           const nomLimpio = it.nombre_extraido.trim().toLowerCase();
           const nomSinSignos = nomLimpio.replace(/[()#]/g, " ").replace(/\s+/g, " ").trim();
@@ -470,9 +584,9 @@ Reglas:
               insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso plástico") || i.nombre.toLowerCase().includes("vaso desechable")) ||
               insumosActualizados.find((i) => i.nombre.toLowerCase().includes("vaso"));
           } else if (/\b(kraft|caja kraft)\b/i.test(nomSinSignos)) {
-            if (/(\b6\b|familiar)/i.test(nomSinSignos)) {
+            if (/(\b6\b|familiar|grande)/i.test(nomSinSignos)) {
               matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 6"));
-            } else {
+            } else if (/(\b3\b|mediana|personal|pequeña)/i.test(nomSinSignos)) {
               matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("kraft 3"));
             }
           } else if (/\b(servilleta|servilletas)\b/i.test(nomSinSignos)) {
@@ -485,13 +599,19 @@ Reglas:
             matchExistente = insumosActualizados.find((i) => i.nombre.toLowerCase().includes("antigraso"));
           }
 
-          // 2. Coincidencia directa o por inclusión segura (longitud mínima para evitar falsos positivos con 'e', 'und', etc.)
+          // 2. Coincidencia directa o por inclusión segura (rechazando siempre discrepancias de tamaño/gramaje)
           if (!matchExistente) {
             matchExistente = insumosActualizados.find(
-              (i) =>
-                i.nombre.toLowerCase() === nomLimpio ||
-                (nomLimpio.length >= 4 && i.nombre.toLowerCase().includes(nomLimpio)) ||
-                (nomLimpio.length >= 4 && nomLimpio.includes(i.nombre.toLowerCase()))
+              (i) => {
+                if (tienenDiscrepanciaTamano(it.nombre_extraido, i.nombre)) {
+                  return false;
+                }
+                return (
+                  i.nombre.toLowerCase() === nomLimpio ||
+                  (nomLimpio.length >= 4 && i.nombre.toLowerCase().includes(nomLimpio)) ||
+                  (nomLimpio.length >= 4 && nomLimpio.includes(i.nombre.toLowerCase()))
+                );
+              }
             );
           }
 
