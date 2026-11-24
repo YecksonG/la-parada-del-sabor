@@ -85,7 +85,7 @@ export default function ModalSeleccionarZonaDelivery({
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar sector (ej. Zarabón, Centro, Maraven...)"
+              placeholder="Buscar sector (ej. La Cumaca, El Remanso, Trigaleña, Mañongo...)"
               className="pedir-search-input modal-zona-search-input"
               style={{ fontSize: "16px", padding: "11px 14px", width: "100%" }}
             />
@@ -186,9 +186,9 @@ export default function ModalSeleccionarZonaDelivery({
                         color: "var(--primary-dark)",
                       }}
                     >
-                      ${precioUsd.toFixed(2)}
+                      {precioUsd === 0 ? "¡GRATIS!" : `€${precioUsd.toFixed(2)}`}
                     </div>
-                    {precioBs && (
+                    {precioBs && precioUsd > 0 && (
                       <div style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 700 }}>
                         Bs. {precioBs}
                       </div>

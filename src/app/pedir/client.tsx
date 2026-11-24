@@ -227,7 +227,7 @@ export default function MenuClienteView({
   const [nombreCliente, setNombreCliente] = useState("");
   const [codigoPais, setCodigoPais] = useState("+58");
   const [telefonoCliente, setTelefonoCliente] = useState("");
-  const [tipoEntrega, setTipoEntrega] = useState<"pickup" | "delivery">("pickup");
+  const [tipoEntrega, setTipoEntrega] = useState<"pickup" | "delivery">("delivery");
   const [zonaDeliveryId, setZonaDeliveryId] = useState<string>(zonasDelivery[0]?.id || "");
   const [direccionDelivery, setDireccionDelivery] = useState("");
   const [gpsFalloAviso, setGpsFalloAviso] = useState(false);
@@ -681,10 +681,10 @@ export default function MenuClienteView({
     });
   };
 
-  const handleConfirmarCoccionArepa = (coccion: "Frita" | "Asada", cantidad: number) => {
+  const handleConfirmarCoccionArepa = (coccion: "Frita" | "Asada", cantidad: number, notasExtra?: string) => {
     if (!modalCoccionArepa) return;
     const prod = modalCoccionArepa;
-    const notasItem = `Cocción: ${coccion}`;
+    const notasItem = notasExtra ? `Cocción: ${coccion} • ${notasExtra}` : `Cocción: ${coccion}`;
 
     setCarrito((prev) => {
       const existingIdx = prev.findIndex(
@@ -1053,7 +1053,7 @@ export default function MenuClienteView({
 
         <div className="pedir-product-footer">
           <div className="pedir-product-price-box">
-            <span className="pedir-price-usd">${precioUsd.toFixed(2)}</span>
+            <span className="pedir-price-usd">€{precioUsd.toFixed(2)}</span>
             <span className="pedir-price-bs">Bs. {precioBs.toFixed(2)}</span>
           </div>
 
@@ -1171,7 +1171,7 @@ export default function MenuClienteView({
             {tasaBcv > 0 && (
               <div className="pedir-bcv-pill">
                 <span className="pedir-bcv-dot"></span>
-                <span>Tasa: <strong>{tasaBcv.toFixed(2)} Bs</strong></span>
+                <span>Tasa €: <strong>{tasaBcv.toFixed(2)} Bs</strong></span>
               </div>
             )}
 
@@ -1274,7 +1274,7 @@ export default function MenuClienteView({
           <div className="pedir-cart-summary">
             <span className="pedir-cart-badge">{totalItemsCount}</span>
             <div className="pedir-cart-prices">
-              <strong className="pedir-cart-total-usd">${totalCarritoUsd.toFixed(2)} USD</strong>
+              <strong className="pedir-cart-total-usd">€{totalCarritoUsd.toFixed(2)}</strong>
               <span className="pedir-cart-total-bs">Bs. {totalCarritoBs.toFixed(2)}</span>
             </div>
           </div>
@@ -1426,7 +1426,7 @@ export default function MenuClienteView({
                                 <div className="pedir-cart-item-notes">{item.notas_item}</div>
                               )}
                               <div className="pedir-cart-item-price-wrap">
-                                <span className="pedir-cart-item-price-usd">${precioTotal.toFixed(2)} USD</span>
+                                <span className="pedir-cart-item-price-usd">€{precioTotal.toFixed(2)}</span>
                                 <span className="pedir-cart-item-price-sep">•</span>
                                 <span className="pedir-cart-item-price-bs">Bs. {(precioTotal * tasaBcv).toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               </div>
@@ -1551,7 +1551,7 @@ export default function MenuClienteView({
                         </div>
                         <div className="pedir-switch-card-body">
                           <span className="pedir-switch-card-title">Para Llevar / Retiro</span>
-                          <span className="pedir-switch-card-sub">Retiras directo en nuestro local</span>
+                          <span className="pedir-switch-card-sub">Retiras en Urbanización Pie de Monte Chale, La Cumaca</span>
                         </div>
                         <div className="pedir-switch-card-check">
                           {tipoEntrega === "pickup" ? "✓" : ""}
@@ -1578,7 +1578,7 @@ export default function MenuClienteView({
                         </div>
                         <div className="pedir-switch-card-body">
                           <span className="pedir-switch-card-title">Delivery a Domicilio</span>
-                          <span className="pedir-switch-card-sub">Te lo llevamos directo a tu puerta</span>
+                          <span className="pedir-switch-card-sub">¡Delivery Gratis en San Diego por Lanzamiento!</span>
                         </div>
                         <div className="pedir-switch-card-check">
                           {tipoEntrega === "delivery" ? "✓" : ""}
@@ -1638,9 +1638,9 @@ export default function MenuClienteView({
                                   {zonaDeliverySeleccionada?.nombre}
                                 </span>
                                 <span style={{ fontSize: 13.5, fontWeight: 900, color: "var(--text)" }}>
-                                  +${Number(zonaDeliverySeleccionada?.precio_usd || 0).toFixed(2)} USD
+                                  {Number(zonaDeliverySeleccionada?.precio_usd || 0) === 0 ? "¡DELIVERY GRATIS!" : `+€${Number(zonaDeliverySeleccionada?.precio_usd || 0).toFixed(2)}`}
                                 </span>
-                                {tasaBcv > 0 && (
+                                {tasaBcv > 0 && Number(zonaDeliverySeleccionada?.precio_usd || 0) > 0 && (
                                   <span style={{ fontSize: 11.5, color: "var(--text-muted)", fontWeight: 700 }}>
                                     (Bs. {(Number(zonaDeliverySeleccionada?.precio_usd || 0) * tasaBcv).toFixed(2)})
                                   </span>
@@ -1762,7 +1762,7 @@ export default function MenuClienteView({
                         required
                         aria-required="true"
                         rows={2}
-                        placeholder="Calle, número de casa, edificio o punto de referencia..."
+                        placeholder="Ej: Urbanización Pie de Monte Chale / Sector La Cumaca / Casa, edificio o punto de referencia en San Diego..."
                         value={direccionDelivery}
                         onChange={(e) => {
                           setDireccionDelivery(e.target.value);
@@ -1847,10 +1847,10 @@ export default function MenuClienteView({
                       </svg>
                       <div>
                         <strong style={{ fontSize: 13, display: "block", color: "var(--text)" }}>
-                          Retiro directo en La Parada del Sabor
+                          Retiro en Urbanización Pie de Monte Chale, La Cumaca
                         </strong>
                         <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                          Tu pedido estará listo y caliente cuando llegues a nuestro local.
+                          Tu pedido estará listo y caliente cuando pases a retirar.
                         </span>
                       </div>
                     </div>
@@ -2130,21 +2130,21 @@ export default function MenuClienteView({
             {/* Pie Fijo con Totales y Botones de Navegación por Paso */}
             <div className="pedir-drawer-sticky-footer">
               <div className="pedir-checkout-totals">
-                {tipoEntrega === "delivery" && costoDeliveryUsd > 0 && (
+                {tipoEntrega === "delivery" && (
                   <>
                     <div className="pedir-checkout-line">
                       <span>Subtotal Comida:</span>
-                      <span>${subtotalComidaUsd.toFixed(2)} USD</span>
+                      <span>€{subtotalComidaUsd.toFixed(2)}</span>
                     </div>
                     <div className="pedir-checkout-line" style={{ color: "var(--primary)" }}>
                       <span>Tarifa Delivery:</span>
-                      <strong>+${costoDeliveryUsd.toFixed(2)} USD</strong>
+                      <strong>{costoDeliveryUsd === 0 ? "¡GRATIS!" : `+€${costoDeliveryUsd.toFixed(2)}`}</strong>
                     </div>
                   </>
                 )}
                 <div className="pedir-checkout-line">
-                  <span>Total en Dólares:</span>
-                  <strong className="pedir-val-usd">${totalCarritoUsd.toFixed(2)} USD</strong>
+                  <span>Total en Euros:</span>
+                  <strong className="pedir-val-usd">€{totalCarritoUsd.toFixed(2)}</strong>
                 </div>
                 <div className="pedir-checkout-line">
                   <span>Total en Bolívares:</span>
@@ -2384,7 +2384,7 @@ export default function MenuClienteView({
                   {modalFotoZoom.popular && <span className="pedir-badge-popular">Más Pedida</span>}
                 </div>
                 <div className="pedir-modal-zoom-prices">
-                  <span className="pedir-price-usd">${Number(modalFotoZoom.precio_usd || 0).toFixed(2)}</span>
+                  <span className="pedir-price-usd">€{Number(modalFotoZoom.precio_usd || 0).toFixed(2)}</span>
                   <span className="pedir-price-bs">Bs. {(Number(modalFotoZoom.precio_usd || 0) * tasaBcv).toFixed(2)}</span>
                 </div>
               </div>

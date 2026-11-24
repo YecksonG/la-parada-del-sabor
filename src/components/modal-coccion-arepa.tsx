@@ -9,7 +9,7 @@ import { sounds } from "@/lib/sound-effects";
 interface ModalCoccionArepaProps {
   producto: Producto;
   tasaBcv: number;
-  onConfirmar: (coccion: "Frita" | "Asada", cantidad: number) => void;
+  onConfirmar: (coccion: "Frita" | "Asada", cantidad: number, notas?: string) => void;
   onCerrar: () => void;
 }
 
@@ -20,6 +20,7 @@ export default function ModalCoccionArepa({
   onCerrar,
 }: ModalCoccionArepaProps) {
   const [cantidad, setCantidad] = useState(1);
+  const [notas, setNotas] = useState("");
   const modalCardRef = useRef<HTMLDivElement>(null);
   const imgUrl = getProductImage(producto);
   const precioUsd = Number(producto.precio_usd || 0);
@@ -63,7 +64,7 @@ export default function ModalCoccionArepa({
 
   const handleElegirCoccion = (coccion: "Frita" | "Asada") => {
     sounds.playKitchenBell();
-    onConfirmar(coccion, cantidad);
+    onConfirmar(coccion, cantidad, notas.trim());
   };
 
   const handleCambiarCantidad = (delta: number) => {
@@ -108,7 +109,7 @@ export default function ModalCoccionArepa({
                 {producto.nombre}
               </h2>
               <p style={{ fontSize: 12, color: "var(--primary)", margin: 0, fontWeight: 700 }}>
-                ${precioUsd.toFixed(2)} USD • Bs. {precioBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                €{precioUsd.toFixed(2)} • Bs. {precioBs.toLocaleString("es-VE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
@@ -127,7 +128,7 @@ export default function ModalCoccionArepa({
           <div className="coccion-question-box">
             <h3 className="coccion-question-title">¿Cómo deseas tu arepa?</h3>
             <p className="coccion-question-sub">
-              Elige el tipo de cocción preferido. Ambas opciones tienen el mismo costo.
+              Elige el tipo de cocción preferido. Ambas opciones están hechas al momento.
             </p>
           </div>
 
@@ -155,6 +156,29 @@ export default function ModalCoccionArepa({
                 +
               </button>
             </div>
+          </div>
+
+          {/* Campo de Notas Especiales */}
+          <div style={{ marginTop: 14, marginBottom: 12 }}>
+            <label style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)", display: "block", marginBottom: 6 }}>
+              Instrucciones especiales (opcional):
+            </label>
+            <input
+              type="text"
+              placeholder="Ej: sin cebolla, extra salsa, salsa tártara aparte..."
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              className="pedir-search-input"
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                fontSize: 13,
+                borderRadius: 10,
+                border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--text)",
+              }}
+            />
           </div>
 
           {/* Tarjetas de Selección de Cocción */}

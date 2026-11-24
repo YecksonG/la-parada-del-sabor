@@ -345,7 +345,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
     const texto = `🧾 *Recibo de Compra - La Parada del Sabor*\n` +
       `📌 *Comanda:* #${venta.numero_comanda.toString().padStart(4, "0")}\n` +
       `👤 *Cliente:* ${venta.cliente?.nombre || "Cliente Mostrador"}\n` +
-      `💰 *Total:* $${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}\n` +
+      `💰 *Total:* €${Number(venta.total_usd).toFixed(2)} / Bs. ${Number(venta.total_bs).toFixed(2)}\n` +
       `🔗 *Ver Detalle & Estado en vivo:* ${reciboUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank");
   };
@@ -652,7 +652,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                       </div>
                       <div className="recibo-item-prices">
                         <span className="recibo-item-total-usd">
-                          ${precioTotalItem.toFixed(2)}
+                          €{precioTotalItem.toFixed(2)}
                         </span>
                         <span className="recibo-item-total-bs">
                           Bs. {bsItem.toFixed(2)}
@@ -735,7 +735,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
               <div className="recibo-total-line" style={{ color: "var(--primary)" }}>
                 <span>🛵 Delivery ({venta.delivery_zona_nombre || "Sector"}):</span>
                 <strong>
-                  +${Number(venta.delivery_monto_usd).toFixed(2)} USD • Bs. {Number(venta.delivery_monto_bs || (Number(venta.delivery_monto_usd) * Number(venta.tasa_bcv))).toFixed(2)}
+                  {Number(venta.delivery_monto_usd) === 0 ? "¡GRATIS!" : `+€${Number(venta.delivery_monto_usd).toFixed(2)} • Bs. ${Number(venta.delivery_monto_bs || (Number(venta.delivery_monto_usd) * Number(venta.tasa_bcv))).toFixed(2)}`}
                 </strong>
               </div>
             )}
@@ -748,7 +748,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                 <span className="recibo-total-subtitle">Monto final verificado</span>
               </div>
               <div className="recibo-total-values">
-                <span className="recibo-price-usd">${Number(venta.total_usd).toFixed(2)} USD</span>
+                <span className="recibo-price-usd">€{Number(venta.total_usd).toFixed(2)}</span>
                 <span className="recibo-price-bs">Bs. {Number(venta.total_bs).toFixed(2)}</span>
               </div>
             </div>
@@ -1060,7 +1060,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
 
                     <a
                       href={`https://wa.me/584122595386?text=${encodeURIComponent(
-                        `¡Hola La Parada del Sabor! 🫓 Acabo de registrar mi pedido #${venta.numero_comanda.toString().padStart(4, "0")} por la web ($${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}).\n\nAdjunto mi comprobante de pago${requiereUbicacionWa ? " y mi ubicación para el repartidor" : ""}.\n\n🔗 Factura digital & estado en vivo:\n${reciboUrl}`
+                        `¡Hola La Parada del Sabor! 🫓 Acabo de registrar mi pedido #${venta.numero_comanda.toString().padStart(4, "0")} por la web (€${Number(venta.total_usd).toFixed(2)} / Bs. ${Number(venta.total_bs).toFixed(2)}).\n\nAdjunto mi comprobante de pago${requiereUbicacionWa ? " y mi ubicación para el repartidor" : ""}.\n\n🔗 Factura digital & estado en vivo:\n${reciboUrl}`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -1102,7 +1102,7 @@ export default function ReciboClienteView({ venta: ventaInicial }: { venta: Reci
                     </div>
                   ) : (
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                      💵 ¡Tu orden está registrada en caja! Por favor ten a mano el monto exacto (${Number(venta.total_usd).toFixed(2)} USD / Bs. ${Number(venta.total_bs).toFixed(2)}) al recibir o retirar tu pedido.
+                      💵 ¡Tu orden está registrada en caja! Por favor ten a mano el monto exacto (€${Number(venta.total_usd).toFixed(2)} / Bs. ${Number(venta.total_bs).toFixed(2)}) al recibir o retirar tu pedido.
                     </p>
                   )}
                 </div>
